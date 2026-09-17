@@ -1,0 +1,399 @@
+openapi: 3.0.3
+info:
+  title: 黄冠AI Academy API
+  version: 2.0.0
+  description: 学生教育培训平台 API（/api/v1），含错题分析、预约、学习总结与练习模块。
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: yy_session
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    LoginInput:
+      type: object
+      required: [phone, password]
+      properties:
+        phone:
+          type: string
+        password:
+          type: string
+    SummaryType:
+      type: string
+      enum: [WEEKLY, MONTHLY, SEMESTER]
+    SummaryStatus:
+      type: string
+      enum: [DRAFT, PENDING_REVIEW, REVIEWED, PUBLISHED]
+    GenerateSummaryInput:
+      type: object
+      required: [studentId, type]
+      properties:
+        studentId:
+          type: string
+        type:
+          $ref: "#/components/schemas/SummaryType"
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        month:
+          type: string
+          example: "2026-07"
+        week:
+          type: string
+          example: "2026-07-06"
+        termId:
+          type: string
+    AcademicTermInput:
+      type: object
+      required: [name, startDate, endDate]
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        isActive:
+          type: boolean
+          default: true
+paths:
+  /auth/login:
+    post:
+      summary: 登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: 登录成功，下发会话与 CSRF Cookie
+  /auth/me:
+    get:
+      summary: 当前用户
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 当前用户信息
+        "401":
+          description: 未登录
+  /auth/change-password:
+    post:
+      summary: 修改密码
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      responses:
+        "200":
+          description: 修改成功
+  /wrong-questions:
+    get:
+      summary: 错题列表（家庭）
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: subject
+          in: query
+          schema:
+            type: string
+            enum: [MATH, ENGLISH]
+        - name: mastered
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: knowledgePoint
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 错题列表
+    post:
+      summary: 上传错题图片
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [subject, image]
+              properties:
+                subject:
+                  type: string
+                  enum: [MATH, ENGLISH]
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 上传成功，返回 PROCESSING
+  /wrong-questions/{id}/feedback:
+    post:
+      summary: 学生反馈
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feedback]
+              properties:
+                feedback:
+                  type: string
+                  enum: [ACCURATE, NEEDS_REVIEW]
+      responses:
+        "200":
+          description: 反馈成功
+  /teacher/wrong-questions:
+    get:
+      summary: 待复核队列
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 待复核列表
+  /teacher/wrong-questions/{id}/review:
+    patch:
+      summary: 老师审核
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 审核成功
+  /bookings:
+    post:
+      summary: 预约一对一
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slotId]
+              properties:
+                slotId:
+                  type: string
+      responses:
+        "200":
+          description: 预约成功
+        "409":
+          description: 重复/时间冲突/时段不可用
+  /summaries:
+    get:
+      summary: 学习总结列表（家庭仅已发布）
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/SummaryType"
+      responses:
+        "200":
+          description: 总结列表
+  /summaries/generate:
+    post:
+      summary: 生成学习总结草稿（幂等）
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSummaryInput"
+      responses:
+        "200":
+          description: 草稿已生成或复用已存在总结（created=false）
+  /summaries/{id}/review:
+    patch:
+      summary: 审核学习总结
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 审核成功
+  /summaries/{id}/publish:
+    post:
+      summary: 发布学习总结
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 发布成功
+  /practice-sets:
+    get:
+      summary: 练习/模拟题组列表
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 练习列表
+  /admin/academic-terms:
+    get:
+      summary: 学期列表
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 学期列表
+    post:
+      summary: 创建学期
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcademicTermInput"
+      responses:
+        "200":
+          description: 创建成功
+  /admin/academic-terms/{id}:
+    patch:
+      summary: 修改学期
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcademicTermInput"
+      responses:
+        "200":
+          description: 修改成功
+  /reports:
+    get:
+      summary: 旧月报兼容别名（type=MONTHLY）
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: 月报列表
+  /reports/generate:
+    post:
+      summary: 旧月报生成兼容别名
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [studentId, month]
+              properties:
+                studentId:
+                  type: string
+                month:
+                  type: string
+                  example: "2026-07"
+      responses:
+        "200":
+          description: 草稿已生成或复用
+  /internal/cleanup:
+    post:
+      summary: 数据清理（X-Cron-Secret）
+      responses:
+        "200":
+          description: 清理完成
+  /images/{id}:
+    get:
+      summary: 临时原图访问（OSS 模式返回 302 签名 URL）
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 图片内容或签名 URL 重定向
+        "302":
+          description: OSS 短期签名 URL

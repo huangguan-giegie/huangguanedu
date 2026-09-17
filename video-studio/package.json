@@ -1,0 +1,28 @@
+{
+  "name": "video-studio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "generate": "tsx src/cli.ts generate",
+    "preview": "tsx src/cli.ts preview",
+    "render": "tsx src/cli.ts render",
+    "review": "tsx src/cli.ts review",
+    "make": "tsx src/cli.ts make",
+    "make-course": "tsx scripts/make-course.ts",
+    "setup": "tsx src/cli.ts setup"
+  },
+  "dependencies": {
+    "hyperframes": "^0.7.107",
+    "js-yaml": "^4.1.0",
+    "yy-academy-mvp": "file:..",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.23.5",
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,626 @@
+// 黄冠AI Academy 数据模型
+// PostgreSQL（本地 Docker / 测试 / 生产 RDS 统一使用）
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- 枚举 ----------
+
+// 用户角色
+enum UserRole {
+  ADMIN
+  TEACHER
+  FAMILY
+}
+
+// 课程类型
+enum CourseType {
+  SMALL_CLASS
+  ONE_ON_ONE
+}
+
+// 课程时段状态
+enum SlotStatus {
+  OPEN
+  FULL
+  CANCELLED
+}
+
+// 预约状态
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  ABSENT
+}
+
+// 出勤状态
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+// 科目(MVP 仅数学、英语)
+enum Subject {
+  MATH
+  ENGLISH
+}
+
+// 错题状态
+enum WrongQuestionStatus {
+  PROCESSING
+  PENDING_STUDENT_CONFIRMATION
+  PUBLISHED
+  NEEDS_REVIEW
+  REVIEWED
+}
+
+// 分析任务状态
+enum AnalysisJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// 学生反馈值
+enum FeedbackValue {
+  ACCURATE
+  NEEDS_REVIEW
+}
+
+// 难度
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+  UNKNOWN
+}
+
+// 临时原图审核状态
+enum RawImageReviewStatus {
+  NORMAL
+  AWAITING_REVIEW
+  REVIEWED
+  EXPIRED
+}
+
+// 再次作答结果
+enum AttemptResult {
+  CORRECT
+  INCORRECT
+  PARTIAL
+}
+
+// 学习总结类型
+enum SummaryType {
+  WEEKLY
+  MONTHLY
+  SEMESTER
+}
+
+// 学习总结状态
+enum SummaryStatus {
+  DRAFT
+  PENDING_REVIEW
+  REVIEWED
+  PUBLISHED
+}
+
+// ---------- 认证与权限 ----------
+
+// 用户(手机号登录;不含明文密码)
+model User {
+  id                 String    @id @default(cuid())
+  phone              String    @unique
+  passwordHash       String
+  role               UserRole
+  name               String
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  sessions             Session[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+  guardianConsents     GuardianConsent[]
+  familyAccount        FamilyAccount?
+  teacherProfile       TeacherProfile?
+  makeupCreditsCreated MakeupCredit[]    @relation("MakeupCreditCreator")
+  reviewedSummaries     LearningSummary[] @relation("LearningSummaryReviewer")
+  createdAcademicTerms  AcademicTerm[]    @relation("AcademicTermCreator")
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+// 会话(数据库只存 token 哈希)
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// 审计日志(管理员/老师写操作与审核操作)
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorName  String?
+  action     String
+  targetType String
+  targetId   String
+  summary    String
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+// 系统设置(键值对)
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------- 账户与学生/老师 ----------
+
+// 家庭账户(与 User 一对一)
+model FamilyAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student Student?
+}
+
+// 学生(MVP 每个家庭账户绑定一个学生)
+model Student {
+  id              String   @id @default(cuid())
+  familyAccountId String   @unique
+  name            String
+  grade           String
+  school          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  familyAccount      FamilyAccount              @relation(fields: [familyAccountId], references: [id], onDelete: Cascade)
+  teacherAssignments TeacherStudentAssignment[]
+  entitlements       StudentEntitlement[]
+  bookings           Booking[]
+  attendanceRecords  AttendanceRecord[]
+  makeupCredits      MakeupCredit[]
+  wrongQuestions     WrongQuestion[]
+  rawQuestionImages  RawQuestionImage[]
+  summaries         LearningSummary[]
+  practiceSets      PracticeSet[]
+
+  @@index([name])
+}
+
+// 老师档案(学历等扩展信息)
+model TeacherProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  avatarPath String?
+  university String?
+  major      String?
+  degree     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments TeacherStudentAssignment[]
+  courseSlots CourseSlot[]
+
+  @@index([university])
+}
+
+// 老师与学生负责关系(含生效时间)
+model TeacherStudentAssignment {
+  id        String    @id @default(cuid())
+  teacherId String
+  studentId String
+  startsAt  DateTime  @default(now())
+  endsAt    DateTime?
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, studentId])
+  @@index([studentId])
+}
+
+// 监护人隐私同意记录
+model GuardianConsent {
+  id          String   @id @default(cuid())
+  userId      String
+  version     String
+  consentedAt DateTime @default(now())
+  ip          String?
+  userAgent   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------- 套餐、课程与预约 ----------
+
+// 套餐计划(小班月卡 / 一对一课时)
+model PackagePlan {
+  id          String     @id @default(cuid())
+  name        String
+  type        CourseType
+  priceCents  Int
+  periodText  String
+  description String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  entitlements StudentEntitlement[]
+
+  @@index([type])
+}
+
+// 学生套餐权益
+model StudentEntitlement {
+  id                   String   @id @default(cuid())
+  studentId            String
+  planId               String
+  startsAt             DateTime
+  endsAt               DateTime
+  paid                 Boolean  @default(false)
+  usedHours            Int      @default(0)
+  remainingHours       Int      @default(0)
+  monthlyOneOnOneHours Int      @default(0)
+  createdAt            DateTime @default(now())
+
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  plan    PackagePlan @relation(fields: [planId], references: [id])
+  bookings Booking[]
+
+  @@index([studentId])
+  @@index([planId])
+  @@unique([studentId, planId])
+}
+
+// 课程时段(小班上限 5、一对一上限 1,预约时硬校验)
+model CourseSlot {
+  id        String     @id @default(cuid())
+  type      CourseType
+  grade     String
+  subject   Subject
+  teacherId String
+  date      DateTime
+  startTime DateTime
+  endTime   DateTime
+  location  String     @default("712 社区")
+  capacity  Int        @default(1)
+  status    SlotStatus @default(OPEN)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  teacher           TeacherProfile     @relation(fields: [teacherId], references: [id])
+  bookings          Booking[]
+  attendanceRecords AttendanceRecord[]
+
+  @@index([date])
+  @@index([teacherId])
+  @@index([subject])
+  @@index([type])
+}
+
+// 预约(事务内防重复/防冲突/防超容量)
+model Booking {
+  id          String        @id @default(cuid())
+  studentId   String
+  slotId      String
+  entitlementId String?
+  status      BookingStatus @default(PENDING)
+  lockedHours Int           @default(0)
+  createdAt   DateTime      @default(now())
+  cancelledAt DateTime?
+
+  student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slot    CourseSlot @relation(fields: [slotId], references: [id])
+  entitlement StudentEntitlement? @relation(fields: [entitlementId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, slotId])
+  @@index([slotId])
+  @@index([studentId])
+  @@index([status])
+}
+
+// 出勤记录
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  studentId String
+  slotId    String
+  status    AttendanceStatus @default(PRESENT)
+  note      String?
+  createdAt DateTime         @default(now())
+
+  student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slot    CourseSlot @relation(fields: [slotId], references: [id])
+
+  @@unique([studentId, slotId])
+  @@index([slotId])
+}
+
+// 补课记录
+model MakeupCredit {
+  id        String   @id @default(cuid())
+  studentId String
+  hours     Int
+  reason    String
+  note      String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  creator User    @relation("MakeupCreditCreator", fields: [createdBy], references: [id])
+
+  @@index([studentId])
+  @@index([createdBy])
+}
+
+// 站内通知(短信/微信留 NotificationProvider 接口,后续实现)
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+// ---------- 错题与图片 ----------
+
+// 临时原图(原图不进长期错题本,按规则过期删除)
+model RawQuestionImage {
+  id              String               @id @default(cuid())
+  studentId       String
+  wrongQuestionId String?
+  filePath        String
+  mimeType        String
+  sizeBytes       Int
+  expiresAt       DateTime
+  reviewStatus    RawImageReviewStatus @default(NORMAL)
+  deletedAt       DateTime?
+  createdAt       DateTime             @default(now())
+
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  wrongQuestion WrongQuestion? @relation(fields: [wrongQuestionId], references: [id], onDelete: SetNull)
+
+  @@index([studentId])
+  @@index([wrongQuestionId])
+  @@index([expiresAt])
+  @@index([reviewStatus])
+}
+
+// 错题(结构化分析结果)
+model WrongQuestion {
+  id        String              @id @default(cuid())
+  studentId String
+  subject   Subject
+  status    WrongQuestionStatus @default(PROCESSING)
+
+  // 识别结果
+  recognizedQuestion String?
+  questionType       String?
+  correctSteps       Json?
+  thinkingHint       String?
+  finalAnswer        String?
+  errorCauses        Json?
+  knowledgePoints    Json?
+  difficulty         Difficulty @default(UNKNOWN)
+  aiConfidence       Float?
+  remedialPractice   Json?
+  errorType          String?
+
+  // 学生演算过程(有过程时必填,没有则为 null,不得臆测)
+  studentWorkDetected      Boolean?
+  studentWorkTranscription String?
+  studentApproach          String?
+  firstErrorStep           String?
+  misconception            String?
+  whatStudentDidWell       String?
+
+  // 老师修订与审核
+  teacherRevisedContent Json?
+  teacherNote           String?
+  needsTeacherReview    Boolean        @default(false)
+  isAiGenerated         Boolean        @default(false)
+  isTeacherReviewed     Boolean        @default(false)
+  studentConfirmedAt    DateTime?
+  feedbackValue         FeedbackValue?
+
+  // 掌握与复习
+  mastered       Boolean?
+  firstSeenAt    DateTime  @default(now())
+  lastReviewedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  student               Student                       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  rawImages             RawQuestionImage[]
+  occurrences           WrongQuestionOccurrence[]
+  knowledgePointRecords WrongQuestionKnowledgePoint[]
+  answerAttempts        StudentAnswerAttempt[]
+  analysisJobs          AnalysisJob[]
+
+  @@index([studentId])
+  @@index([subject])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([isTeacherReviewed])
+}
+
+// 错题再次出错记录(用于统计薄弱知识点)
+model WrongQuestionOccurrence {
+  id              String   @id @default(cuid())
+  wrongQuestionId String
+  occurredAt      DateTime @default(now())
+  note            String?
+
+  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+
+  @@index([wrongQuestionId])
+  @@index([occurredAt])
+}
+
+// 错题知识点(支持按知识点筛选)
+model WrongQuestionKnowledgePoint {
+  id              String @id @default(cuid())
+  wrongQuestionId String
+  knowledgePoint  String
+
+  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+
+  @@unique([wrongQuestionId, knowledgePoint])
+  @@index([knowledgePoint])
+}
+
+// 学生再次作答记录
+model StudentAnswerAttempt {
+  id              String        @id @default(cuid())
+  wrongQuestionId String
+  answer          String
+  result          AttemptResult @default(INCORRECT)
+  attemptedAt     DateTime      @default(now())
+
+  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+
+  @@index([wrongQuestionId])
+  @@index([attemptedAt])
+}
+
+// 分析任务(异步,失败最多重试 2 次)
+model AnalysisJob {
+  id              String            @id @default(cuid())
+  wrongQuestionId String
+  status          AnalysisJobStatus @default(PENDING)
+  attempts        Int               @default(0)
+  nextRunAt       DateTime          @default(now())
+  lockedAt        DateTime?
+  lastError       String?
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRunAt])
+  @@index([wrongQuestionId])
+}
+
+// ---------- 学习总结与练习 ----------
+
+// 学习总结(周报/月报/学期总结;每名学生、每种类型、每个统计周期最多一份,保证重复生成幂等)
+model LearningSummary {
+  id                String        @id @default(cuid())
+  studentId         String
+  type              SummaryType
+  periodStart       DateTime
+  periodEnd         DateTime
+  status            SummaryStatus @default(DRAFT)
+  stats             Json?
+  aiSuggestions     Json?
+  aiError           String?
+  aiGeneratedAt     DateTime?
+  needsRetry        Boolean       @default(false)
+  isAiGenerated     Boolean       @default(false)
+  isTeacherReviewed Boolean       @default(false)
+  reviewerId        String?
+  reviewedAt        DateTime?
+  publishedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reviewer      User?          @relation("LearningSummaryReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  practiceSets  PracticeSet[]
+
+  @@unique([studentId, type, periodStart, periodEnd])
+  @@index([studentId, status])
+  @@index([type, periodStart, periodEnd])
+  @@index([needsRetry])
+}
+
+// 学期(管理员配置开始/结束日期,用于学期总结)
+model AcademicTerm {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator User @relation("AcademicTermCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([isActive, startDate])
+}
+
+// 练习/模拟题组(独立模块,不再强制关联学习总结;可保留 summaryId 溯源)
+model PracticeSet {
+  id        String   @id @default(cuid())
+  studentId String
+  title     String
+  summaryId String?
+  createdAt DateTime @default(now())
+
+  student  Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  summary  LearningSummary?    @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+  questions PracticeQuestion[]
+
+  @@index([studentId])
+  @@index([summaryId])
+}
+
+// 模拟题
+model PracticeQuestion {
+  id            String   @id @default(cuid())
+  practiceSetId String
+  question      String
+  answer        String
+  explanation   String?
+  createdAt     DateTime @default(now())
+
+  practiceSet PracticeSet @relation(fields: [practiceSetId], references: [id], onDelete: Cascade)
+
+  @@index([practiceSetId])
+}

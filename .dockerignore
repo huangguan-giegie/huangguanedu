@@ -1,0 +1,35 @@
+# 依赖与构建产物
+node_modules
+.next
+out
+coverage
+
+# Git 与工具目录
+.git
+.gitignore
+.worktrees
+.superpowers
+.claude
+.windsurf
+.agents
+
+# 环境与密钥（严禁进入镜像）
+.env
+.env.*
+!.env.example
+nginx/certs
+
+# 本地数据与日志
+storage
+uploads
+*.db
+*.db-journal
+*.log
+test-results
+playwright-report
+
+# 旧 SQLite 迁移与测试/文档（运行镜像不需要）
+prisma/migrations-sqlite
+e2e
+docs
+scripts/__pgdiag.ts

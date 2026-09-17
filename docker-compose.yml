@@ -1,0 +1,79 @@
+# 本地开发（postgres）与生产（web + jobs + nginx + postgres）统一编排
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-huangguan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-huangguan_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-huangguanedu}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-huangguan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: &app-env
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-huangguan}:${POSTGRES_PASSWORD:-huangguan_dev}@postgres:5432/${POSTGRES_DB:-huangguanedu}?sslmode=disable
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_REGION: ${OSS_REGION:-}
+      OSS_BUCKET: ${OSS_BUCKET:-}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_URL_EXPIRES_SECONDS: ${OSS_URL_EXPIRES_SECONDS:-300}
+      QWEN_MODE: ${QWEN_MODE:-mock}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen3.7-plus}
+      QWEN_IMAGE_TRANSPORT: ${QWEN_IMAGE_TRANSPORT:-object_storage}
+      QWEN_MAX_PIXELS: ${QWEN_MAX_PIXELS:-4194304}
+      QWEN_REQUEST_TIMEOUT_MS: ${QWEN_REQUEST_TIMEOUT_MS:-30000}
+      QWEN_MAX_RETRIES: ${QWEN_MAX_RETRIES:-2}
+      QWEN_ENABLE_THINKING: ${QWEN_ENABLE_THINKING:-false}
+      TRUSTED_PROXY: ${TRUSTED_PROXY:-false}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-黄冠AI Academy}
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  jobs:
+    build:
+      context: .
+      target: jobs
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: *app-env
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+
+volumes:
+  pgdata:

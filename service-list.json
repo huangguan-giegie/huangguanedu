@@ -1,0 +1,26 @@
+﻿{
+  "data": {
+    "RequestId": "bad9ed13-e1a6-43c0-b9e1-249aed9ad9c6",
+    "ServerList": [
+      {
+        "ServerName": "huangguan-ai-api",
+        "DefaultDomainName": "",
+        "CustomDomainName": "",
+        "Status": "normal",
+        "UpdateTime": "2026-08-14 23:44:03",
+        "AccessTypes": [
+          "OA",
+          "PUBLIC",
+          "MINIAPP"
+        ],
+        "CustomDomainNames": [
+          ""
+        ],
+        "ServerType": "container",
+        "TrafficType": "FLOW",
+        "CreateTime": "2026-08-08 21:24:33"
+      }
+    ],
+    "Total": 1
+  }
+}

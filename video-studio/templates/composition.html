@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>{{TITLE}}</title>
+  <style>
+    :root { color-scheme: dark; --ink: #f3eee5; --muted: #a6a09a; --coral: #ff795f; --blue: #72b7ff; --stage: #08090d; --line: #33363d; }
+    * { box-sizing: border-box; }
+    @font-face { font-family: "Noto Sans SC"; src: local("Noto Sans SC"), local("Noto Sans CJK SC"); }
+    @font-face { font-family: "Noto Serif SC"; src: local("Noto Serif SC"); }
+    @font-face { font-family: "Microsoft YaHei UI"; src: local("Microsoft YaHei UI"); }
+    @font-face { font-family: "Microsoft YaHei"; src: local("Microsoft YaHei"); }
+    body { margin: 0; background: #030405; color: var(--ink); font-family: "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif; }
+    .clip { visibility: hidden; }
+    #root { width: 1920px; height: 1080px; aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: radial-gradient(circle at 72% 18%, #17191f 0, var(--stage) 48%, #020205 100%); }
+    .eyebrow { position: absolute; top: 54px; left: 96px; color: var(--muted); font-size: 21px; letter-spacing: .16em; }
+    .title { position: absolute; top: 82px; left: 96px; margin: 0; color: var(--ink); font-size: 54px; font-weight: 600; }
+    .challenge-badge { padding: 10px 20px; border: 1px solid var(--coral); border-radius: 999px; color: var(--coral); }
+    .grid, .axis, .curve { fill: none; stroke-dasharray: 1; }
+    .grid { stroke: rgba(243,238,229,.09); stroke-width: 1.5; }
+    .axis { stroke: rgba(243,238,229,.55); stroke-width: 3; }
+    .curve { stroke: var(--coral); stroke-width: 8; stroke-linecap: round; }
+    .curve-tracer { fill: var(--ink); stroke: var(--coral); stroke-width: 4; }
+    .projection { stroke: var(--blue); stroke-width: 3; stroke-dasharray: 10 10; }
+    .vertex { fill: var(--coral); }
+    .formula-card, .formula-callout { border: 1px solid rgba(243,238,229,.18); border-radius: 16px; }
+    .formula-callout { position: absolute; top: 28px; left: 50%; transform: translateX(-50%); z-index: 2; }
+    .formula { font-family: "Noto Serif SC", "Noto Sans SC", serif; }
+    .equation-steps { width: min(1180px, 92%); display: grid; gap: 12px; padding: 18px 32px; border-left: 3px solid var(--blue); }
+    .equation-step { opacity: 0; }
+    .equation-step.current-equation-step { color: #fff7dc; background: rgba(255,128,102,.13); }
+    .subtitle { position: absolute; left: 150px; right: 150px; bottom: 24px; min-height: 76px; padding: 8px 28px; font-size: 30px; line-height: 1.35; display: flex; align-items: flex-end; justify-content: center; align-content: flex-end; flex-wrap: wrap; overflow: hidden; text-align: center; }
+    .subtitle-char { display: inline-block; min-width: .5em; white-space: pre; }
+    .option-wrong { border-color: var(--coral); color: var(--coral); }
+  </style>
+</head>
+<body>
+  <main id="root" data-composition-id="root" data-start="0" data-width="1920" data-height="1080" data-fps="30" width="1920" height="1080">
+    <div class="eyebrow">数学实验室</div>
+    <h1 class="title">{{TITLE}}</h1>
+    {{COMPOSITION_BODY}}
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    const timeline = gsap.timeline({ paused: true });
+    {{TIMELINE_STEPS}}
+    window.__timelines = window.__timelines || {};
+    window.__timelines["root"] = timeline;
+  </script>
+</body>
+</html>
