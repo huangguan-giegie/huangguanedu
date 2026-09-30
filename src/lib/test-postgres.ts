@@ -9,9 +9,24 @@ import { createRequire } from "node:module";
 import { Client } from "pg";
 
 const require = createRequire(join(process.cwd(), "package.json"));
-// 通过包根导出（dist/index.js）定位包根目录
-const pkgDir = dirname(dirname(require.resolve("@embedded-postgres/windows-x64")));
-const binDir = join(pkgDir, "native", "bin");
+
+function embeddedBinDir(): string {
+  if (process.platform !== "win32") {
+    throw new Error(
+      "当前平台不支持 Windows 嵌入式 PostgreSQL；请提供可用 PostgreSQL（默认端口 55432 或 YY_TEST_PG_PORT）",
+    );
+  }
+  try {
+    const pkgDir = dirname(
+      dirname(require.resolve("@embedded-postgres/windows-x64")),
+    );
+    return join(pkgDir, "native", "bin");
+  } catch {
+    throw new Error(
+      "未安装 @embedded-postgres/windows-x64；请执行 npm install 或提供外部 PostgreSQL",
+    );
+  }
+}
 
 export const DEFAULT_TEST_PG_PORT = 55432;
 
@@ -53,6 +68,7 @@ export async function isPostgresUp(port: number): Promise<boolean> {
 
 /** 启动嵌入式 PostgreSQL（阻塞直到可用），返回控制句柄。 */
 export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
+  const binDir = embeddedBinDir();
   const dataDir = mkdtempSync(join(tmpdir(), "yy-pg-"));
   const logFile = join(dataDir, "postgres.log");
 
@@ -172,6 +188,7 @@ export async function getOrStartTestPostgres(): Promise<TestPostgres> {
       stop() {
         // 复用的实例若由本机启动过（标记文件存在），负责停止，避免进程残留
         if (ownedDataDir) {
+          const binDir = embeddedBinDir();
           spawnSync(
             join(binDir, "pg_ctl.exe"),
             ["-D", ownedDataDir, "stop", "-m", "fast"],
