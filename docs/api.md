@@ -47,6 +47,8 @@
 | POST | /summaries/generate | 生成学习总结草稿（studentId + type + 周期） |
 | PATCH | /summaries/:id/review | 审核学习总结 |
 | POST | /summaries/:id/publish | 发布学习总结 |
+| GET | /practice-sets | 查看负责学生的模拟题组 |
+| POST | /practice-sets/generate | 按近期数学错题与薄弱知识点生成 3–5 道模拟题（studentId + count） |
 
 生成总结请求体：
 
@@ -78,6 +80,8 @@
 | PATCH | /admin/entitlements/:id | 调整权益 |
 | GET/POST | /admin/academic-terms | 学期列表/创建 |
 | PATCH | /admin/academic-terms/:id | 修改学期（名称/日期/启用状态） |
+| GET | /practice-sets | 查看全部模拟题组 |
+| POST | /practice-sets/generate | 为任意学生生成 3–5 道数学模拟题 |
 
 ## 兼容别名
 
@@ -88,7 +92,7 @@
 | PATCH /reports/:id/review | 审核月报（兼容） |
 | POST /reports/:id/publish | 发布月报（兼容） |
 
-旧月报中的模拟题数据已迁移到独立练习模块，不再嵌入总结响应，通过 `/practice-sets` 获取。
+模拟题为独立练习模块：通过 `GET /practice-sets` 获取，通过 `POST /practice-sets/generate` 生成。生成时优先使用学生近期数学错题与薄弱知识点；没有历史错题时按年级生成基础综合题。
 
 ## 内部
 
