@@ -69,10 +69,12 @@ export default function LoginPage() {
             {loading ? "登录中…" : "登录"}
           </button>
         </form>
-        <p className="mt-4 text-xs text-[#1e2a3a]/50">
-          演示账号：13800000001（管理员）/ 13800000002（老师）/ 13800000003（家庭），
-          初始密码 Temp@123456
-        </p>
+        {process.env.NODE_ENV !== "production" && (
+          <p className="mt-4 text-xs text-[#1e2a3a]/50">
+            演示账号：13800000001（管理员）/ 13800000002（老师）/ 13800000003（家庭），
+            初始密码 Temp@123456
+          </p>
+        )}
       </div>
     </div>
   );
