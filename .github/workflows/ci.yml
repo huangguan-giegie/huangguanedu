@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "fix/**", "codex/**", "deploy/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      YY_TEST_PG_PORT: "55432"
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/postgres
+      QWEN_MODE: mock
+      STORAGE_PROVIDER: local
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          NODE_ENV: production
+          APP_BASE_URL: http://localhost:3000
+          SESSION_SECRET: ci-session-secret
+          CRON_SECRET: ci-cron-secret
+          STORAGE_PROVIDER: local
+          TRUSTED_PROXY: "false"
+          QWEN_MODE: live
+          DASHSCOPE_API_KEY: ci-placeholder
+          DASHSCOPE_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
