@@ -19,6 +19,7 @@ import { POST as generateSummary } from "../summaries/generate/route";
 import { PATCH as reviewSummary } from "../summaries/[id]/review/route";
 import { POST as publishSummary } from "../summaries/[id]/publish/route";
 import { GET as listPracticeSets } from "../practice-sets/route";
+import { POST as generatePracticeSet } from "../practice-sets/generate/route";
 import { GET as listTerms } from "../admin/academic-terms/route";
 import { POST as createTerm } from "../admin/academic-terms/route";
 import { PATCH as updateTerm } from "../admin/academic-terms/[id]/route";
@@ -613,6 +614,58 @@ describe("学习总结与月报兼容 API", () => {
     const body = await res.json();
     expect(body.data.items).toHaveLength(0);
     void student;
+  });
+
+  it("老师可基于数学错题生成 3-5 道模拟题并入库", async () => {
+    const { family, teacher, student } = await seedDemo();
+    await createPublishedQuestion(student.id, "MATH", ["一元一次方程"]);
+    const teacherSession = await sessionFor(teacher.phone);
+
+    const generated = await generatePracticeSet(
+      authedRequest(
+        "/api/v1/practice-sets/generate",
+        "POST",
+        teacherSession.sessionToken,
+        teacherSession.csrfToken,
+        { studentId: student.id, count: 4 },
+      ),
+    );
+    expect(generated.status).toBe(200);
+    const generatedBody = await generated.json();
+    expect(generatedBody.data.questions).toHaveLength(4);
+    expect(generatedBody.data.title).toContain("数学");
+
+    const stored = await prisma.practiceSet.findUniqueOrThrow({
+      where: { id: generatedBody.data.id },
+      include: { questions: true },
+    });
+    expect(stored.questions).toHaveLength(4);
+
+    const familySession = await sessionFor(family.phone);
+    const listed = await listPracticeSets(
+      authedRequest(
+        "/api/v1/practice-sets",
+        "GET",
+        familySession.sessionToken,
+        familySession.csrfToken,
+      ),
+    );
+    expect((await listed.json()).data.items).toHaveLength(1);
+  });
+
+  it("家庭账户不能调用模拟题生成接口", async () => {
+    const { family, student } = await seedDemo();
+    const familySession = await sessionFor(family.phone);
+    const response = await generatePracticeSet(
+      authedRequest(
+        "/api/v1/practice-sets/generate",
+        "POST",
+        familySession.sessionToken,
+        familySession.csrfToken,
+        { studentId: student.id, count: 5 },
+      ),
+    );
+    expect(response.status).toBe(403);
   });
 
   it("总结列表：家庭只看到已发布，老师只能看负责学生", async () => {

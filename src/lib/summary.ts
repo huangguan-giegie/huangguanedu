@@ -2,9 +2,9 @@
 // 每名学生、每种总结类型、每个统计周期最多一份，重复生成返回已存在总结。
 import type { Prisma, PrismaClient } from "../generated/prisma/client";
 import type { SummaryType } from "../generated/prisma/enums";
-import { generateSummaryAi, type SummaryAiError } from "./summary-ai";
+import { generateSummaryAi, SummaryAiError } from "./summary-ai";
 
-export type { SummaryAiError };
+export { SummaryAiError };
 
 export class SummaryError extends Error {
   constructor(
@@ -228,6 +228,7 @@ export async function generateSummaryTx(
 
   let aiSuggestions: unknown = null;
   let aiError: string | null = null;
+  let aiShouldRetry = false;
   let isAiGenerated = false;
   let aiGeneratedAt: Date | null = null;
   try {
@@ -246,6 +247,7 @@ export async function generateSummaryTx(
     aiGeneratedAt = new Date();
   } catch (error) {
     aiError = error instanceof Error ? error.message : "未知错误";
+    aiShouldRetry = error instanceof SummaryAiError && error.retryable;
   }
 
   try {
@@ -261,7 +263,7 @@ export async function generateSummaryTx(
         aiError,
         aiGeneratedAt,
         isAiGenerated,
-        needsRetry: aiError !== null,
+        needsRetry: aiShouldRetry,
       },
     });
     return { summaryId: summary.id, created: true };
@@ -449,6 +451,16 @@ export async function processDueSummaries(
       result.retried += 1;
     } catch (error) {
       result.errors += 1;
+      const shouldRetry = error instanceof SummaryAiError && error.retryable;
+      if (!shouldRetry) {
+        await prisma.learningSummary.update({
+          where: { id: summary.id },
+          data: {
+            needsRetry: false,
+            aiError: error instanceof Error ? error.message : "未知错误",
+          },
+        });
+      }
       console.error(
         `[summaries] AI 重试失败 summary=${summary.id}`,
         error,

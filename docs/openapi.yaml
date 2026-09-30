@@ -66,6 +66,17 @@ components:
           example: "2026-07-06"
         termId:
           type: string
+    GeneratePracticeSetInput:
+      type: object
+      required: [studentId]
+      properties:
+        studentId:
+          type: string
+        count:
+          type: integer
+          minimum: 3
+          maximum: 5
+          default: 5
     AcademicTermInput:
       type: object
       required: [name, startDate, endDate]
@@ -302,6 +313,27 @@ paths:
       responses:
         "200":
           description: 练习列表
+  /practice-sets/generate:
+    post:
+      summary: 生成数学模拟题组（老师/管理员）
+      security:
+        - sessionCookie: []
+        - csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeneratePracticeSetInput"
+      responses:
+        "200":
+          description: 生成成功，返回题组与 3-5 道题
+        "403":
+          description: 家庭账户禁止生成，老师只能为负责学生生成
+        "502":
+          description: AI 请求不可重试失败
+        "503":
+          description: AI 临时失败，可稍后重试
   /admin/academic-terms:
     get:
       summary: 学期列表
