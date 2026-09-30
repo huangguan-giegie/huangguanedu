@@ -56,6 +56,7 @@ export function createOssStorage(
     endpoint: config.endpoint,
     accessKeyId: config.accessKeyId,
     accessKeySecret: config.accessKeySecret,
+    authorizationV4: true,
     bucket: config.bucket,
   });
 
