@@ -11,25 +11,53 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# .env.production is a trusted, server-owned file. Export values for docker compose and ossutil.
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+# Read only the keys needed by this script, without shell-evaluating secret values.
+read_env_value() {
+  local key="$1"
+  local line
+  line="$(grep -m1 -E "^[[:space:]]*${key}=" "$ENV_FILE" || true)"
+  if [[ -z "$line" ]]; then
+    return 0
+  fi
 
-require_var() {
+  local value="${line#*=}"
+  value="${value%$'\r'}"
+
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+
+  printf '%s' "$value"
+}
+
+POSTGRES_USER="${POSTGRES_USER:-$(read_env_value POSTGRES_USER)}"
+POSTGRES_DB="${POSTGRES_DB:-$(read_env_value POSTGRES_DB)}"
+OSS_BUCKET="${OSS_BUCKET:-$(read_env_value OSS_BUCKET)}"
+OSS_ACCESS_KEY_ID="${OSS_ACCESS_KEY_ID:-$(read_env_value OSS_ACCESS_KEY_ID)}"
+OSS_ACCESS_KEY_SECRET="${OSS_ACCESS_KEY_SECRET:-$(read_env_value OSS_ACCESS_KEY_SECRET)}"
+APP_OSS_REGION="${OSS_REGION:-$(read_env_value OSS_REGION)}"
+OSSUTIL_REGION="${OSSUTIL_REGION:-$(read_env_value OSSUTIL_REGION)}"
+OSS_BACKUP_BUCKET="${OSS_BACKUP_BUCKET:-$(read_env_value OSS_BACKUP_BUCKET)}"
+OSS_BACKUP_PREFIX="${OSS_BACKUP_PREFIX:-$(read_env_value OSS_BACKUP_PREFIX)}"
+BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-$(read_env_value BACKUP_RETENTION_DAYS)}"
+OSS_ENDPOINT="${OSS_ENDPOINT:-$(read_env_value OSS_ENDPOINT)}"
+
+require_value() {
   local name="$1"
-  if [[ -z "${!name:-}" ]]; then
+  local value="$2"
+  if [[ -z "$value" ]]; then
     echo "Required variable is missing: $name" >&2
     exit 1
   fi
 }
 
-require_var POSTGRES_USER
-require_var POSTGRES_DB
-require_var OSS_BUCKET
-require_var OSS_ACCESS_KEY_ID
-require_var OSS_ACCESS_KEY_SECRET
+require_value POSTGRES_USER "$POSTGRES_USER"
+require_value POSTGRES_DB "$POSTGRES_DB"
+require_value OSS_BUCKET "$OSS_BUCKET"
+require_value OSS_ACCESS_KEY_ID "$OSS_ACCESS_KEY_ID"
+require_value OSS_ACCESS_KEY_SECRET "$OSS_ACCESS_KEY_SECRET"
 
 command -v docker >/dev/null 2>&1 || {
   echo "docker is required" >&2
@@ -72,10 +100,15 @@ fi
   sha256sum "$filename" >"$filename.sha256"
 )
 
-# ali-oss uses values such as oss-cn-shanghai, while ossutil 2.x expects cn-shanghai.
-app_oss_region="${OSS_REGION:-}"
-export OSS_REGION="${OSSUTIL_REGION:-${app_oss_region#oss-}}"
-require_var OSS_REGION
+# ali-oss uses values such as oss-cn-shanghai.
+# ossutil 2.x expects the generic Alibaba Cloud region ID, e.g. cn-shanghai.
+export OSS_ACCESS_KEY_ID
+export OSS_ACCESS_KEY_SECRET
+export OSS_REGION="${OSSUTIL_REGION:-${APP_OSS_REGION#oss-}}"
+if [[ -n "$OSS_ENDPOINT" ]]; then
+  export OSS_ENDPOINT
+fi
+require_value OSS_REGION "$OSS_REGION"
 
 backup_bucket="${OSS_BACKUP_BUCKET:-$OSS_BUCKET}"
 backup_prefix="${OSS_BACKUP_PREFIX:-backups/postgres}"
@@ -87,7 +120,6 @@ echo "[backup] Uploading to $remote_base/"
 ossutil cp "$backup_file" "$remote_base/$filename"
 ossutil cp "$checksum_file" "$remote_base/$filename.sha256"
 
-# Verify that the uploaded object can be resolved by OSS.
 ossutil stat "$remote_base/$filename" >/dev/null
 ossutil stat "$remote_base/$filename.sha256" >/dev/null
 
