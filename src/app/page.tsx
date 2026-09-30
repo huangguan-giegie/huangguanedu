@@ -39,6 +39,7 @@ function Dashboard() {
           items={[
             { href: "/wrong-questions/new", label: "上传错题", description: "拍照上传一道题，AI 分析并生成解析" },
             { href: "/wrong-questions", label: "我的错题本", description: "查看历史错题、知识点与掌握情况" },
+            { href: "/practice-sets", label: "数学模拟题", description: "查看老师生成的针对性数学练习" },
             { href: "/bookings", label: "预约课程", description: "查看周末一对一可预约时段" },
             { href: "/reports", label: "学习总结", description: "查看老师发布的周报/月报/学期总结" },
           ]}
@@ -54,6 +55,7 @@ function Dashboard() {
           items={[
             { href: "/teacher/review", label: "待复核 AI 错题", description: "审核学生错题分析并修订" },
             { href: "/teacher/students", label: "我的学生", description: "查看负责学生列表" },
+            { href: "/practice-sets", label: "生成数学模拟题", description: "按学生薄弱知识点生成 3–5 道练习" },
           ]}
         />
       </div>
@@ -65,6 +67,7 @@ function Dashboard() {
       <LinkList
         items={[
           { href: "/admin/students", label: "学生管理", description: "查看与修改学生信息" },
+          { href: "/practice-sets", label: "生成数学模拟题", description: "为任意学生生成针对性数学练习" },
           { href: "/admin/teachers", label: "老师管理", description: "创建老师账号与重置密码" },
           { href: "/admin/slots", label: "课程时段", description: "管理小班与一对一课程时段" },
         ]}
