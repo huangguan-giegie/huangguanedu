@@ -1,0 +1,60 @@
+# Existing-ECS production stack for huangguanedu.
+# This file intentionally does NOT run Nginx. Reuse the host Nginx and proxy to 127.0.0.1:3001.
+#
+# Usage:
+#   docker compose --env-file .env.production -f docker-compose.ecs.yml up -d --build
+#   docker compose --env-file .env.production -f docker-compose.ecs.yml run --rm web npx prisma migrate deploy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - huangguanedu-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - huangguanedu-internal
+
+  jobs:
+    build:
+      context: .
+      target: jobs
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - huangguanedu-internal
+
+volumes:
+  pgdata:
+
+networks:
+  huangguanedu-internal:
+    driver: bridge
