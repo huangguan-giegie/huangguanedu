@@ -160,6 +160,21 @@ sudo systemctl reload nginx
 
 Set `APP_BASE_URL` in `.env.production` to the exact public HTTPS origin used by this server block.
 
+### If the existing proxy is Nginx Proxy Manager in Docker
+
+Use the Compose overlay so only the web container joins the proxy-manager network; PostgreSQL and jobs remain private:
+
+```bash
+docker compose --env-file .env.production \
+  -f docker-compose.ecs.yml \
+  -f docker-compose.ecs.npm.yml \
+  up -d --build
+```
+
+In Nginx Proxy Manager, add a proxy host for `academy.example.com` with scheme `http`, forward hostname `web`, and port `3000`. Enable WebSocket support, request a Let's Encrypt certificate, then enable Force SSL. Replace `academy.example.com` with the same hostname configured in `APP_BASE_URL`.
+
+The overlay expects the external Docker network `nginx-proxy-manage_default`; change its name to match the network shown by `docker network ls` on the target ECS. The host-only `127.0.0.1:3001` mapping remains available for local smoke checks.
+
 ## 7. Production verification
 
 ```bash
