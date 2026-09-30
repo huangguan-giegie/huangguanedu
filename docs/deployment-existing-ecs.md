@@ -231,13 +231,13 @@ Restore the custom-format dump:
 ```bash
 cat huangguanedu-YYYYMMDDTHHMMSSZ.dump | \
 docker compose --env-file .env.production -f docker-compose.ecs.yml exec -T postgres \
-  pg_restore \
-  --username="$POSTGRES_USER" \
-  --dbname="$POSTGRES_DB" \
-  --clean \
-  --if-exists \
-  --no-owner \
-  --no-acl
+  sh -lc 'pg_restore \
+    --username="$POSTGRES_USER" \
+    --dbname="$POSTGRES_DB" \
+    --clean \
+    --if-exists \
+    --no-owner \
+    --no-acl'
 ```
 
 After validation:
