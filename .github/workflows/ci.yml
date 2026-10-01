@@ -50,3 +50,16 @@ jobs:
           QWEN_MODE: live
           DASHSCOPE_API_KEY: ci-placeholder
           DASHSCOPE_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+
+      - name: Package production build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: tar -czf "huangguanedu-next-${GITHUB_SHA}.tar.gz" .next
+
+      - name: Upload production build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: huangguanedu-next-${{ github.sha }}
+          path: huangguanedu-next-${{ github.sha }}.tar.gz
+          retention-days: 7
+          if-no-files-found: error
