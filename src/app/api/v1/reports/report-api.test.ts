@@ -653,8 +653,25 @@ describe("学习总结与月报兼容 API", () => {
     expect((await listed.json()).data.items).toHaveLength(1);
   });
 
-  it("家庭账户不能调用模拟题生成接口", async () => {
+  it("家庭账户只能为绑定学生生成模拟题", async () => {
     const { family, student } = await seedDemo();
+    const otherFamily = await createUser({
+      phone: "13800000009",
+      role: "FAMILY",
+      name: "其他家长",
+    });
+    const otherAccount = await prisma.familyAccount.create({
+      data: { userId: otherFamily.id },
+    });
+    const otherStudent = await prisma.student.create({
+      data: {
+        familyAccountId: otherAccount.id,
+        name: "其他学生",
+        grade: "初三",
+        school: "其他中学",
+      },
+    });
+    await createPublishedQuestion(student.id);
     const familySession = await sessionFor(family.phone);
     const response = await generatePracticeSet(
       authedRequest(
@@ -665,7 +682,19 @@ describe("学习总结与月报兼容 API", () => {
         { studentId: student.id, count: 5 },
       ),
     );
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.studentId).toBe(student.id);
+
+    const otherStudentResponse = await generatePracticeSet(
+      authedRequest(
+        "/api/v1/practice-sets/generate",
+        "POST",
+        familySession.sessionToken,
+        familySession.csrfToken,
+        { studentId: otherStudent.id, count: 5 },
+      ),
+    );
+    expect(otherStudentResponse.status).toBe(403);
   });
 
   it("总结列表：家庭只看到已发布，老师只能看负责学生", async () => {
