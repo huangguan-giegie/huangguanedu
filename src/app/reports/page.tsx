@@ -33,12 +33,14 @@ function periodText(item: SummaryItem): string {
 
 function Summaries() {
   const [items, setItems] = useState<SummaryItem[]>([]);
+  const [type, setType] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
+    const query = type ? `?type=${type}` : "";
     api
-      .get<{ items: SummaryItem[] }>("/api/v1/summaries")
+      .get<{ items: SummaryItem[] }>(`/api/v1/summaries${query}`)
       .then((d) => {
         if (!cancelled) {
           setItems(d.items);
@@ -52,11 +54,20 @@ function Summaries() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [type]);
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">学习总结</h1>
+      <label className="block max-w-xs text-sm">
+        <span className="mb-1 block text-[#1e2a3a]/60">总结类型</span>
+        <select value={type} onChange={(event) => setType(event.target.value)} className="w-full rounded-lg border border-[#1e2a3a]/20 bg-white px-3 py-2">
+          <option value="">全部类型</option>
+          <option value="WEEKLY">周报</option>
+          <option value="MONTHLY">月报</option>
+          <option value="SEMESTER">学期总结</option>
+        </select>
+      </label>
       {error && <div className="text-sm text-red-600">{error}</div>}
       {items.length === 0 && !error && (
         <p className="text-sm text-[#1e2a3a]/50">暂无学习总结</p>

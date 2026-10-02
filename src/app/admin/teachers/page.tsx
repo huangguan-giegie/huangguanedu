@@ -10,6 +10,7 @@ interface TeacherItem {
   userId: string;
   phone: string;
   name: string;
+  isActive: boolean;
   university: string | null;
   major: string | null;
   degree: string | null;
@@ -86,6 +87,21 @@ function Teachers() {
     }
   }
 
+  async function disableTeacher(id: string, name: string) {
+    setError("");
+    setMessage("");
+    if (!confirm(`确认停用${name}的账号？此操作会解除其当前负责关系并撤销登录会话。`)) {
+      return;
+    }
+    try {
+      await api.del(`/api/v1/admin/teachers/${id}`);
+      setMessage(`已停用${name}的账号。`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "停用老师账号失败");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -150,6 +166,7 @@ function Teachers() {
           <tr>
             <th className="p-3">姓名</th>
             <th className="p-3">手机号</th>
+            <th className="p-3">状态</th>
             <th className="p-3">学历</th>
             <th className="p-3">操作</th>
           </tr>
@@ -159,6 +176,7 @@ function Teachers() {
             <tr key={t.id} className="border-b border-[#1e2a3a]/5">
               <td className="p-3">{t.name}</td>
               <td className="p-3">{t.phone}</td>
+              <td className="p-3">{t.isActive ? "正常" : "已停用"}</td>
               <td className="p-3">
                 {[t.university, t.major, t.degree].filter(Boolean).join(" / ") || "-"}
               </td>
@@ -169,6 +187,14 @@ function Teachers() {
                 >
                   重置密码
                 </button>
+                {t.isActive && (
+                  <button
+                    className="ml-3 text-sm text-red-600 hover:underline"
+                    onClick={() => void disableTeacher(t.id, t.name)}
+                  >
+                    停用账号
+                  </button>
+                )}
               </td>
             </tr>
           ))}

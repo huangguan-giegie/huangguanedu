@@ -21,6 +21,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       student: { include: { familyAccount: true } },
       knowledgePointRecords: true,
       answerAttempts: { orderBy: { attemptedAt: "desc" } },
+      favorites: { where: { userId: auth.user.id }, select: { id: true } },
+      rawImages: {
+        where: { deletedAt: null, expiresAt: { gt: new Date() } },
+        select: { id: true },
+      },
     },
   });
   if (!wrongQuestion || wrongQuestion.deletedAt) {
@@ -77,6 +82,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         mastered: wrongQuestion.mastered,
         isAiGenerated: wrongQuestion.isAiGenerated,
         isTeacherReviewed: wrongQuestion.isTeacherReviewed,
+        isFavorite: wrongQuestion.favorites.length > 0,
+        imageIds: wrongQuestion.rawImages.map((image) => image.id),
         studentConfirmedAt: wrongQuestion.studentConfirmedAt,
         firstSeenAt: wrongQuestion.firstSeenAt,
         lastReviewedAt: wrongQuestion.lastReviewedAt,

@@ -2,9 +2,10 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import NextImage from "next/image";
 
 import { api } from "../../../components/api";
-import { AuthGuard } from "../../../components/AuthGuard";
+import { AuthGuard, type SafeUser } from "../../../components/AuthGuard";
 
 interface WrongQuestionDetail {
   wrongQuestion: {
@@ -25,6 +26,10 @@ interface WrongQuestionDetail {
     studentApproach: string | null;
     firstErrorStep: string | null;
     misconception: string | null;
+    teacherNote: string | null;
+    mastered: boolean | null;
+    isFavorite: boolean;
+    imageIds: string[];
   };
 }
 
@@ -33,6 +38,12 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
   const [data, setData] = useState<WrongQuestionDetail | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [user, setUser] = useState<SafeUser | null>(null);
+  const [reviewQuestion, setReviewQuestion] = useState("");
+  const [reviewAnswer, setReviewAnswer] = useState("");
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
 
   async function load() {
     const d = await api.get<{ wrongQuestion: WrongQuestionDetail["wrongQuestion"] }>(
@@ -42,6 +53,9 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
   }
 
   useEffect(() => {
+    void api.get<{ user: SafeUser }>("/api/v1/auth/me")
+      .then(({ user: currentUser }) => setUser(currentUser))
+      .catch(() => undefined);
     let cancelled = false;
     const timer: ReturnType<typeof setInterval> | undefined = setInterval(() => {
       void run();
@@ -55,6 +69,9 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
           return;
         }
         setData(d);
+        setReviewQuestion(d.wrongQuestion.recognizedQuestion ?? "");
+        setReviewAnswer(d.wrongQuestion.finalAnswer ?? "");
+        setReviewNote(d.wrongQuestion.teacherNote ?? "");
         if (d.wrongQuestion.status !== "PROCESSING" && timer) {
           clearInterval(timer);
         }
@@ -85,7 +102,71 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
     }
   }
 
-  if (error) {
+  async function toggleFavorite() {
+    if (!data || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const isFavorite = !data.wrongQuestion.isFavorite;
+      await api.post(`/api/v1/wrong-questions/${id}/favorite`, { favorite: isFavorite });
+      setData({ ...data, wrongQuestion: { ...data.wrongQuestion, isFavorite } });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "收藏操作失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setMastered(mastered: boolean) {
+    if (!data || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.patch(`/api/v1/wrong-questions/${id}/status`, { mastered });
+      setData({ ...data, wrongQuestion: { ...data.wrongQuestion, mastered } });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "掌握状态保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitReview(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setReviewMessage("");
+    try {
+      await api.patch(`/api/v1/teacher/wrong-questions/${id}/review`, {
+        recognizedQuestion: reviewQuestion,
+        finalAnswer: reviewAnswer,
+        teacherNote: reviewNote,
+      });
+      await load();
+      setReviewMessage("审核结果已保存");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "审核提交失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyText(value: string | null | undefined) {
+    if (!value?.trim()) {
+      setError("暂无内容可复制");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      setError("");
+      setCopyMessage("已复制到剪贴板");
+      window.setTimeout(() => setCopyMessage(""), 1800);
+    } catch {
+      setError("复制失败，请检查浏览器剪贴板权限");
+    }
+  }
+
+  if (error && !data) {
     return <div className="text-sm text-red-600">{error}</div>;
   }
   if (!data) {
@@ -112,6 +193,12 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
           )}
         </span>
       </h1>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {copyMessage && <p className="text-sm text-green-700">{copyMessage}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <button disabled={busy} onClick={() => void toggleFavorite()} className="rounded-lg border border-[#1e2a3a]/15 bg-white px-3 py-1.5 text-sm text-[#e8863a] disabled:opacity-50">{w.isFavorite ? "★ 已收藏" : "☆ 收藏"}</button>
+        {user?.role === "FAMILY" && <span className="text-sm text-[#1e2a3a]/60">掌握情况：{w.mastered === true ? "已理解" : w.mastered === false ? "仍不会" : "未标记"}</span>}
+      </div>
 
       {w.status === "PROCESSING" && (
         <p className="text-sm text-[#1e2a3a]/60">正在识别题目与学生过程，请稍候…</p>
@@ -121,7 +208,11 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
         <>
           {/* 第一层：识别结果与思路 */}
           <section className="rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
-            <h2 className="font-semibold">一、题目识别与思路提示</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-semibold">一、题目识别与思路提示</h2>
+              <button onClick={() => void copyText(w.recognizedQuestion)} className="text-sm text-[#e8863a] hover:underline">复制题目</button>
+            </div>
+            {w.imageIds.length > 0 && <div className="mt-3 grid gap-3 sm:grid-cols-2">{w.imageIds.map((imageId) => <NextImage key={imageId} src={`/api/v1/images/${imageId}`} alt="错题原图" width={1200} height={900} unoptimized className="max-h-96 w-auto rounded-lg border border-[#1e2a3a]/10 object-contain" />)}</div>}
             <p className="mt-2">{w.recognizedQuestion}</p>
             {w.studentWorkTranscription && (
               <p className="mt-2 text-sm text-[#1e2a3a]/70">
@@ -138,11 +229,37 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
                 思路提示：{w.thinkingHint}
               </p>
             )}
+            <button onClick={() => void copyText(w.thinkingHint)} className="mt-2 text-sm text-[#e8863a] hover:underline">复制思路提示</button>
           </section>
+
+          {user?.role === "FAMILY" && w.status !== "PROCESSING" && (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
+              <div><h2 className="font-semibold">掌握情况</h2><p className="mt-1 text-sm text-[#1e2a3a]/60">标记后会影响后续薄弱知识点和练习范围。</p></div>
+              <div className="flex gap-2">
+                <button disabled={busy} onClick={() => void setMastered(true)} className={`rounded-lg px-3 py-2 text-sm ${w.mastered === true ? "bg-green-100 text-green-800" : "border border-[#1e2a3a]/15"}`}>已理解</button>
+                <button disabled={busy} onClick={() => void setMastered(false)} className={`rounded-lg px-3 py-2 text-sm ${w.mastered === false ? "bg-amber-100 text-amber-800" : "border border-[#1e2a3a]/15"}`}>仍不会</button>
+              </div>
+            </section>
+          )}
+
+          {(user?.role === "TEACHER" || user?.role === "ADMIN") && w.status !== "REVIEWED" && (
+            <form onSubmit={submitReview} className="space-y-3 rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
+              <h2 className="font-semibold">老师审核</h2>
+              <label className="block text-sm">题目识别结果<textarea value={reviewQuestion} onChange={(event) => setReviewQuestion(event.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-[#1e2a3a]/20 px-3 py-2" /></label>
+              <label className="block text-sm">最终答案<textarea value={reviewAnswer} onChange={(event) => setReviewAnswer(event.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-[#1e2a3a]/20 px-3 py-2" /></label>
+              <label className="block text-sm">老师批注<textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-[#1e2a3a]/20 px-3 py-2" /></label>
+              {reviewMessage && <p className="text-sm text-green-700">{reviewMessage}</p>}
+              <button disabled={busy} className="rounded-lg bg-[#e8863a] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "保存中…" : "保存审核并发布"}</button>
+            </form>
+          )}
 
           {/* 第二层：错误原因与知识点 */}
           <section className="rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
-            <h2 className="font-semibold">二、错误原因与知识点</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-semibold">二、错误原因与知识点</h2>
+              <button onClick={() => void copyText((w.errorCauses ?? []).join("\n"))} className="text-sm text-[#e8863a] hover:underline">复制错误原因</button>
+            </div>
+            {w.aiConfidence !== null && <p className="mt-2 text-xs text-[#1e2a3a]/50">AI 置信度：{w.aiConfidence}</p>}
             {w.firstErrorStep && (
               <p className="mt-2 text-sm">首个错误步骤：{w.firstErrorStep}</p>
             )}
@@ -165,7 +282,10 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
 
           {/* 第三层：完整解答（学生确认前不展示给异常题？确认后展示） */}
           <section className="rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
-            <h2 className="font-semibold">三、完整解答</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-semibold">三、完整解答</h2>
+              {w.status !== "PENDING_STUDENT_CONFIRMATION" && <button onClick={() => void copyText(`${(w.correctSteps ?? []).join("\n")}\n答案：${w.finalAnswer ?? ""}`)} className="text-sm text-[#e8863a] hover:underline">复制解答</button>}
+            </div>
             {w.status === "PENDING_STUDENT_CONFIRMATION" ? (
               <div className="mt-3 space-y-3">
                 <p className="text-sm text-[#1e2a3a]/70">

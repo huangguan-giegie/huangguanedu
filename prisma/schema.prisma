@@ -138,6 +138,7 @@ model User {
   teacherProfile       TeacherProfile?
   makeupCreditsCreated MakeupCredit[]    @relation("MakeupCreditCreator")
   reviewedSummaries     LearningSummary[] @relation("LearningSummaryReviewer")
+  wrongQuestionFavorites WrongQuestionFavorite[]
   createdAcademicTerms  AcademicTerm[]    @relation("AcademicTermCreator")
 
   @@index([role])
@@ -480,12 +481,28 @@ model WrongQuestion {
   knowledgePointRecords WrongQuestionKnowledgePoint[]
   answerAttempts        StudentAnswerAttempt[]
   analysisJobs          AnalysisJob[]
+  favorites             WrongQuestionFavorite[]
 
   @@index([studentId])
   @@index([subject])
   @@index([status])
   @@index([deletedAt])
   @@index([isTeacherReviewed])
+}
+
+// 收藏记录：每个登录用户独立维护错题收藏状态。
+model WrongQuestionFavorite {
+  id              String   @id @default(cuid())
+  wrongQuestionId String
+  userId          String
+  createdAt       DateTime @default(now())
+
+  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([wrongQuestionId, userId])
+  @@index([userId, createdAt])
+  @@index([wrongQuestionId])
 }
 
 // 错题再次出错记录(用于统计薄弱知识点)
