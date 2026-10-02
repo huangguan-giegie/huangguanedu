@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
   const subject = searchParams.get("subject");
   const knowledgePoint = searchParams.get("knowledgePoint")?.trim();
   const mastered = searchParams.get("mastered");
+  const from = searchParams.get("from");
   const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
   const pageSize = Math.min(
     100,
@@ -153,13 +154,28 @@ export async function GET(request: NextRequest) {
   const where: Record<string, unknown> = {
     studentId: familyAccount.student.id,
     deletedAt: null,
-    status: { in: ["PUBLISHED", "REVIEWED"] },
+    status: {
+      in: [
+        "PROCESSING",
+        "PENDING_STUDENT_CONFIRMATION",
+        "PUBLISHED",
+        "NEEDS_REVIEW",
+        "REVIEWED",
+      ],
+    },
   };
   if (subject === "MATH" || subject === "ENGLISH") {
     where.subject = subject;
   }
   if (mastered === "true" || mastered === "false") {
     where.mastered = mastered === "true";
+  }
+  if (from) {
+    const fromDate = new Date(from);
+    if (Number.isNaN(fromDate.getTime())) {
+      return jsonError(400, "INVALID_INPUT", "开始时间格式不正确");
+    }
+    where.updatedAt = { gte: fromDate };
   }
   if (knowledgePoint) {
     where.knowledgePointRecords = {
@@ -174,7 +190,10 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: { knowledgePointRecords: true },
+      include: {
+        knowledgePointRecords: true,
+        favorites: { where: { userId: auth.user.id }, select: { id: true } },
+      },
     }),
   ]);
 
@@ -193,6 +212,7 @@ export async function GET(request: NextRequest) {
         status: w.status,
         isAiGenerated: w.isAiGenerated,
         isTeacherReviewed: w.isTeacherReviewed,
+        isFavorite: w.favorites.length > 0,
         firstSeenAt: w.firstSeenAt,
         lastReviewedAt: w.lastReviewedAt,
         updatedAt: w.updatedAt,

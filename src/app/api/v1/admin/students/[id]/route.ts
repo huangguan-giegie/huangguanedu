@@ -109,3 +109,39 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({ success: true, data: { student } });
 }
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const auth = await requireRole(request, prisma, ["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
+  const csrfError = assertStateChangeAllowed(request);
+  if (csrfError) return csrfError;
+
+  const { id } = await context.params;
+  const student = await prisma.student.findUnique({
+    where: { id },
+    include: { familyAccount: { include: { user: true } } },
+  });
+  if (!student) return jsonError(404, "STUDENT_NOT_FOUND", "学生不存在");
+  if (!student.familyAccount) return jsonError(404, "FAMILY_ACCOUNT_NOT_FOUND", "家庭账户不存在");
+
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: student.familyAccount.userId },
+      data: { isActive: false, deletedAt: student.familyAccount.user.deletedAt ?? now },
+    }),
+    prisma.session.deleteMany({ where: { userId: student.familyAccount.userId } }),
+  ]);
+
+  await writeAuditLog(prisma, {
+    actor: { id: auth.user.id, name: auth.user.name },
+    action: "DISABLE_FAMILY_ACCOUNT",
+    targetType: "Student",
+    targetId: student.id,
+    summary: `管理员停用家庭账号：${student.name}（${student.familyAccount.user.phone}）`,
+    ip: getClientIp(request),
+  });
+
+  return NextResponse.json({ success: true, data: { studentId: student.id, isActive: false } });
+}

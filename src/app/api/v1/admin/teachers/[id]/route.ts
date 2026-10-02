@@ -82,3 +82,42 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     },
   });
 }
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const auth = await requireRole(request, prisma, ["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
+  const csrfError = assertStateChangeAllowed(request);
+  if (csrfError) return csrfError;
+
+  const { id } = await context.params;
+  const teacher = await prisma.teacherProfile.findUnique({
+    where: { id },
+    include: { user: true },
+  });
+  if (!teacher) return jsonError(404, "TEACHER_NOT_FOUND", "老师不存在");
+
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: teacher.userId },
+      data: { isActive: false, deletedAt: teacher.user.deletedAt ?? now },
+    }),
+    prisma.teacherStudentAssignment.updateMany({
+      where: { teacherId: id, endsAt: null },
+      data: { endsAt: now },
+    }),
+    prisma.session.deleteMany({ where: { userId: teacher.userId } }),
+  ]);
+
+  await writeAuditLog(prisma, {
+    actor: { id: auth.user.id, name: auth.user.name },
+    action: "DISABLE_TEACHER_ACCOUNT",
+    targetType: "TeacherProfile",
+    targetId: teacher.id,
+    summary: `管理员停用老师账号：${teacher.user.name}（${teacher.user.phone}）`,
+    ip: getClientIp(request),
+  });
+
+  return NextResponse.json({ success: true, data: { teacherId: teacher.id, isActive: false } });
+}

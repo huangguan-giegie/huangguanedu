@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         grade: s.grade,
         school: s.school,
         familyPhone: s.familyAccount.user.phone,
+        isActive: s.familyAccount.user.isActive,
         teachers: s.teacherAssignments.map((a) => ({
           assignmentId: a.id,
           teacherId: a.teacherId,

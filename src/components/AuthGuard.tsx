@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { api } from "./api";
@@ -53,6 +54,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           <span>
             {user.name}（{user.role === "FAMILY" ? "家庭" : user.role === "TEACHER" ? "老师" : "管理员"}）
           </span>
+          <Link className="text-[#1e2a3a]/70 hover:text-[#e8863a]" href="/account">账户</Link>
           <button
             className="text-[#e8863a] hover:underline"
             onClick={async () => {

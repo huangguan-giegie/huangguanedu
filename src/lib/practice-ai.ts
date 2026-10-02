@@ -30,6 +30,7 @@ export interface PracticeAiInput {
   weakKnowledgePoints: string[];
   wrongQuestionSamples: string[];
   count: number;
+  difficulty?: "EASY" | "MEDIUM" | "HARD";
 }
 
 function mockOutput(input: PracticeAiInput): PracticeSetAiOutput {
@@ -62,7 +63,10 @@ async function generateOnce(
   const userPrompt =
     `年级：${input.grade}。薄弱知识点：${JSON.stringify(input.weakKnowledgePoints)}。` +
     `参考错题：${JSON.stringify(input.wrongQuestionSamples)}。` +
-    `请生成恰好 ${input.count} 道数学模拟题，难度从基础到中等递进。` +
+    `请生成恰好 ${input.count} 道数学模拟题，` +
+    (input.difficulty
+      ? `整体难度为${input.difficulty === "EASY" ? "基础" : input.difficulty === "MEDIUM" ? "中等" : "较难"}。`
+      : "难度从基础到中等递进。") +
     '严格返回：{"title":"题组标题","questions":[{"question":"题目","answer":"答案","explanation":"解析"}]}。';
 
   let response: Response;
