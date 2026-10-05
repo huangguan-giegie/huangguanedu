@@ -34,15 +34,20 @@ function ReviewDashboard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function load() {
-    const data = await api.get<ReviewPlan>("/api/v1/me/review-plan");
-    setPlan(data);
-  }
-
   useEffect(() => {
-    load().catch((cause) => {
-      setError(cause instanceof Error ? cause.message : "复习计划加载失败");
-    });
+    let cancelled = false;
+    api.get<ReviewPlan>("/api/v1/me/review-plan")
+      .then((data) => {
+        if (!cancelled) setPlan(data);
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : "复习计划加载失败");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function startReview() {
