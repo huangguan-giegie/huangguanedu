@@ -39,7 +39,8 @@ function Dashboard() {
           items={[
             { href: "/wrong-questions/new", label: "上传错题", description: "拍照上传一道题，AI 分析并生成解析" },
             { href: "/wrong-questions", label: "我的错题本", description: "查看历史错题、知识点与掌握情况" },
-            { href: "/practice-sets", label: "数学模拟题", description: "查看老师生成的针对性数学练习" },
+            { href: "/review", label: "今日复习", description: "按掌握度和复习间隔生成今天最该练的内容" },
+            { href: "/practice-sets", label: "数学练习", description: "作答针对性练习、自动判题并向 AI 老师提问" },
             { href: "/bookings", label: "预约课程", description: "查看周末一对一可预约时段" },
             { href: "/reports", label: "学习总结", description: "查看老师发布的周报/月报/学期总结" },
             { href: "/account", label: "账户设置", description: "查看账户资料、修改密码或退出登录" },
