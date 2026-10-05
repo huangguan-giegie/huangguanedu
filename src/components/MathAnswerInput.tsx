@@ -1,11 +1,9 @@
 "use client";
 
-import { createElement, useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 
 interface MathFieldLike extends HTMLElement {
   value: string;
-  virtualKeyboardMode?: string;
-  smartMode?: boolean;
 }
 
 const MATHLIVE_SRC = "https://cdn.jsdelivr.net/npm/mathlive@0.111.0/+esm";
@@ -37,7 +35,6 @@ export function MathAnswerInput(props: {
   disabled?: boolean;
   placeholder?: string;
 }) {
-  const fieldRef = useRef<MathFieldLike | null>(null);
   const [ready, setReady] = useState(
     () => typeof window !== "undefined" && Boolean(customElements.get("math-field")),
   );
@@ -55,12 +52,6 @@ export function MathAnswerInput(props: {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (fieldRef.current && fieldRef.current.value !== props.value) {
-      fieldRef.current.value = props.value;
-    }
-  }, [props.value]);
 
   if (!ready) {
     return (
@@ -82,13 +73,6 @@ export function MathAnswerInput(props: {
   return (
     <div>
       {createElement("math-field", {
-        ref: (node: MathFieldLike | null) => {
-          fieldRef.current = node;
-          if (node) {
-            node.virtualKeyboardMode = "onfocus";
-            node.smartMode = true;
-          }
-        },
         value: props.value,
         disabled: props.disabled || undefined,
         placeholder: props.placeholder ?? "输入答案",
