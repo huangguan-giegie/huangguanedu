@@ -6,6 +6,8 @@ const PracticeQuestionSchema = z.object({
   question: z.string().min(1),
   answer: z.string().min(1),
   explanation: z.string().min(1),
+  knowledgePoints: z.array(z.string().min(1)).max(5).optional(),
+  difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).optional(),
 });
 
 export const PracticeSetAiSchema = z.object({
@@ -43,6 +45,8 @@ function mockOutput(input: PracticeAiInput): PracticeSetAiOutput {
         question: `解方程：${n}x + ${index + 1} = ${n * 4 + index + 1}，求 x。`,
         answer: "x = 4",
         explanation: `先将常数项移到等号右侧，再同时除以 ${n}。`,
+        knowledgePoints: [point],
+        difficulty: input.difficulty ?? "MEDIUM",
       };
     }),
   };
@@ -67,7 +71,7 @@ async function generateOnce(
     (input.difficulty
       ? `整体难度为${input.difficulty === "EASY" ? "基础" : input.difficulty === "MEDIUM" ? "中等" : "较难"}。`
       : "难度从基础到中等递进。") +
-    '严格返回：{"title":"题组标题","questions":[{"question":"题目","answer":"答案","explanation":"解析"}]}。';
+    '严格返回：{"title":"题组标题","questions":[{"question":"题目","answer":"答案","explanation":"解析","knowledgePoints":["知识点"],"difficulty":"EASY|MEDIUM|HARD"}]}。';
 
   let response: Response;
   try {

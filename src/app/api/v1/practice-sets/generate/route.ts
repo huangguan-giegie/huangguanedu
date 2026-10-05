@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       ? [...new Set(rawIds as string[])]
       : null;
   const difficulty = body?.difficulty;
+  const adaptive = body?.adaptive === true;
   if (!Number.isInteger(count) || count < 3 || count > 5) {
     return jsonError(
       400,
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
       count,
       ...(wrongQuestionIds ? { wrongQuestionIds } : {}),
       ...(difficulty ? { difficulty } : {}),
+      adaptive,
     });
     await writeAuditLog(prisma, {
       actor: { id: auth.user.id, name: auth.user.name },

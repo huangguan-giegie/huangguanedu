@@ -38,7 +38,17 @@ export async function GET(request: NextRequest) {
   const sets = await prisma.practiceSet.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { student: true, questions: true },
+    include: {
+      student: true,
+      questions: {
+        include: {
+          attempts: {
+            orderBy: { attemptedAt: "desc" },
+            take: 1,
+          },
+        },
+      },
+    },
   });
 
   return NextResponse.json({
@@ -50,7 +60,16 @@ export async function GET(request: NextRequest) {
         studentName: s.student.name,
         title: s.title,
         summaryId: s.summaryId,
-        questions: s.questions,
+        mode: s.mode,
+        questions: s.questions.map((question) => ({
+          id: question.id,
+          question: question.question,
+          answer: question.answer,
+          explanation: question.explanation,
+          difficulty: question.difficulty,
+          knowledgePoints: question.knowledgePoints,
+          lastAttempt: question.attempts[0] ?? null,
+        })),
         createdAt: s.createdAt,
       })),
     },

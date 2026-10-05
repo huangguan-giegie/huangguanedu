@@ -216,8 +216,10 @@ model Student {
   makeupCredits      MakeupCredit[]
   wrongQuestions     WrongQuestion[]
   rawQuestionImages  RawQuestionImage[]
-  summaries         LearningSummary[]
-  practiceSets      PracticeSet[]
+  summaries          LearningSummary[]
+  practiceSets       PracticeSet[]
+  knowledgeMasteries KnowledgeMastery[]
+  practiceAttempts   PracticeAttempt[]
 
   @@index([name])
 }
@@ -618,6 +620,7 @@ model PracticeSet {
   studentId String
   title     String
   summaryId String?
+  mode      String   @default("TARGETED")
   createdAt DateTime @default(now())
 
   student  Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -630,14 +633,61 @@ model PracticeSet {
 
 // 模拟题
 model PracticeQuestion {
-  id            String   @id @default(cuid())
-  practiceSetId String
-  question      String
-  answer        String
-  explanation   String?
-  createdAt     DateTime @default(now())
+  id                     String   @id @default(cuid())
+  practiceSetId          String
+  question               String
+  answer                 String
+  explanation            String?
+  difficulty             String   @default("MEDIUM")
+  knowledgePoints        Json?
+  sourceWrongQuestionIds Json?
+  gradingMode            String   @default("AUTO")
+  createdAt              DateTime @default(now())
 
-  practiceSet PracticeSet @relation(fields: [practiceSetId], references: [id], onDelete: Cascade)
+  practiceSet PracticeSet      @relation(fields: [practiceSetId], references: [id], onDelete: Cascade)
+  attempts    PracticeAttempt[]
 
   @@index([practiceSetId])
+}
+
+// 学生对生成练习题的真实作答与服务端判题结果
+model PracticeAttempt {
+  id                 String        @id @default(cuid())
+  practiceQuestionId String
+  studentId          String
+  answer             String
+  result             AttemptResult
+  score              Int
+  feedback           String?
+  gradingMethod      String        @default("DETERMINISTIC")
+  attemptedAt        DateTime      @default(now())
+
+  practiceQuestion PracticeQuestion @relation(fields: [practiceQuestionId], references: [id], onDelete: Cascade)
+  student          Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([practiceQuestionId, attemptedAt])
+  @@index([studentId, attemptedAt])
+}
+
+// 轻量间隔复习状态：不运行本地模型，只存少量数值并在作答时更新
+model KnowledgeMastery {
+  id              String   @id @default(cuid())
+  studentId       String
+  subject         Subject
+  knowledgePoint  String
+  masteryScore    Int      @default(35)
+  stability       Float    @default(1)
+  difficulty      Float    @default(5)
+  reviewCount     Int      @default(0)
+  lapseCount      Int      @default(0)
+  lastReviewedAt  DateTime?
+  nextReviewAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subject, knowledgePoint])
+  @@index([studentId, nextReviewAt])
+  @@index([studentId, masteryScore])
 }
