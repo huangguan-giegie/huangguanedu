@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { api } from "../../components/api";
 import { AuthGuard } from "../../components/AuthGuard";
@@ -34,11 +35,12 @@ function periodText(item: SummaryItem): string {
 function Summaries() {
   const [items, setItems] = useState<SummaryItem[]>([]);
   const [error, setError] = useState("");
+  const [type, setType] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     api
-      .get<{ items: SummaryItem[] }>("/api/v1/summaries")
+      .get<{ items: SummaryItem[] }>(`/api/v1/summaries${type ? `?type=${type}` : ""}`)
       .then((d) => {
         if (!cancelled) {
           setItems(d.items);
@@ -52,33 +54,37 @@ function Summaries() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [type]);
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">学习总结</h1>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="text-sm">总结类型 <select className="rounded-lg border border-[#302a38]/20 px-3 py-2" value={type} onChange={(event) => setType(event.target.value)}><option value="">全部</option><option value="WEEKLY">周报</option><option value="MONTHLY">月报</option><option value="SEMESTER">学期总结</option></select></label>
+        <Link href="/practice" className="text-sm text-[#754be6]">打开错题模拟练习 →</Link>
+      </div>
       {error && <div className="text-sm text-red-600">{error}</div>}
       {items.length === 0 && !error && (
-        <p className="text-sm text-[#1e2a3a]/50">暂无学习总结</p>
+        <p className="text-sm text-[#302a38]/50">暂无学习总结</p>
       )}
       {items.map((summary) => (
-        <div key={summary.id} className="rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
+        <div key={summary.id} className="rounded-xl border border-[#302a38]/10 bg-white p-5">
           <div className="flex items-center justify-between">
             <h2 className="font-bold">
               {periodText(summary)} {TYPE_LABEL[summary.type]}
             </h2>
-            <span className="text-xs text-[#1e2a3a]/50">
+            <span className="text-xs text-[#302a38]/50">
               {summary.studentName} ｜ {summary.status === "PUBLISHED" ? "已发布" : summary.status}
             </span>
           </div>
           {summary.stats && (
-            <p className="mt-3 text-sm text-[#1e2a3a]/70">
+            <p className="mt-3 text-sm text-[#302a38]/70">
               本期错题 {summary.stats.totalWrongQuestions ?? 0} 道，已掌握{" "}
               {summary.stats.mastered ?? 0} 道
             </p>
           )}
           {(summary.aiSuggestions?.suggestions ?? []).length > 0 && (
-            <div className="mt-3 rounded bg-[#faf6ee] p-3">
+            <div className="mt-3 rounded bg-[#f3f0ff] p-3">
               <p className="text-sm font-semibold">学习建议</p>
               <ul className="mt-1 list-inside list-disc text-sm">
                 {summary.aiSuggestions!.suggestions!.map((s) => (

@@ -21,6 +21,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       student: { include: { familyAccount: true } },
       knowledgePointRecords: true,
       answerAttempts: { orderBy: { attemptedAt: "desc" } },
+      favorites: { where: { userId: auth.user.id }, select: { id: true } },
+      rawImages: { where: { deletedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "asc" }, select: { id: true } },
     },
   });
   if (!wrongQuestion || wrongQuestion.deletedAt) {
@@ -50,6 +52,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     data: {
       wrongQuestion: {
         id: wrongQuestion.id,
+        studentId: wrongQuestion.studentId,
+        studentName: wrongQuestion.student.name,
         subject: wrongQuestion.subject,
         status: wrongQuestion.status,
         // 第一层：题目识别与思路提示
@@ -77,6 +81,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
         mastered: wrongQuestion.mastered,
         isAiGenerated: wrongQuestion.isAiGenerated,
         isTeacherReviewed: wrongQuestion.isTeacherReviewed,
+        isFavorite: wrongQuestion.favorites.length > 0,
+        imageIds: wrongQuestion.rawImages.map((image) => image.id),
+        imageUrls: wrongQuestion.rawImages.map((image) => `/api/v1/images/${image.id}`),
         studentConfirmedAt: wrongQuestion.studentConfirmedAt,
         firstSeenAt: wrongQuestion.firstSeenAt,
         lastReviewedAt: wrongQuestion.lastReviewedAt,

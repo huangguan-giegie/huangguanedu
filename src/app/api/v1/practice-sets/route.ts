@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 import { requireRole } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/db";
 import type { Prisma } from "../../../../generated/prisma/client";
+import { serializePracticeSet } from "../../../../lib/practice-set";
 
 export async function GET(request: NextRequest) {
   const auth = await requireRole(request, prisma, ["FAMILY", "TEACHER", "ADMIN"]);
@@ -34,25 +35,19 @@ export async function GET(request: NextRequest) {
   if (studentIds) {
     where.studentId = { in: studentIds };
   }
+  const requestedStudentId = request.nextUrl.searchParams.get("studentId")?.trim();
+  if (requestedStudentId) where.AND = { studentId: requestedStudentId };
 
   const sets = await prisma.practiceSet.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { student: true, questions: true },
+    include: { student: true, questions: { orderBy: { createdAt: "asc" } } },
   });
 
   return NextResponse.json({
     success: true,
     data: {
-      items: sets.map((s) => ({
-        id: s.id,
-        studentId: s.studentId,
-        studentName: s.student.name,
-        title: s.title,
-        summaryId: s.summaryId,
-        questions: s.questions,
-        createdAt: s.createdAt,
-      })),
+      items: await Promise.all(sets.map(serializePracticeSet)),
     },
   });
 }

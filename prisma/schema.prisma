@@ -139,6 +139,8 @@ model User {
   makeupCreditsCreated MakeupCredit[]    @relation("MakeupCreditCreator")
   reviewedSummaries     LearningSummary[] @relation("LearningSummaryReviewer")
   createdAcademicTerms  AcademicTerm[]    @relation("AcademicTermCreator")
+  wrongQuestionFavorites WrongQuestionFavorite[]
+  practiceGenerationJobs PracticeGenerationJob[]
 
   @@index([role])
   @@index([deletedAt])
@@ -217,6 +219,7 @@ model Student {
   rawQuestionImages  RawQuestionImage[]
   summaries         LearningSummary[]
   practiceSets      PracticeSet[]
+  practiceGenerationJobs PracticeGenerationJob[]
 
   @@index([name])
 }
@@ -480,6 +483,7 @@ model WrongQuestion {
   knowledgePointRecords WrongQuestionKnowledgePoint[]
   answerAttempts        StudentAnswerAttempt[]
   analysisJobs          AnalysisJob[]
+  favorites             WrongQuestionFavorite[]
 
   @@index([studentId])
   @@index([subject])
@@ -531,6 +535,7 @@ model StudentAnswerAttempt {
 model AnalysisJob {
   id              String            @id @default(cuid())
   wrongQuestionId String
+  modelOverride   String?
   status          AnalysisJobStatus @default(PENDING)
   attempts        Int               @default(0)
   nextRunAt       DateTime          @default(now())
@@ -579,6 +584,21 @@ model LearningSummary {
   @@index([needsRetry])
 }
 
+// 收藏独立归属登录用户，家庭、老师和管理员互不影响。
+model WrongQuestionFavorite {
+  id              String   @id @default(cuid())
+  wrongQuestionId String
+  userId          String
+  createdAt       DateTime @default(now())
+
+  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([wrongQuestionId, userId])
+  @@index([userId, createdAt])
+  @@index([wrongQuestionId])
+}
+
 // 学期(管理员配置开始/结束日期,用于学期总结)
 model AcademicTerm {
   id          String   @id @default(cuid())
@@ -606,6 +626,7 @@ model PracticeSet {
   student  Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
   summary  LearningSummary?    @relation(fields: [summaryId], references: [id], onDelete: SetNull)
   questions PracticeQuestion[]
+  generationJob PracticeGenerationJob?
 
   @@index([studentId])
   @@index([summaryId])
@@ -618,9 +639,32 @@ model PracticeQuestion {
   question      String
   answer        String
   explanation   String?
+  imagePath     String?
   createdAt     DateTime @default(now())
 
   practiceSet PracticeSet @relation(fields: [practiceSetId], references: [id], onDelete: Cascade)
 
   @@index([practiceSetId])
+}
+
+// 异步生成任务持久化，页面刷新或服务重启后仍能查询与恢复。
+model PracticeGenerationJob {
+  id                  String   @id @default(cuid())
+  studentId           String
+  requestedById       String
+  difficulty          String?
+  wrongQuestionIds    Json
+  status              String   @default("PENDING")
+  error               String?
+  resultPracticeSetId String?  @unique
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requestedBy  User         @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+  practiceSet  PracticeSet? @relation(fields: [resultPracticeSetId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([studentId])
+  @@index([requestedById, createdAt])
 }

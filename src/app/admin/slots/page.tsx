@@ -100,9 +100,9 @@ function Slots() {
       <h1 className="text-2xl font-bold">课程时段管理</h1>
       {message && <div className="rounded bg-green-100 p-3 text-sm text-green-700">{message}</div>}
       {error && <div className="rounded bg-red-100 p-3 text-sm text-red-700">{error}</div>}
-      <form onSubmit={create} className="grid max-w-2xl gap-3 rounded-xl border border-[#1e2a3a]/10 bg-white p-4 sm:grid-cols-3">
+      <form onSubmit={create} className="grid max-w-2xl gap-3 rounded-xl border border-[#302a38]/10 bg-white p-4 sm:grid-cols-3">
         <select
-          className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+          className="rounded-lg border border-[#302a38]/20 px-3 py-2"
           value={form.type}
           onChange={(e) => setForm({ ...form, type: e.target.value })}
         >
@@ -110,7 +110,7 @@ function Slots() {
           <option value="SMALL_CLASS">小班（容量 ≤5）</option>
         </select>
         <select
-          className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+          className="rounded-lg border border-[#302a38]/20 px-3 py-2"
           value={form.subject}
           onChange={(e) => setForm({ ...form, subject: e.target.value })}
         >
@@ -118,7 +118,7 @@ function Slots() {
           <option value="ENGLISH">英语</option>
         </select>
         <select
-          className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+          className="rounded-lg border border-[#302a38]/20 px-3 py-2"
           value={form.teacherId}
           onChange={(e) => setForm({ ...form, teacherId: e.target.value })}
           required
@@ -130,24 +130,24 @@ function Slots() {
         </select>
         <input
           type="datetime-local"
-          className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+          className="rounded-lg border border-[#302a38]/20 px-3 py-2"
           value={form.startTime}
           onChange={(e) => setForm({ ...form, startTime: e.target.value })}
           required
         />
         <input
           type="datetime-local"
-          className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+          className="rounded-lg border border-[#302a38]/20 px-3 py-2"
           value={form.endTime}
           onChange={(e) => setForm({ ...form, endTime: e.target.value })}
           required
         />
-        <button className="rounded-lg bg-[#e8863a] font-semibold text-white" type="submit">
+        <button className="rounded-lg bg-[#754be6] font-semibold text-white" type="submit">
           创建时段
         </button>
       </form>
-      <table className="w-full rounded-xl border border-[#1e2a3a]/10 bg-white text-sm">
-        <thead className="border-b border-[#1e2a3a]/10 text-left">
+      <table className="w-full rounded-xl border border-[#302a38]/10 bg-white text-sm">
+        <thead className="border-b border-[#302a38]/10 text-left">
           <tr>
             <th className="p-3">类型</th>
             <th className="p-3">科目</th>
@@ -159,7 +159,7 @@ function Slots() {
         </thead>
         <tbody>
           {items.map((s) => (
-            <tr key={s.id} className="border-b border-[#1e2a3a]/5">
+            <tr key={s.id} className="border-b border-[#302a38]/5">
               <td className="p-3">{s.type === "ONE_ON_ONE" ? "一对一" : "小班"}</td>
               <td className="p-3">{s.subject === "MATH" ? "数学" : "英语"}</td>
               <td className="p-3">

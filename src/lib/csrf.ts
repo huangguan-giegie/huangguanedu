@@ -45,9 +45,20 @@ export function getCsrfCookieOptions(value: string): {
 
 /** 校验来源与站点是否同源（Origin 缺失时回退 Referer） */
 function validateSameOrigin(request: NextRequest): boolean {
-  const siteOrigin = new URL(request.url).origin;
-
   const origin = request.headers.get("origin");
+  const configuredOrigin = process.env.APP_BASE_URL?.trim();
+  if (origin && configuredOrigin) {
+    try {
+      if (origin === new URL(configuredOrigin).origin) return true;
+    } catch {
+      // 生产启动配置校验会拦截非法的 APP_BASE_URL，这里继续用请求来源兜底。
+    }
+  }
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const siteOrigin = forwardedProto && forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : new URL(request.url).origin;
   if (origin) {
     return origin === siteOrigin;
   }

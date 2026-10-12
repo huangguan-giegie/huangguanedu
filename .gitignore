@@ -21,6 +21,7 @@
 
 # production
 /build
+.code_deploy/
 
 # misc
 .DS_Store

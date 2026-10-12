@@ -13,11 +13,10 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const keyword = searchParams.get("keyword")?.trim() ?? "";
-  const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
-  const pageSize = Math.min(
-    100,
-    Math.max(1, Number(searchParams.get("pageSize") ?? 20) || 20),
-  );
+  const rawPage = Number(searchParams.get("page") ?? 1);
+  const rawPageSize = Number(searchParams.get("pageSize") ?? 20);
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const pageSize = Number.isSafeInteger(rawPageSize) && rawPageSize > 0 ? Math.min(100, rawPageSize) : 20;
 
   const where = keyword
     ? {
@@ -58,6 +57,7 @@ export async function GET(request: NextRequest) {
         grade: s.grade,
         school: s.school,
         familyPhone: s.familyAccount.user.phone,
+        isActive: s.familyAccount.user.isActive && !s.familyAccount.user.deletedAt,
         teachers: s.teacherAssignments.map((a) => ({
           assignmentId: a.id,
           teacherId: a.teacherId,

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { api } from "../../components/api";
 
@@ -9,18 +10,20 @@ export default function ChangePasswordPage() {
   const router = useRouter();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    if (newPassword !== confirmPassword) {
+      setError("两次输入的新密码不一致");
+      return;
+    }
     setLoading(true);
     try {
-      await api.post("/api/v1/auth/change-password", {
-        oldPassword,
-        newPassword,
-      });
+      await api.post("/api/v1/auth/change-password", { oldPassword, newPassword });
       router.replace("/");
     } catch (e) {
       setError(e instanceof Error ? e.message : "修改失败");
@@ -30,42 +33,56 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#faf6ee] px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-[#1e2a3a]/10 bg-white p-8 shadow">
-        <h1 className="text-xl font-bold text-[#1e2a3a]">首次登录请修改密码</h1>
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="oldPassword" className="block text-sm text-[#1e2a3a]/70">旧密码</label>
-            <input
-              id="oldPassword"
-              className="mt-1 w-full rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="newPassword" className="block text-sm text-[#1e2a3a]/70">新密码（至少 8 位）</label>
-            <input
-              id="newPassword"
-              className="mt-1 w-full rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-          </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          <button
-            className="w-full rounded-lg bg-[#e8863a] py-2 font-semibold text-white disabled:opacity-50"
-            disabled={loading}
-          >
-            {loading ? "提交中…" : "确认修改"}
-          </button>
-        </form>
-      </div>
-    </div>
+    <main className="auth-page auth-page--compact">
+      <section className="auth-panel">
+        <div className="auth-card">
+          <div className="auth-brand"><span className="auth-brand-mark">冠</span>黄冠 AI Academy</div>
+          <h2 style={{ marginTop: 22 }}>设置新密码</h2>
+          <p className="auth-lead">设置新的登录密码，至少 8 位。</p>
+          <Link href="/account" className="text-sm text-[#754be6]">← 返回账户设置</Link>
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="form-field">
+              <label htmlFor="oldPassword">当前密码</label>
+              <input
+                id="oldPassword"
+                type="password"
+                value={oldPassword}
+                onChange={(event) => setOldPassword(event.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="newPassword">新密码（至少 8 位）</label>
+              <input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="confirmPassword">再次输入新密码</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </div>
+            {error && <div className="auth-error" role="alert">{error}</div>}
+            <button className="button-primary" disabled={loading}>
+              {loading ? "保存中…" : "保存并继续　↗"}
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
   );
 }

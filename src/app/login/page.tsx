@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,46 +34,55 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#faf6ee] px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-[#1e2a3a]/10 bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold text-[#1e2a3a]">黄冠AI Academy</h1>
-        <p className="mt-1 text-sm text-[#1e2a3a]/60">学生教培学习平台</p>
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="block text-sm text-[#1e2a3a]/70">手机号</label>
-            <input
-              className="mt-1 w-full rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="请输入手机号"
-              inputMode="tel"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-[#1e2a3a]/70">密码</label>
-            <input
-              className="mt-1 w-full rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入密码"
-              required
-            />
-          </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          <button
-            className="w-full rounded-lg bg-[#e8863a] py-2 font-semibold text-white disabled:opacity-50"
-            disabled={loading}
-          >
-            {loading ? "登录中…" : "登录"}
-          </button>
-        </form>
-        <p className="mt-4 text-xs text-[#1e2a3a]/50">
-          演示账号：13800000001（管理员）/ 13800000002（老师）/ 13800000003（家庭），
-          初始密码 Temp@123456
-        </p>
-      </div>
-    </div>
+    <main className="auth-page">
+      <section className="auth-story">
+        <div className="auth-brand"><span className="auth-brand-mark">冠</span>黄冠 AI Academy</div>
+        <div className="auth-story-copy">
+          <p className="eyebrow">LEARN · REVIEW · GROW</p>
+          <h1>错题，<br />是下一次做对的线索。</h1>
+          <p>把每次练习里的小发现收集起来。看懂问题，再一步一步学会。</p>
+        </div>
+        <div className="auth-story-footer">学习总览　·　错题复盘　·　课程预约</div>
+      </section>
+      <section className="auth-panel">
+        <div className="auth-card">
+          <h2>欢迎回来</h2>
+          <p className="auth-lead">登录学习空间，继续今天的进步。</p>
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="form-field">
+              <label htmlFor="phone">手机号</label>
+              <input
+                id="phone"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="请输入手机号"
+                inputMode="tel"
+                autoComplete="username"
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="password">密码</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="请输入密码"
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            {error && <div className="auth-error" role="alert">{error}</div>}
+            <button className="button-primary" disabled={loading}>
+              {loading ? "登录中…" : "登录学习空间　↗"}
+            </button>
+          </form>
+          <p className="auth-help">
+            请使用管理员分配的手机号和密码登录。首次登录需设置新密码。
+          </p>
+        </div>
+      </section>
+    </main>
   );
 }

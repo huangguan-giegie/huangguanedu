@@ -2,7 +2,7 @@
 // 应用只保存对象 Key，不保存公网地址；读取时由服务端生成短期签名 URL。
 // AccessKey 只存在于服务端环境变量，不进入浏览器、数据库或日志。
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import OSS from "ali-oss";
@@ -21,21 +21,22 @@ export interface StorageProvider {
   getReadUrl(relativePath: string, expiresSeconds: number): Promise<string | null>;
 }
 
-const storageRoot = process.env.STORAGE_DIR ?? join(process.cwd(), "storage");
+const storageRoot = resolve(process.env.STORAGE_DIR ?? resolve(process.cwd(), "storage"));
 
 /** 本地文件存储（开发环境）。 */
 export const localStorage: StorageProvider = {
   async save(buffer, { extension, subdir = "" }) {
-    const dir = join(storageRoot, subdir);
+    const dir = resolve(/* turbopackIgnore: true */ storageRoot, subdir);
+    if (dir !== storageRoot && !dir.startsWith(storageRoot + sep)) throw new Error("非法存储路径");
     await mkdir(dir, { recursive: true });
     const filename = `${randomUUID()}.${extension}`;
-    await writeFile(join(dir, filename), buffer);
+    await writeFile(resolve(/* turbopackIgnore: true */ dir, filename), buffer);
     return subdir ? `${subdir}/${filename}` : filename;
   },
   async delete(relativePath) {
-    const target = join(storageRoot, relativePath);
+    const target = resolve(/* turbopackIgnore: true */ storageRoot, relativePath);
     // 只允许删除存储根目录内的文件
-    if (!target.startsWith(storageRoot)) {
+    if (!target.startsWith(storageRoot + sep)) {
       throw new Error("非法存储路径");
     }
     await rm(target, { force: true });

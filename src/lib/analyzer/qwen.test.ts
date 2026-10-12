@@ -135,4 +135,16 @@ describe("Qwen 分析器", () => {
       retryable: false,
     });
   });
+
+  it("英语分页按顺序发送并使用所选视觉模型，不臆测学生过程", async () => {
+    stubLiveEnv();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ ...validResult, subject: "ENGLISH", studentApproach: "模型猜测" }) } }] }), { status: 200 }));
+    const analyzer = new QwenQuestionAnalyzer(fetchMock as unknown as typeof fetch);
+    const result = await analyzer.analyze({ imageUrls: ["https://example.com/1.jpg", "https://example.com/2.jpg"], mimeType: "image/jpeg", subject: "ENGLISH", model: "qwen-vl-plus" });
+    const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(body.model).toBe("qwen-vl-plus");
+    expect(body.messages[1].content.slice(0, 2).map((part: { image_url: { url: string } }) => part.image_url.url)).toEqual(["https://example.com/1.jpg", "https://example.com/2.jpg"]);
+    expect(body.messages[1].content[2].text).toContain("原文依据");
+    expect(result.studentApproach).toBeNull();
+  });
 });

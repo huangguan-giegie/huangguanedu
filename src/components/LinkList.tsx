@@ -1,4 +1,4 @@
-// 首页快捷入口列表
+// 首页入口：用短标题和轻量图标引导到常用学习功能
 "use client";
 
 import Link from "next/link";
@@ -9,17 +9,23 @@ export interface LinkItem {
   description: string;
 }
 
+const ICONS = ["↗", "?", "▦", "✦"];
+
 export function LinkList({ items }: { items: LinkItem[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {items.map((item) => (
+    <div className="link-list-grid">
+      {items.map((item, index) => (
         <Link
           key={item.href}
           href={item.href}
-          className="rounded-xl border border-[#1e2a3a]/10 bg-white p-5 shadow-sm transition hover:border-[#e8863a] hover:shadow"
+          className={`link-card link-card--${index % ICONS.length}`}
         >
-          <div className="font-semibold text-[#1e2a3a]">{item.label}</div>
-          <div className="mt-1 text-sm text-[#1e2a3a]/60">{item.description}</div>
+          <span className="link-card-icon" aria-hidden="true">{ICONS[index % ICONS.length]}</span>
+          <span className="link-card-copy">
+            <span className="link-card-label">{item.label}</span>
+            <span className="link-card-description">{item.description}</span>
+          </span>
+          <span className="link-card-arrow" aria-hidden="true">↗</span>
         </Link>
       ))}
     </div>
