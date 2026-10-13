@@ -114,3 +114,8 @@ aliyun-*.json
 .pg0-probe.txt
 mcp-*.mjs
 deliverables/
+
+# 备份产物：ops/ 下的脚本要入库，但本地 dump 不能进仓库
+.backups/
+*.dump
+*.sha256
