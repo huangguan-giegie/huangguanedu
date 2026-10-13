@@ -26,6 +26,7 @@ const NAV_ITEMS: Record<SafeUser["role"], { href: string; label: string; icon: s
     { href: "/", label: "学习总览", icon: "✳" },
     { href: "/wrong-questions", label: "我的错题", icon: "?" },
     { href: "/practice", label: "错题模拟练习", icon: "✎" },
+    { href: "/review", label: "智能复习", icon: "◎" },
     { href: "/bookings", label: "预约课程", icon: "▦" },
     { href: "/reports", label: "学习总结", icon: "✦" },
     { href: "/account", label: "账户设置", icon: "♙" },
@@ -35,6 +36,7 @@ const NAV_ITEMS: Record<SafeUser["role"], { href: string; label: string; icon: s
     { href: "/teacher/students", label: "我的学生", icon: "♙" },
     { href: "/wrong-questions", label: "学生错题本", icon: "?" },
     { href: "/practice", label: "错题模拟练习", icon: "✎" },
+    { href: "/review", label: "智能复习", icon: "◎" },
     { href: "/teacher/summaries", label: "学习总结审核", icon: "✦" },
     { href: "/account", label: "账户设置", icon: "♙" },
   ],
@@ -112,7 +114,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               >
                 <span className="app-nav-icon" aria-hidden="true">{item.icon}</span>
                 {item.label}
-                {item.href === "/wrong-questions" && <span className="app-nav-count">↗</span>}
               </Link>
             );
           })}
@@ -131,14 +132,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               className="logout-button"
-              aria-label="退出登录"
-              title="退出登录"
               onClick={async () => {
                 await api.post("/api/v1/auth/logout");
                 router.replace("/login");
               }}
             >
-              ↗
+              退出
             </button>
           </div>
         </div>

@@ -1,6 +1,8 @@
 // Qwen（百炼）分析器：OpenAI 兼容 chat/completions，图片 URL 传输，JSON 结构化输出
 // 只在服务端调用；API Key 只从环境变量读取；日志不记录图片/Prompt 原文/AI 原始响应
 import { loadConfig } from "../config";
+import { normalizeGeometryText } from "../latex-to-unicode";
+export { repairGeometrySymbols, repairMissingAngleSymbols, repairLeadingAngleSymbols } from "../latex-to-unicode";
 import { QuestionAnalysisSchema, type QuestionAnalysis } from "./schema";
 import type { AnalyzeInput, QuestionAnalyzer } from "./types";
 
@@ -29,6 +31,34 @@ export function normalizeQuestionAnalysis(
     whatStudentDidWell: null,
   };
 }
+
+/**
+ * 几何关系符号的书写规则，会拼进识别提示词。
+ *
+ * 背景：视觉模型读图后是以自然语言复述题目，遇到 ∥ ⊥ 这类在图中只以「作图痕迹」
+ * （平行线上的箭头、直角小方框）存在的符号时会就地省略，留下两个空格。
+ * 实测存库文本为 `且 DE  BC`，无 LaTeX 残留、无 U+2225 —— 缺陷发生在数据产生端，
+ * 任何显示层补表都救不回来，因此必须在这里显式要求，并在下面做兜底修复与告警。
+ */
+const GEOMETRY_SYMBOL_RULE =
+  `几何题必须保留图形给出的位置与关系符号，且只能写成标准符号：` +
+  `平行 ∥、垂直 ⊥、角 ∠、三角形 △、相似 ∽、全等 ≅、圆 ⊙、度 °、因此 ∴、因为 ∵。` +
+  `即使符号只出现在图形上（如两条线上的箭头、直角方框），也要写进题干文字；` +
+  `绝不能用空格、多个空格、// 或 ~ 代替符号。错误写法示例：'DE  BC''CD // AB''△ADE ~ △ABC'；` +
+  `正确写法示例：'DE∥BC''CD⊥AB''△ADE∽△ABC'。`;
+
+/** 两个大写字母构成的线段/点名，如 AB、C'、A₁ */
+const LETTER_TOKEN = String.raw`[A-Za-z][A-Za-z0-9'′₁₂₃₄]{0,3}`;
+
+/** 检出「两个点名之间出现多个空格」——能机械修复的已被修掉，剩下的是真省略，交老师复核。 */
+export function findMissingGeometrySymbols(text: string): string[] {
+  const hits = Array.from(
+    text.matchAll(new RegExp(String.raw`(${LETTER_TOKEN})\s{2,}(${LETTER_TOKEN})`, "g")),
+    (match) => match[0].trim(),
+  );
+  return Array.from(new Set(hits));
+}
+
 
 /** 低置信度默认进入老师复核，但仍可由学生确认识别准确后按业务规则发布。 */
 export function needsTeacherReviewForAnalysis(
@@ -62,7 +92,8 @@ export class QwenQuestionAnalyzer implements QuestionAnalyzer {
     const subject = input.subject ?? "MATH";
     const systemPrompt =
       "你是高中数学和英语错题分析助手。只返回合法 JSON，不要返回 Markdown，" +
-      "不要输出学生姓名、手机号等身份信息。";
+      "不要输出学生姓名、手机号等身份信息。" +
+      (subject === "MATH" ? `数学题请严格保留图形中的符号：${GEOMETRY_SYMBOL_RULE}` : "");
     // 按学科分支定义「思路讲解 / 解题步骤 / 最终答案」的输出要求
     const subjectInstructions =
       subject === "MATH"
@@ -72,12 +103,16 @@ export class QwenQuestionAnalyzer implements QuestionAnalyzer {
         : `  "thinkingHint": "解题思路完整讲解：先讲如何从题干关键词定位原文、理解文章结构，再说明答案依据在哪里",\n` +
           `  "correctSteps": ["标准解题步骤：按题目顺序逐题给出解题过程，每步一个字符串"],\n` +
           `  "finalAnswer": "最终答案。阅读理解题必须逐小题作答，每一小题的答案后附原文中对应的句子作为证据（引用原句），格式：第X题：〈答案〉原文依据：'……'，各小题用换行分隔",\n`;
+    const recognizedQuestionRule =
+      subject === "MATH"
+        ? `识别出的完整题目文本。${GEOMETRY_SYMBOL_RULE}`
+        : `识别出的完整题目文本`;
     const userPrompt =
       `请识别图片中的一道题，并分析学生是否写出了自己的解题过程。` +
       `当前学科：${subject}。\n\n` +
       `必须返回一个 JSON 对象，字段名使用 camelCase，包含且仅包含以下字段：\n` +
       `{\n` +
-      `  "recognizedQuestion": "识别出的完整题目文本",\n` +
+      `  "recognizedQuestion": "${recognizedQuestionRule}",\n` +
       `  "subject": "${subject}",\n` +
       `  "questionType": "题型（如 解方程、证明题、阅读理解）",\n` +
       `  "studentWorkDetected": true或false（图片中是否有学生手写解题过程）,\n` +
@@ -193,6 +228,43 @@ export class QwenQuestionAnalyzer implements QuestionAnalyzer {
         `durationMs=${Date.now() - startedAt} requestId=${response.headers.get("x-request-id") ?? "-"}`,
     );
 
-    return normalizeQuestionAnalysis(result.data);
+    return normalizeQuestionAnalysis(repairAnalysis(result.data));
   }
+}
+
+/**
+ * 识别结果落库前的兜底：先修「写错成 ASCII 近似符」的符号，
+ * 再对「疑似整个省略」的位置（两个点名之间出现多个空格）打老师复核标记并告警。
+ * 修不了的一律交给人看，绝不静默存一道语义被改过的题。
+ */
+/** 两个大写字母构成的线段/点名，如 AB、C'、A₁ */
+export function repairAnalysis(result: QuestionAnalysis): QuestionAnalysis {
+  if (result.subject !== "MATH") return result;
+
+  // 可机械修复的先修：ASCII 近似符、∼/∽ 混用、等号右侧丢失的 ∠、分步生成的连用标点
+  const recognizedQuestion = normalizeGeometryText(result.recognizedQuestion);
+  const studentWorkTranscription = result.studentWorkTranscription
+    ? normalizeGeometryText(result.studentWorkTranscription)
+    : result.studentWorkTranscription;
+  // 能对得上的（// 、||）已被修成 ∥，剩下的多空格才是真「整个省略」，交老师核对。
+  const missing = findMissingGeometrySymbols(recognizedQuestion);
+
+  if (missing.length === 0) {
+    const changed =
+      recognizedQuestion !== result.recognizedQuestion ||
+      studentWorkTranscription !== result.studentWorkTranscription;
+    return changed ? { ...result, recognizedQuestion, studentWorkTranscription } : result;
+  }
+
+  console.warn(`[qwen] 题目疑似缺少几何关系符号：${missing.join("、")}`);
+  return {
+    ...result,
+    recognizedQuestion,
+    studentWorkTranscription,
+    needsTeacherReview: true,
+    reviewReasons: [
+      ...result.reviewReasons,
+      `AI 识别可能漏掉了图形中的平行/垂直等关系符号（${missing.slice(0, 3).join("、")}），请核对题干`,
+    ],
+  };
 }

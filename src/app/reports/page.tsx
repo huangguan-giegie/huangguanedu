@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { EmptyState } from "../../components/EmptyState";
 
 import { api } from "../../components/api";
 import { AuthGuard } from "../../components/AuthGuard";
@@ -61,11 +62,11 @@ function Summaries() {
       <h1 className="text-2xl font-bold">学习总结</h1>
       <div className="flex flex-wrap items-center gap-4">
         <label className="text-sm">总结类型 <select className="rounded-lg border border-[#302a38]/20 px-3 py-2" value={type} onChange={(event) => setType(event.target.value)}><option value="">全部</option><option value="WEEKLY">周报</option><option value="MONTHLY">月报</option><option value="SEMESTER">学期总结</option></select></label>
-        <Link href="/practice" className="text-sm text-[#754be6]">打开错题模拟练习 →</Link>
+        <Link href="/practice" className="inline-flex min-h-11 items-center rounded-xl border border-[#754be6]/30 px-4 text-sm font-semibold text-[#754be6]">打开错题模拟练习 →</Link>
       </div>
       {error && <div className="text-sm text-red-600">{error}</div>}
       {items.length === 0 && !error && (
-        <p className="text-sm text-[#302a38]/50">暂无学习总结</p>
+        <EmptyState title="暂无学习总结" description="孩子完成若干次错题订正后，系统会按周、按月整理学习总结。先去看看错题本吧。" actionHref="/wrong-questions" actionLabel="打开错题本" />
       )}
       {items.map((summary) => (
         <div key={summary.id} className="rounded-xl border border-[#302a38]/10 bg-white p-5">

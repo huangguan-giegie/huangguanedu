@@ -129,7 +129,7 @@ function List() {
         <div><span className="rounded-full bg-[#d7ef67] px-3 py-1 text-xs font-semibold">每一道错题，都是一次进步</span><h1 className="mt-3 text-2xl font-bold">{user?.role === "FAMILY" ? "我的错题本" : "学生错题本"}</h1><p className="mt-1 text-sm text-[#302a38]/60">收集、订正、再练习，让薄弱知识点逐个变成强项。</p></div>
         <div className="flex flex-wrap gap-3 text-sm">
           <button disabled={exporting || !ready} onClick={() => void exportQuestions()} className={`${control} disabled:opacity-50`}>{exporting ? "导出中…" : "导出错题"}</button>
-          <Link href={practiceHref} className="rounded-xl border border-[#754be6]/25 bg-white px-4 py-2 font-semibold text-[#754be6]">生成模拟题 ↗</Link>
+          <Link href={practiceHref} className="rounded-xl border border-[#754be6]/25 bg-white px-4 py-2 font-semibold text-[#754be6]">生成模拟题 →</Link>
           {user?.role === "FAMILY" && <Link href="/wrong-questions/new" className="rounded-xl bg-[#754be6] px-4 py-2 font-semibold text-white">+ 上传错题</Link>}
         </div>
       </div>

@@ -7,6 +7,7 @@ import { api } from "../../components/api";
 import { AuthGuard } from "../../components/AuthGuard";
 import { isPracticeGenerating, togglePracticeSource, type PracticeGenerationTask, type PracticeSetItem } from "../../components/practice-content";
 import { latexToUnicode } from "../../lib/latex-to-unicode";
+import { EmptyState } from "../../components/EmptyState";
 import styles from "./practice.module.css";
 
 interface SourceData {
@@ -168,11 +169,11 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
           <strong>{task.status === "PENDING" ? "生成任务已提交" : task.status === "PROCESSING" ? "正在生成模拟题…" : task.status === "DONE" ? "新练习已生成" : "本次生成未完成"}{sources?.students.find((student) => student.id === task.studentId)?.name ? ` · ${sources.students.find((student) => student.id === task.studentId)!.name}` : ""}</strong>
           {isPracticeGenerating(task) && <p>正在出题并准备所需图形。可以刷新页面，任务会继续运行。</p>}
           {task.status === "FAILED" && <p>{task.error ?? "请稍后重新生成。"}</p>}
-          {task.status === "DONE" && task.practiceSetId && <Link className={styles.textButton} href={`/practice/${task.practiceSetId}`}>查看新练习 ↗</Link>}
+          {task.status === "DONE" && task.practiceSetId && <Link className={styles.textButton} href={`/practice/${task.practiceSetId}`}>查看新练习 →</Link>}
         </div>}
         {pollError && <p className={styles.error} role="alert">{pollError} <button type="button" className={styles.textButton} onClick={() => setPollRetry((value) => value + 1)}>重新获取状态</button></p>}
 
-        {loading ? <p className={styles.empty}>正在加载错题…</p> : !selectable.length ? <div className={styles.empty}><strong>当前没有可用于生成的{subject === "MATH" ? "数学" : "英语"}错题</strong><p>完成错题识别后，再来选择原题生成练习。</p><Link href="/wrong-questions" className={styles.textButton}>查看错题本 ↗</Link></div> : <>
+        {loading ? <p className={styles.empty}>正在加载错题…</p> : !selectable.length ? <EmptyState title={`当前没有可用于生成的${subject === "MATH" ? "数学" : "英语"}错题`} description="错题完成识别后才能用来出题。先上传一道题，识别完再回来生成练习。" actionHref="/wrong-questions" actionLabel="去错题本看看" /> : <>
           <div className={styles.selectionHead}><span>已选 <b>{selectedIds.length}</b> / 20 道</span><button type="button" disabled={busy} className={styles.textButton} onClick={() => setSelectedIds(selectedIds.length ? [] : selectable.slice(0, 20).map((item) => item.id))}>{selectedIds.length ? "取消选择" : `选择${selectable.length > 20 ? "前 20 道" : "全部"}`}</button></div>
           <div className={styles.sources}>{selectable.map((item, index) => {
             const checked = selectedIds.includes(item.id);
@@ -185,7 +186,7 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
       </section>
 
       <section aria-labelledby="history-heading"><div className={styles.sectionHead}><div><h2 id="history-heading">我的模拟题</h2><p>每次练习，都从上一次的薄弱点出发。</p></div><span className={styles.count}>{visibleSets.length} 组练习</span></div>
-        {setsLoading ? <p className={styles.empty}>正在加载练习…</p> : visibleSets.length ? <div className={styles.sets}>{visibleSets.map((set) => <Link href={`/practice/${set.id}`} key={set.id} className={styles.setCard}><span className={styles.setIcon} aria-hidden="true">✦</span><div><h3>{set.title}</h3><p>{set.studentName} · {set.questions.length} 道题 · {new Date(set.createdAt).toLocaleDateString("zh-CN")}</p></div><span className={styles.setArrow} aria-hidden="true">↗</span></Link>)}</div> : <div className={styles.empty}><strong>还没有模拟题</strong><p>选好错题，生成第一组针对性练习吧。</p></div>}
+        {setsLoading ? <p className={styles.empty}>正在加载练习…</p> : visibleSets.length ? <div className={styles.sets}>{visibleSets.map((set) => <Link href={`/practice/${set.id}`} key={set.id} className={styles.setCard}><span className={styles.setIcon} aria-hidden="true">✦</span><div><h3>{set.title}</h3><p>{set.studentName} · {set.questions.length} 道题 · {new Date(set.createdAt).toLocaleDateString("zh-CN")}</p></div><span className={styles.setArrow} aria-hidden="true">→</span></Link>)}</div> : <EmptyState title="还没有模拟题" description="在上方选好原题与难度，点「生成针对性练习」，结果会出现在这里。" />}
       </section>
     </div>
   );

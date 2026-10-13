@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { EmptyState } from "../../../components/EmptyState";
 
 import { api } from "../../../components/api";
 import { AuthGuard } from "../../../components/AuthGuard";
@@ -43,7 +44,7 @@ function ReviewQueue() {
       <h1 className="text-2xl font-bold">待复核 AI 错题</h1>
       {error && <div className="text-sm text-red-600">{error}</div>}
       {items.length === 0 && !error && (
-        <p className="text-sm text-[#302a38]/50">暂无待复核题目</p>
+        <EmptyState title="暂无待复核题目" description="学生提交错题后，需要复核的题目会出现在这里。" actionHref="/teacher/students" actionLabel="查看我的学生" />
       )}
       <div className="space-y-3">
         {items.map((item) => (

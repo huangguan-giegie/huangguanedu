@@ -75,7 +75,7 @@ export default function LoginPage() {
             </div>
             {error && <div className="auth-error" role="alert">{error}</div>}
             <button className="button-primary" disabled={loading}>
-              {loading ? "登录中…" : "登录学习空间　↗"}
+              {loading ? "登录中…" : "登录学习空间"}
             </button>
           </form>
           <p className="auth-help">

@@ -9,7 +9,7 @@ export interface LinkItem {
   description: string;
 }
 
-const ICONS = ["↗", "?", "▦", "✦"];
+const ICONS = ["→", "?", "▦", "✦"];
 
 export function LinkList({ items }: { items: LinkItem[] }) {
   return (
@@ -25,7 +25,7 @@ export function LinkList({ items }: { items: LinkItem[] }) {
             <span className="link-card-label">{item.label}</span>
             <span className="link-card-description">{item.description}</span>
           </span>
-          <span className="link-card-arrow" aria-hidden="true">↗</span>
+          <span className="link-card-arrow" aria-hidden="true">→</span>
         </Link>
       ))}
     </div>

@@ -36,7 +36,7 @@ function Dashboard() {
               欢迎回来，{studentName || "同学"}。月卡包含周一至周四线下小班课，
               周末一对一可在网页预约。
             </p>
-            <Link href="/wrong-questions/new" className="welcome-action">＋ 上传一道错题　↗</Link>
+            <Link href="/wrong-questions/new" className="welcome-action">＋ 上传一道错题　→</Link>
           </div>
           <div className="welcome-art" aria-hidden="true">
             <span className="art-card">?</span>
@@ -70,7 +70,7 @@ function Dashboard() {
             <p className="eyebrow">TEACHER DESK · 今天的教学安排</p>
             <h1>让每条建议，<br />都成为有用的反馈。</h1>
             <p>复核 AI 错题分析，或打开学生列表继续跟进学习情况。</p>
-            <Link href="/teacher/review" className="welcome-action">查看待复核错题　↗</Link>
+            <Link href="/teacher/review" className="welcome-action">查看待复核错题　→</Link>
           </div>
           <div className="welcome-art" aria-hidden="true"><span className="art-card">✓</span><i className="art-bar" /><i className="art-bar" /><i className="art-bar" /></div>
         </section>
@@ -94,7 +94,7 @@ function Dashboard() {
           <p className="eyebrow">ACADEMY CONTROL · 管理工作台</p>
           <h1>课程与学生，<br />都在这里有序展开。</h1>
           <p>管理学生和老师账户，安排每一节小班课与一对一课程。</p>
-          <Link href="/admin/students" className="welcome-action">打开学生管理　↗</Link>
+          <Link href="/admin/students" className="welcome-action">打开学生管理　→</Link>
         </div>
         <div className="welcome-art" aria-hidden="true"><span className="art-card">✦</span><i className="art-bar" /><i className="art-bar" /><i className="art-bar" /></div>
       </section>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "../../components/api";
 import { AuthGuard } from "../../components/AuthGuard";
+import { EmptyState } from "../../components/EmptyState";
 
 interface CourseSlot {
   id: string;
@@ -86,7 +87,7 @@ function Bookings() {
           </div>
         ))}
         {slots.length === 0 && !error && (
-          <p className="text-sm text-[#302a38]/50">暂无可预约时段</p>
+          <EmptyState title="暂无可预约时段" description="老师还没有放出可预约的课程时段，通常在每周一排课。这里没有你需要操作的步骤，稍后刷新即可看到新时段。" />
         )}
       </div>
     </div>

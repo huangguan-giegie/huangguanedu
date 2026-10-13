@@ -3,6 +3,7 @@
  * 输入 diagramDescription（拓扑描述） → 输出 SVG 字符串（确定性坐标）。
  */
 import type { DiagramDescription } from "./diagram-description";
+import { primaryPolygon } from "./diagram-description";
 import { computeLayout } from "./diagram-renderer/layout-engine";
 import { buildSvg } from "./diagram-renderer/svg-builder";
 import { computeFunctionCurves } from "./diagram-renderer/curve-sampler";
@@ -35,8 +36,15 @@ export function renderDiagramFromDescription(desc: DiagramDescription): string {
   // 从 collinear 提取共线底边
   const collinearBase = desc.collinear?.[0]?.points;
 
-  // extraLines：非共线的三角形边（从 polygons 推断）
-  const extraLines: Array<{ from: string; to: string }> = [];
+  // 主多边形：只由主顶点构成，不含垂足/交点/折叠像点等辅助点。
+  // 原实现在这里用「全部顶点」兜底，加入辅助点后会把三角形画成五边形。
+  const primary = primaryPolygon(desc);
+
+  // extraLines：题目显式声明的辅助线（垂线、对角线、折痕） + 非共线的多边形边
+  const extraLines: Array<{ from: string; to: string; dashed?: boolean }> = [];
+  for (const segment of desc.segments ?? []) {
+    extraLines.push({ from: segment.from, to: segment.to, dashed: segment.dashed });
+  }
   if (desc.polygons && collinearBase) {
     const collinearSet = new Set(collinearBase);
     for (const poly of desc.polygons) {
@@ -51,12 +59,22 @@ export function renderDiagramFromDescription(desc: DiagramDescription): string {
     }
   }
 
+  const polygonVertices = desc.polygons?.map((poly) => poly.vertices) ?? [];
+  if (!polygonVertices.length && ["single-triangle", "parallelogram", "rectangle"].includes(desc.shapeType) && primary.length >= 3) {
+    polygonVertices.push(primary);
+  }
+
+  // 辅助点需要单独画点，否则只有一个悬空标签看不出位置
+  const primarySet = new Set(primary);
+  const auxiliaryLabels = desc.vertices.filter((v) => !primarySet.has(v.label)).map((v) => v.label);
+
   return buildSvg(vertexMap, {
-    polygons: desc.polygons ?? (["single-triangle", "parallelogram"].includes(desc.shapeType) ? [{ vertices: desc.vertices.map((v) => v.label) }] : undefined),
+    polygons: polygonVertices.map((vertices) => ({ vertices })),
     circles: desc.circles,
     collinearBase,
     marks: desc.marks,
     extraLines,
+    auxiliaryLabels,
   });
 }
 

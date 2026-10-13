@@ -1,0 +1,342 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   08T 皮肤 · 纸上流光 · 科技增强
+   ──────────────────────────────────────────────────────────────────────────
+   来源：deliverables/ui-styles-2026-10-13/sets/08tech-paper-neo.html
+         （theme-08 的色板 + theme-08tech 的质感层，适配真实产品的 Web 布局）
+   加载：layout.tsx 在 globals.css 之后 import —— 同特异性下后者胜出
+   回退：删掉 layout.tsx 里那一行 import，全站立即回到原品牌紫；
+         本文件之外零改动（页面 JSX 一行没动）。
+
+   设计原则
+   ├ 换值不换名：--violet / --surface / --line 等变量名沿用，值换成 08T 色板，
+   │  于是 globals.css 里那层 `[class*="text-[#754be6]"]` 覆盖器和全部 .app-* 类自动跟随。
+   ├ 正文不用文楷：文楷只上标题 / 品牌 / 徽章（小字号正文用楷体会掉可读性）。
+   └ 假玻璃为主：卡片零 backdrop-filter，靠渐变 + 1px 高光描边 + 内阴影 + 噪点质感。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. 标题字体（子集 272KB，见 scripts/build-wenkai-subset.py）────────── */
+@font-face {
+  font-family: "LXGW WenKai";
+  src: url("/fonts/lxgw-wenkai-title.woff2") format("woff2");
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── 2. 色板 token（08 纸上流光 + 品牌色进化：紫 → 墨紫 + 暖金）────────── */
+:root {
+  /* 底座：暖纸 */
+  --background: #faf6ee;
+  --foreground: #2e2a3f;
+  --muted: #6a6252;
+  --surface: #fffdf8;
+  --surface-soft: #f0e7d6;
+
+  /* 主色（保留变量名 —— 全站 205 处 Tailwind 硬编码色值由覆盖层接管） */
+  --violet: #5b3fd6;
+  --violet-hover: #4a30c2;
+  --coral: #c9633a;
+  --acid: #c9d95e;
+  --plum: #241f33;
+  --line: rgba(46, 42, 63, .12);
+
+  /* 08T 新增 */
+  --accent-warm: #f2b04a;
+  --success-ink: #2f7346;
+  --warning-ink: #ab3d1b;
+  --edge-cyan: #46c6d6;
+
+  --paper: #faf6ee;
+  --paper-raised: #fffdf8;
+  --paper-sunken: #f6f0e4;
+  --paper-line: #e7dcc6;
+  --shadow-warm: 0 18px 50px #6b583612;
+
+  --grid-line: rgba(91, 63, 214, .03);
+  --grid-line-strong: rgba(91, 63, 214, .052);
+
+  /* 假玻璃配方 */
+  --glass-warm: radial-gradient(125% 125% at 50% 42%,
+      rgba(255, 253, 248, .97) 0 52%, rgba(255, 253, 248, .86) 100%);
+  --glass-warm-hi: inset 0 1px 0 #fff, 0 6px 16px #7a6a4a1f;
+  --dispersion: linear-gradient(135deg, #b9a4ff, #f2b04a 46%, #5ec8d6);
+
+  --radius-card: 20px;
+  --font-title: "LXGW WenKai", var(--font-geist-sans), "Microsoft YaHei", sans-serif;
+
+  /* 过渡态 tint —— 供 practice.module.css 等 CSS Modules 引用。
+     命名对齐「用途」而非「颜色」，回退时各文件用自身原值作 fallback。 */
+  --tint-badge-bg: #f0e7d6;      /* 徽章 / 计数底 */
+  --tint-badge-ink: #5f5450;     /* 徽章字 */
+  --tint-active-bg: #ede7fb;     /* 侧栏导航选中态底（保留紫调，与主色同源） */
+  --tint-hover-bg: #fdfbf6;      /* 悬停底 */
+  --tint-warm-bg: #f6f1e6;       /* 次级暖底（答案区 / 帮助块） */
+  --ring-violet-weak: #5b3fd64d; /* 弱描边 */
+  --ring-violet: #5b3fd65e;      /* 中描边 */
+  --tint-green-bg: #eef3cf;
+  --tint-green-ink: #566016;
+  --tint-green-line: #c9d95e66;
+  --tint-danger-bg: #fbe9e2;
+  --tint-danger-ink: #a8402f;
+  --border-dashed: #cbbfa8;
+  --scrim: rgb(46 42 63 / .72);
+
+  /* 纸面噪点（内联 SVG feTurbulence，零请求） */
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+/* ── 3. 底座：暖纸 + 工程网格 + 视口边缘微光 ────────────────────────────── */
+body {
+  background-color: var(--paper);
+  /* 原为 18px 淡紫点阵；换成 28px 工程网格 + 112px 主格（与原型 08tech 同参） */
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-strong) 1px, transparent 1px);
+  background-size: 28px 28px, 28px 28px, 112px 112px, 112px 112px;
+}
+
+/* 视口左右内壁的纵向微光：只在宽屏出现，窄屏直接不渲染 —— 不进入内容区 */
+@media (min-width: 1200px) {
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    left: 14px;
+    background: linear-gradient(180deg,
+        transparent 6%, #5b3fd63d 22%, #5b3fd61a 54%, transparent 90%);
+  }
+  body::after {
+    right: 14px;
+    background: linear-gradient(180deg,
+        transparent 12%, #f2b04a42 38%, #46c6d626 70%, transparent 94%);
+  }
+}
+
+/* ── 4. 玻璃卡片系统（零 backdrop-filter）──────────────────────────────── */
+.app-sidebar {
+  /* 原为 #ffffffdd + backdrop-filter: blur(18px)（sticky 元素滚动时持续重绘）
+     换成假玻璃：97% 实底 + 高光边 + 暖阴影，观感几乎一致但零滤镜开销 */
+  background: var(--glass-warm);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--paper-line);
+  box-shadow: var(--glass-warm-hi), var(--shadow-warm);
+  backdrop-filter: none;
+}
+
+.study-note {
+  background: var(--paper-sunken);
+  border: 1px solid var(--paper-line);
+}
+.study-note::after {
+  color: #5b3fd61f;
+}
+
+.link-card {
+  background: var(--paper-raised);
+  border-color: var(--paper-line);
+  box-shadow: 0 8px 21px #6b58360a;
+}
+.link-card:hover {
+  border-color: #5b3fd64d;
+  box-shadow: 0 13px 28px #6b583617;
+}
+.link-card-icon {
+  background: #ede7fb;
+  border-radius: 12px;
+}
+.link-card--1 .link-card-icon { color: #b04a2e; background: #fbe9e0; }
+.link-card--2 .link-card-icon { color: #5b3fd6; background: #ede7fb; }
+.link-card--3 .link-card-icon { color: #5a6416; background: #eef3cf; }
+.link-card-arrow { color: #a99f8c; }
+.link-card:hover .link-card-arrow { color: var(--violet); }
+
+.auth-card {
+  background: var(--glass-warm);
+  background-color: var(--paper-raised);
+  border-color: var(--paper-line);
+  box-shadow: var(--glass-warm-hi), 0 18px 48px #6b583618;
+}
+.auth-help {
+  color: var(--muted);
+  background: var(--paper-sunken);
+  border: 1px solid var(--paper-line);
+}
+.auth-error {
+  color: #a8402f;
+  background: #fbe9e2;
+}
+
+/* 侧边栏导航 */
+.app-nav-link:hover { color: var(--violet); background: #f4efe3; }
+.app-nav-link.active { color: var(--violet); background: var(--tint-active-bg, #ede7fb); }
+.sidebar-caption { color: #9a917f; }
+.role-chip {
+  color: var(--violet);
+  background: #fffdf8b8;
+  border-color: var(--paper-line);
+}
+.logout-button:hover { color: var(--coral); background: #fbe9e2; }
+.app-breadcrumb { color: #948b78; }
+.app-breadcrumb span { color: #c9c0ab; }
+.app-footer { color: #9a917f; }
+
+/* ── 5. 主视觉面板（welcome / auth-story）───────────────────────────────── */
+.welcome-panel {
+  background:
+    linear-gradient(150deg, #5b3fd6 0%, #4c33bc 58%, #3f2aa4 100%);
+  box-shadow: 0 16px 36px #5b3fd626;
+}
+.auth-story {
+  background:
+    linear-gradient(150deg, #5b3fd6 0%, #4c33bc 58%, #3f2aa5 100%);
+}
+.auth-brand-mark { background: var(--acid); }
+.welcome-action { background: var(--acid); }
+.eyebrow { color: #d9cfff; }
+
+/* HUD 角标（仅装饰，卡片已有 overflow: hidden 会自然裁切） */
+.welcome-panel::before,
+.welcome-panel::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+.welcome-panel::before {
+  top: 16px; left: 16px;
+  border-top: 1px solid #ffffff45;
+  border-left: 1px solid #ffffff45;
+}
+.welcome-panel::after {
+  bottom: 16px; right: 16px;
+  border-bottom: 1px solid #ffffff38;
+  border-right: 1px solid #ffffff38;
+}
+
+/* ── 6. 内容区：表格 / 表单 / Tailwind 卡片 ────────────────────────────── */
+.app-content th {
+  color: #6f6657;
+  background: #f6f0e2;
+}
+.app-content td { color: #4f4a58; }
+.app-content table { background: var(--paper-raised); }
+
+.app-content input,
+.app-content select,
+.app-content textarea,
+.form-field input {
+  background: var(--paper-raised);
+  border-color: var(--paper-line) !important;
+}
+.form-field input { background: var(--paper-raised); }
+.form-field label { color: #6f6657; }
+.form-field input::placeholder { color: #b3a894; }
+
+/* Tailwind 卡片统一成暖纸玻璃 */
+.app-content [class*="rounded-xl"][class*="border"] {
+  border-radius: var(--radius-card);
+  border-color: var(--paper-line) !important;
+  background: var(--paper-raised);
+  box-shadow: 0 8px 22px #6b58360b;
+}
+.app-content [class*="bg-[#f3f0ff]"] { background-color: var(--paper-sunken) !important; }
+
+/* 语义色：保持红/绿可辨识，但色调并入暖纸体系 */
+.app-content [class*="text-red-"] { color: #a8402f !important; }
+.app-content [class*="bg-red-"] { background: #fbe9e2 !important; }
+.app-content [class*="text-green-"] { color: #4a6b2f !important; }
+.app-content [class*="bg-green-"] { background: #eef3cf !important; }
+
+.home-note {
+  color: #3f3a2a;
+  background: #c9d95e42;
+  border: 1px solid #bfd05280;
+}
+
+.button-primary {
+  background: var(--violet);
+  box-shadow: 0 6px 16px #5b3fd626, inset 0 1px 0 #ffffff2e;
+}
+.button-primary:hover { background: var(--violet-hover); }
+
+/* ── 7. 文楷只上标题 / 品牌 / 徽章（正文保持系统字栈）────────────────── */
+.welcome-panel h1,
+.auth-story-copy h1,
+.auth-card h2,
+.app-content h1,
+.app-content h2,
+.app-content h3,
+.app-title,
+.section-heading,
+.app-brand,
+.auth-brand,
+.link-card-label {
+  font-family: var(--font-title);
+  font-weight: 500;
+  letter-spacing: -.02em;
+}
+
+/* 数字 / 品牌标记：文楷的等宽感更弱，故仍走原字体栈，只调字重 */
+.app-brand-mark,
+.auth-brand-mark,
+.user-avatar { font-family: var(--font-geist-sans), "Microsoft YaHei", sans-serif; }
+
+/* ── 8. 科技细节 ──────────────────────────────────────────────────────── */
+/* eyebrow 前的青色脉冲点（原型 08tech 同款） */
+.eyebrow { position: relative; padding-left: 13px; }
+.eyebrow::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: var(--edge-cyan);
+  box-shadow: 0 0 0 3px #46c6d626;
+}
+
+/* 主按钮扫光：hover 时一道窄光横扫（只动 transform / opacity） */
+.button-primary,
+.welcome-action { position: relative; overflow: hidden; }
+.button-primary::after,
+.welcome-action::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -40%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, #ffffff59, transparent);
+  transform: translateX(-120%);
+  transition: transform .55s cubic-bezier(.25, .7, .3, 1);
+  pointer-events: none;
+}
+.button-primary:hover::after,
+.welcome-action:hover::after { transform: translateX(360%); }
+
+/* 焦点环跟随品牌色 */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #5b3fd655;
+}
+
+/* ── 9. 降级 ──────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .button-primary::after,
+  .welcome-action::after { transition: none; }
+  .button-primary:hover::after,
+  .welcome-action:hover::after { transform: translateX(-120%); }
+}

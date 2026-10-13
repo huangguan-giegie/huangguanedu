@@ -78,7 +78,7 @@ export default function ChangePasswordPage() {
             </div>
             {error && <div className="auth-error" role="alert">{error}</div>}
             <button className="button-primary" disabled={loading}>
-              {loading ? "保存中…" : "保存并继续　↗"}
+              {loading ? "保存中…" : "保存并继续"}
             </button>
           </form>
         </div>

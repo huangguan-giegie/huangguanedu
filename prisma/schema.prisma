@@ -220,6 +220,8 @@ model Student {
   summaries         LearningSummary[]
   practiceSets      PracticeSet[]
   practiceGenerationJobs PracticeGenerationJob[]
+  knowledgeMasteries     KnowledgeMastery[]
+  practiceAttempts       PracticeAttempt[]
 
   @@index([name])
 }
@@ -621,6 +623,8 @@ model PracticeSet {
   studentId String
   title     String
   summaryId String?
+  // TARGETED（指定错题）/ SELECTED_WRONG_QUESTIONS / ADAPTIVE_REVIEW（按掌握度挑题）
+  mode     String   @default("TARGETED")
   createdAt DateTime @default(now())
 
   student  Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -640,9 +644,14 @@ model PracticeQuestion {
   answer        String
   explanation   String?
   imagePath     String?
+  knowledgePoints Json?
+  sourceWrongQuestionIds Json?
+  difficulty     Difficulty @default(MEDIUM)
+  gradingMode    String     @default("AUTO")
   createdAt     DateTime @default(now())
 
   practiceSet PracticeSet @relation(fields: [practiceSetId], references: [id], onDelete: Cascade)
+  attempts    PracticeAttempt[]
 
   @@index([practiceSetId])
 }
@@ -667,4 +676,48 @@ model PracticeGenerationJob {
   @@index([status, createdAt])
   @@index([studentId])
   @@index([requestedById, createdAt])
+}
+
+// 自适应学习：知识点掌握度（SM-2 间隔重复）。
+// 由 adaptive learning v2 引入，与错题模拟练习并存——掌握度只决定「挑哪些知识点出题」，
+// 出题与渲染仍走 practice-set.ts 的图形与符号后处理链，两者互不替代。
+model KnowledgeMastery {
+  id              String   @id @default(cuid())
+  studentId       String
+  subject         Subject
+  knowledgePoint  String
+  masteryScore    Int      @default(35)
+  stability       Float    @default(1)
+  difficulty      Float    @default(5)
+  reviewCount     Int      @default(0)
+  lapseCount      Int      @default(0)
+  lastReviewedAt  DateTime?
+  nextReviewAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subject, knowledgePoint])
+  @@index([studentId, nextReviewAt])
+  @@index([studentId, masteryScore])
+}
+
+// 学生作答记录：支撑自动判分与「练过几次」的统计。
+model PracticeAttempt {
+  id                 String        @id @default(cuid())
+  practiceQuestionId String
+  studentId          String
+  answer             String
+  result             AttemptResult
+  score              Int
+  feedback           String?
+  gradingMethod      String        @default("DETERMINISTIC")
+  attemptedAt        DateTime      @default(now())
+
+  practiceQuestion PracticeQuestion @relation(fields: [practiceQuestionId], references: [id], onDelete: Cascade)
+  student          Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([practiceQuestionId, attemptedAt])
+  @@index([studentId, attemptedAt])
 }

@@ -13,6 +13,12 @@
   --plum: #382d45;
   --line: #302a381a;
   --font-display: var(--font-geist-sans), "Microsoft YaHei", sans-serif;
+  /* 原先这两个变量由 next/font/google 注入 Geist / Geist Mono。现改为本地字体栈，
+     变量名保留不变，全站 var(--font-geist-*) 的引用照旧生效，构建也不再依赖外网。 */
+  --font-geist-sans: "Segoe UI", -apple-system, "Helvetica Neue", Arial, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --font-geist-mono: "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", Menlo,
+    "Microsoft YaHei Mono", monospace;
 }
 
 @theme inline {
@@ -127,7 +133,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .app-nav-link:hover { color: var(--violet); background: #f5f1ff; transform: translateX(2px); }
 .app-nav-link.active { color: var(--violet); background: #eee8ff; font-weight: 850; }
 .app-nav-icon { display: grid; place-items: center; width: 22px; font-size: 16px; }
-.app-nav-count { margin-left: auto; color: #9892a5; font-family: var(--font-geist-mono); font-size: 9px; }
 
 .sidebar-bottom { margin-top: auto; }
 .study-note {
@@ -153,7 +158,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .user-avatar { display: grid; flex: 0 0 auto; place-items: center; width: 31px; height: 31px; border-radius: 11px; background: var(--acid); font-size: 11px; font-weight: 900; }
 .user-copy { min-width: 0; flex: 1; font-size: 10px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .user-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; font-weight: 550; }
-.logout-button { display: grid; place-items: center; width: 29px; height: 29px; border: 0; border-radius: 9px; color: #827c8d; background: transparent; }
+.logout-button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 10px; border: 0; border-radius: 11px; color: #827c8d; background: transparent; font-size: 11px; font-weight: 750; }
 .logout-button:hover { color: var(--coral); background: #fff0ec; }
 
 .app-main { min-width: 0; padding-bottom: 16px; }
@@ -185,7 +190,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .eyebrow { margin: 0; color: #e3daff; font-family: var(--font-geist-mono); font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .welcome-panel h1 { margin: 14px 0 9px; color: white; font-size: clamp(30px, 3.2vw, 43px); font-weight: 850; letter-spacing: -.07em; line-height: 1.12; }
 .welcome-panel p:not(.eyebrow) { max-width: 490px; margin: 0; color: #eee9ff; font-size: 10px; line-height: 1.8; }
-.welcome-action { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; padding: 11px 14px; border-radius: 12px; color: var(--foreground); background: var(--acid); font-size: 10px; font-weight: 900; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; }
+.welcome-action { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 20px; padding: 11px 14px; border-radius: 12px; color: var(--foreground); background: var(--acid); font-size: 10px; font-weight: 900; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; }
 .welcome-action:hover { transform: translateY(-2px); box-shadow: 0 7px 17px #241b401f; }
 .welcome-art { position: absolute; right: 29px; bottom: 22px; width: 260px; height: 205px; opacity: .96; }
 .welcome-art::before,.welcome-art::after { content: ""; position: absolute; right: -20px; bottom: -86px; width: 260px; height: 260px; border: 1px solid #ffffff40; border-radius: 50%; box-shadow: 0 0 0 17px #ffffff0d,0 0 0 35px #ffffff0d; }
@@ -237,9 +242,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .app-content [class*="border-[#302a38]"] { border-color: var(--line) !important; }
 .app-content [class*="rounded-xl"][class*="border"] { border-radius: 19px; box-shadow: 0 8px 22px #392d5409; }
 .app-content [class*="hover:border-[#754be6]"]:hover { border-color: #754be655 !important; }
-.app-content button[class*="bg-[#754be6]"] { border: 0; border-radius: 12px; color: #fff !important; background: var(--violet) !important; transition: transform .16s ease, background .16s ease; }
+.app-content button[class*="bg-[#754be6]"] { min-height: 44px; border: 0; border-radius: 12px; color: #fff !important; background: var(--violet) !important; transition: transform .16s ease, background .16s ease; }
 .app-content button[class*="bg-[#754be6]"]:hover { background: var(--violet-hover) !important; transform: translateY(-1px); }
-.app-content input,.app-content select,.app-content textarea { min-height: 40px; border-radius: 11px; border-color: var(--line) !important; background: #fff; }
+.app-content input,.app-content select,.app-content textarea { min-height: 44px; border-radius: 11px; border-color: var(--line) !important; background: #fff; }
 .app-content table { display: block; max-width: 100%; overflow-x: auto; border-color: var(--line) !important; border-radius: 18px; background: #fff; white-space: nowrap; }
 .app-content th { color: #6d667a; background: #f8f6ff; font-size: 9px; font-weight: 800; }
 .app-content td { color: #4e4858; font-size: 10px; }
@@ -284,9 +289,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .auth-form { display: grid; gap: 15px; margin-top: 24px; }
 .form-field { display: grid; gap: 6px; }
 .form-field label { color: #6e687a; font-size: 10px; font-weight: 750; }
-.form-field input { width: 100%; min-height: 43px; padding: 0 12px; border: 1px solid var(--line); border-radius: 11px; color: var(--foreground); background: #fcfbff; font-size: 11px; }
+.form-field input { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 11px; color: var(--foreground); background: #fcfbff; font-size: 11px; }
 .form-field input::placeholder { color: #aaa4b4; }
-.button-primary { display: inline-flex; justify-content: center; align-items: center; min-height: 43px; padding: 0 15px; border: 0; border-radius: 12px; color: #fff; background: var(--violet); font-size: 11px; font-weight: 850; transition: transform .16s ease, background .16s ease; }
+.button-primary { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 0 15px; border: 0; border-radius: 12px; color: #fff; background: var(--violet); font-size: 11px; font-weight: 850; transition: transform .16s ease, background .16s ease; }
 .button-primary:hover { background: var(--violet-hover); transform: translateY(-1px); }
 .button-primary:disabled { cursor: wait; opacity: .6; transform: none; }
 .auth-help { margin: 19px 0 0; padding: 12px; border-radius: 12px; color: #777183; background: #f8f6ff; font-size: 9px; line-height: 1.65; }
@@ -300,8 +305,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .app-sidebar { position: static; height: auto; min-height: 0; padding: 13px; }
   .app-brand { padding: 0 3px 10px; }
   .sidebar-caption,.sidebar-bottom { display: none; }
-  .app-nav { display: flex; gap: 5px; overflow-x: auto; padding-top: 10px; border-top: 1px solid var(--line); }
-  .app-nav-link { flex: 0 0 auto; min-height: 38px; padding: 0 10px; font-size: 10px; }
+  /* 6 个导航项在一行放不下（366px 视口下需要 534px），改为自动换行：
+     原先用横向滚动，会把「学习总结」「账户设置」藏到屏幕外且没有任何提示。 */
+  .app-nav { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .app-nav-link { flex: 1 1 auto; min-height: 44px; padding: 0 10px; font-size: 10px; }
+  /* 触控目标统一不小于 44px（iOS HIG / Material 建议值） */
+  .welcome-action { min-height: 44px; }
+  .app-content button,
+  .app-content input:not([type="checkbox"]):not([type="radio"]),
+  .app-content select,
+  .app-content textarea { min-height: 44px; }
   .app-topbar { min-height: 45px; margin: 0 4px 14px; }
   .app-content { max-width: none; }
   .welcome-panel { min-height: 235px; padding: 27px; }
@@ -323,7 +336,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .link-list-grid { grid-template-columns: 1fr; gap: 9px; }
   .link-card { min-height: 77px; border-radius: 15px; }
   .app-footer { flex-direction: column; font-size: 8px; }
-  .auth-page { grid-template-columns: minmax(0,1fr); min-height: auto; padding: 12px; gap: 0; }
+  .auth-page { grid-template-columns: minmax(0,1fr); min-height: 100vh; min-height: 100dvh; align-content: center; padding: 12px; gap: 0; }
   .auth-story { min-height: 210px; padding: 20px; border-radius: 19px 19px 4px 4px; }
   .auth-story-copy { padding: 24px 0 0; }
   .auth-story-copy h1 { margin: 10px 0 6px; font-size: 33px; }
