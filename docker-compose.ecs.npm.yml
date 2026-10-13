@@ -1,0 +1,11 @@
+# Nginx Proxy Manager 容器与应用容器共用 Docker 网络；数据库仍留在应用私有网络。
+services:
+  web:
+    networks:
+      - huangguanedu-internal
+      - nginx_proxy_manager
+
+networks:
+  nginx_proxy_manager:
+    external: true
+    name: nginx-proxy-manage_default
