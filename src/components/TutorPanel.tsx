@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { latexToUnicode } from "../lib/latex-to-unicode";
 import { api } from "./api";
 
 interface Message {
@@ -58,7 +59,9 @@ export function TutorPanel({ practiceQuestionId }: { practiceQuestionId: string 
         )}
         {messages.map((item, index) => (
           <div key={index} className={item.role === "user" ? "ml-6 rounded-lg bg-[#faf6ee] p-2" : "mr-6 rounded-lg bg-blue-50 p-2"}>
-            {item.content}
+            {/* 模型回复里带 $...$ 公式，用与题目/答案相同的转换渲染，
+                否则学生看到的是原始 LaTeX 串。 */}
+            {latexToUnicode(item.content)}
           </div>
         ))}
       </div>
