@@ -119,3 +119,4 @@ deliverables/
 .backups/
 *.dump
 *.sha256
+.aliyun-osscheck.py
