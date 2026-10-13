@@ -9,9 +9,22 @@ import { createRequire } from "node:module";
 import { Client } from "pg";
 
 const require = createRequire(join(process.cwd(), "package.json"));
-// 通过包根导出（dist/index.js）定位包根目录
-const pkgDir = dirname(dirname(require.resolve("@embedded-postgres/windows-x64")));
-const binDir = join(pkgDir, "native", "bin");
+
+// 该包是 optionalDependencies（os: win32 / cpu: x64），Linux 与 macOS 上npm ci 会跳过安装。
+// 所以这里不能放在模块顶层解析——那会让本模块在任何非 Windows 上一被 import 就抛
+// MODULE_NOT_FOUND连带 test-db.ts / vitest-global-setup.ts 一起加载失败。
+// 改成惰性解析：只有真的要启动嵌入式实例时才解析，解析不到就抛出可读的提示。
+function resolveBinDir(): string {
+  try {
+    // 通过包根导出（dist/index.js）定位包根目录
+    return join(dirname(dirname(require.resolve("@embedded-postgres/windows-x64"))), "native", "bin");
+  } catch {
+    throw new Error(
+      "@embedded-postgres/windows-x64 未安装（仅在 Windows x64 上可用）。" +
+        "非 Windows 环境请改用外部 PostgreSQL，并设置 TEST_DATABASE_URL 或 DATABASE_URL。",
+    );
+  }
+}
 
 export const DEFAULT_TEST_PG_PORT = 55432;
 
@@ -72,7 +85,7 @@ export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
     }
   };
 
-  run(join(binDir, "initdb.exe"), [
+  run(join(resolveBinDir(), "initdb.exe"), [
     "-D",
     dataDir,
     "-U",
@@ -83,7 +96,7 @@ export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
     "--no-locale",
   ]);
   run(
-    join(binDir, "pg_ctl.exe"),
+    join(resolveBinDir(), "pg_ctl.exe"),
     [
       "-D",
       dataDir,
@@ -98,7 +111,7 @@ export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
   );
 
   const stop = () => {
-    spawnSync(join(binDir, "pg_ctl.exe"), ["-D", dataDir, "stop", "-m", "fast"], {
+    spawnSync(join(resolveBinDir(), "pg_ctl.exe"), ["-D", dataDir, "stop", "-m", "fast"], {
       stdio: "ignore",
     });
     rmSync(markerPath(port), { force: true });
@@ -173,7 +186,7 @@ export async function getOrStartTestPostgres(): Promise<TestPostgres> {
         // 复用的实例若由本机启动过（标记文件存在），负责停止，避免进程残留
         if (ownedDataDir) {
           spawnSync(
-            join(binDir, "pg_ctl.exe"),
+            join(resolveBinDir(), "pg_ctl.exe"),
             ["-D", ownedDataDir, "stop", "-m", "fast"],
             { stdio: "ignore" },
           );
