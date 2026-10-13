@@ -11,5 +11,5 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   const students = await allowedPracticeStudents(prisma, auth.user);
   const set = await prisma.practiceSet.findFirst({ where: { id, studentId: { in: students.map((s) => s.id) } }, include: { student: true, questions: { orderBy: { createdAt: "asc" } } } });
   if (!set) return jsonError(404, "PRACTICE_SET_NOT_FOUND", "模拟题不存在或无权访问");
-  return NextResponse.json({ success: true, data: await serializePracticeSet(set) });
+  return NextResponse.json({ success: true, data: await serializePracticeSet(set, prisma) });
 }

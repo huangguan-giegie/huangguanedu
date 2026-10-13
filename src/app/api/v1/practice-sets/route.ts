@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     success: true,
     data: {
-      items: await Promise.all(sets.map(serializePracticeSet)),
+      // 列表页不展示学科，不传 prisma 以省去每份练习集的额外查询
+      items: await Promise.all(sets.map((set) => serializePracticeSet(set))),
     },
   });
 }

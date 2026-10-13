@@ -12,6 +12,7 @@ import { computeLayout } from "./diagram-renderer/layout-engine";
 import { diagramPremiseViolations } from "./diagram-renderer/layout-engine";
 import { renderDiagramFromDescription } from "./diagram-renderer";
 import { latexToUnicode, normalizeGeometryText, tidyPunctuation, unconvertedCommands } from "./latex-to-unicode";
+import { asStringArray } from "./mastery";
 import { getStorage } from "./storage";
 
 export const PracticeQuestionSchema = z.object({
@@ -360,8 +361,28 @@ export async function allowedPracticeStudents(prisma: PrismaClient, user: Pick<S
   });
 }
 
-export async function serializePracticeSet(set: { id: string; studentId: string; title: string; summaryId: string | null; createdAt: Date; student: { name: string }; questions: { id: string; question: string; answer: string; explanation: string | null; imagePath: string | null }[] }) {
-  return { id: set.id, studentId: set.studentId, studentName: set.student.name, title: set.title, summaryId: set.summaryId, createdAt: set.createdAt,
+export async function serializePracticeSet(set: { id: string; studentId: string; title: string; summaryId: string | null; createdAt: Date; student: { name: string }; questions: { id: string; question: string; answer: string; explanation: string | null; imagePath: string | null; sourceWrongQuestionIds?: unknown }[] }, prisma?: PrismaClient) {
+  // 学科不在练习题上，只能经sourceWrongQuestionIds 从来源错题反查。
+  // 取不到时默认 MATH：公式键盘对英语题也能用，不算错配。
+  const sourceIds = [
+    ...new Set(
+      set.questions.flatMap((q) =>
+        asStringArray(q.sourceWrongQuestionIds),
+      ),
+    ),
+  ];
+  let subject: "MATH" | "ENGLISH" = "MATH";
+  if (prisma && sourceIds.length > 0) {
+    const sources = await prisma.wrongQuestion.findMany({
+      where: { id: { in: sourceIds } },
+      select: { subject: true },
+    });
+    // 混合学科时以英语为准（非英语即数学，取首个非 MATH 的）
+    const hasEnglish = sources.some((item) => item.subject === "ENGLISH");
+    subject = hasEnglish ? "ENGLISH" : "MATH";
+  }
+
+  return { id: set.id, studentId: set.studentId, studentName: set.student.name, title: set.title, summaryId: set.summaryId, createdAt: set.createdAt, subject,
     questions: await Promise.all(set.questions.map(async (q) => ({ id: q.id, question: q.question, answer: q.answer, explanation: q.explanation,
       imageUrl: q.imagePath ? (await getStorage().getReadUrl(q.imagePath, 600)) ?? `/api/v1/practice-sets/images/${q.id}` : null }))),
   };

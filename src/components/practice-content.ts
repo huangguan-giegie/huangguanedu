@@ -13,6 +13,9 @@ export interface PracticeSetItem {
   studentId: string;
   studentName: string;
   title: string;
+  // 决定作答区用公式键盘还是普通输入框。详情接口会经来源错题反查，
+  // 列表接口不返回该字段（默认按 MATH 处理）。
+  subject?: "MATH" | "ENGLISH";
   questions: PracticeQuestion[];
   createdAt: string;
 }
