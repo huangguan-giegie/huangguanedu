@@ -10,6 +10,19 @@ interface Message {
   content: string;
 }
 
+/**
+ * 渲染模型回复：先剥掉 Markdown 强调标记（模型爱用 **...**），
+ * 再把 $...$ 里的 LaTeX 转成 Unicode，与题目/答案用同一个函数，
+ * 否则学生看到的是原始 LaTeX 与星号。
+ *
+ * 只做这两件事——刻意不引入 Markdown 渲染库：回复内容是纯文本说明，
+ * 不含列表与链接，引入库反而多一份体积与XSS 面。
+ */
+function MessageBody({ content }: { content: string }) {
+  const text = latexToUnicode(content.replace(/\*\*(.+?)\*\*/g, "$1"));
+  return <p className="whitespace-pre-wrap">{text}</p>;
+}
+
 export function TutorPanel({ practiceQuestionId }: { practiceQuestionId: string }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,9 +72,7 @@ export function TutorPanel({ practiceQuestionId }: { practiceQuestionId: string 
         )}
         {messages.map((item, index) => (
           <div key={index} className={item.role === "user" ? "ml-6 rounded-lg bg-[#faf6ee] p-2" : "mr-6 rounded-lg bg-blue-50 p-2"}>
-            {/* 模型回复里带 $...$ 公式，用与题目/答案相同的转换渲染，
-                否则学生看到的是原始 LaTeX 串。 */}
-            {latexToUnicode(item.content)}
+            <MessageBody content={item.content} />
           </div>
         ))}
       </div>
