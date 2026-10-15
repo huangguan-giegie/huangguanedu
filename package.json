@@ -27,7 +27,8 @@
     "video:review": "npm --prefix video-studio run review --",
     "video:make": "npm --prefix video-studio run make --",
     "video:setup": "npm --prefix video-studio run setup --",
-    "backup:postgres:native": "node ops/backup-postgres-to-oss-native.cjs"
+    "backup:postgres:native": "node ops/backup-postgres-to-oss-native.cjs",
+    "check:css": "node scripts/check-css.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
