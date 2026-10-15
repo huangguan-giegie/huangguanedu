@@ -60,8 +60,8 @@ function Bookings() {
       <p className="text-sm text-[#302a38]/60">
         月卡包含周一至周四线下小班课；以下是可预约的周末一对一课程
       </p>
-      {message && <div className="rounded bg-green-100 p-3 text-sm text-green-700">{message}</div>}
-      {error && <div className="rounded bg-red-100 p-3 text-sm text-red-700">{error}</div>}
+      {message && <div role="status" className="callout callout--success">{message}</div>}
+      {error && <div role="alert" className="callout callout--danger">{error}</div>}
       <div className="grid gap-3 sm:grid-cols-2">
         {slots.map((slot) => (
           <div key={slot.id} className="rounded-xl border border-[#302a38]/10 bg-white p-4">

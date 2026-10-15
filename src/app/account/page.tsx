@@ -34,7 +34,7 @@ function AccountDetails() {
         <h1 className="text-2xl font-bold">账户设置</h1>
         <p className="mt-1 text-sm text-[#302a38]/60">查看登录资料并管理密码。</p>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       {user && (
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
           <div><dt className="text-[#302a38]/50">姓名</dt><dd className="mt-1 font-medium">{user.name}</dd></div>

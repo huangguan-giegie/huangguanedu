@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { api } from "../../components/api";
 import { AuthGuard } from "../../components/AuthGuard";
+import { Icon } from "../../components/icons";
 import { isPracticeGenerating, togglePracticeSource, type PracticeGenerationTask, type PracticeSetItem } from "../../components/practice-content";
 import { latexToUnicode } from "../../lib/latex-to-unicode";
 import { EmptyState } from "../../components/EmptyState";
@@ -150,12 +151,35 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
-        <div><p className={styles.eyebrow}>错题 → 新练习</p><h1>换个问法，再进步一步。</h1><p>从数学、英语错题中挑选薄弱知识点，生成适合你的模拟题。</p></div>
-        <span className={styles.heroMark} aria-hidden="true">✳</span>
+        <div><p className={styles.eyebrow}>错题 → 新练习</p><p className={styles.heroTitle}>换个问法，再进步一步。</p><p>从数学、英语错题中挑选薄弱知识点，生成适合你的模拟题。</p></div>
+        <span className={styles.heroMark} aria-hidden="true"><Icon name="sparkle" size={110} /></span>
       </section>
 
+      {/* 步骤指示器（数字优于圆点：圆点只表达"有几个点"，数字能表达"第几步 /
+          共几步"；连线让 3 个徽章成为一条"路径"而不是 3 个并列标签）。
+          状态同时用三通道表达：颜色 + 图形（勾/数字）+ sr-only 文字。 */}
+      <nav aria-label="生成练习流程">
+        <ol className="stepper" data-step-count="3">
+          <li className={`stepper__item ${selectedIds.length ? "is-done" : "is-current"}`} aria-current={selectedIds.length ? undefined : "step"}>
+            <span className="stepper__badge" aria-hidden="true">
+              {selectedIds.length ? <Icon name="check" size={14} /> : "01"}
+            </span>
+            <span className="stepper__text">选择原题</span>
+            {selectedIds.length && <span className="sr-only">已完成</span>}
+          </li>
+          <li className={`stepper__item ${selectedIds.length ? "is-current" : "is-todo"}`} aria-current={selectedIds.length ? "step" : undefined}>
+            <span className="stepper__badge" aria-hidden="true">02</span>
+            <span className="stepper__text">练习难度</span>
+          </li>
+          <li className={`stepper__item ${selectedIds.length ? "is-todo" : "is-todo"}`}>
+            <span className="stepper__badge" aria-hidden="true">03</span>
+            <span className="stepper__text">生成</span>
+          </li>
+        </ol>
+      </nav>
+
       <section className={styles.panel} aria-labelledby="generate-heading">
-        <div className={styles.sectionHead}><div><h2 id="generate-heading">生成新练习</h2><p>选择错题与难度，一次最多选择 20 道错题。</p></div><span className={styles.stepBadge}>01 / 选择原题</span></div>
+        <div className={styles.sectionHead}><div><h2 id="generate-heading">生成新练习</h2><p>选择错题与难度，一次最多选择 20 道错题。</p></div><span className={styles.count}>{selectedIds.length} / 20 已选</span></div>
         <div className={styles.filters}>
           <label className={styles.field}><span>练习学生</span><select aria-label="练习学生" value={studentId} disabled={busy || !sources?.students.length} onChange={(event) => { setLoading(true); setSelectedIds([]); setStudentId(event.target.value); }}>
             {!sources?.students.length && <option value="">暂无可选学生</option>}
@@ -165,7 +189,7 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
         </div>
 
         {error && <p className={styles.error} role="alert">{error} <button type="button" className={styles.textButton} onClick={() => { setLoading(true); setReload((value) => value + 1); }}>重新加载</button></p>}
-        {task && <div className={task.status === "FAILED" ? styles.error : styles.task} role="status" aria-live="polite">
+        {task && <div className={task.status === "FAILED" ? styles.error : styles.task} role="status" aria-live="polite" aria-atomic="true">
           <strong>{task.status === "PENDING" ? "生成任务已提交" : task.status === "PROCESSING" ? "正在生成模拟题…" : task.status === "DONE" ? "新练习已生成" : "本次生成未完成"}{sources?.students.find((student) => student.id === task.studentId)?.name ? ` · ${sources.students.find((student) => student.id === task.studentId)!.name}` : ""}</strong>
           {isPracticeGenerating(task) && <p>正在出题并准备所需图形。可以刷新页面，任务会继续运行。</p>}
           {task.status === "FAILED" && <p>{task.error ?? "请稍后重新生成。"}</p>}
@@ -181,12 +205,12 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
           })}</div>
         </>}
 
-        <fieldset className={styles.difficulties}><legend>02 / 练习难度</legend>{DIFFICULTIES.map((option) => <label key={option.value} className={difficulty === option.value ? styles.activeDifficulty : styles.difficulty}><input type="radio" name="difficulty" value={option.value} checked={difficulty === option.value} disabled={busy} onChange={() => setDifficulty(option.value)} /><span><b>{option.label}</b><small>{option.hint}</small></span></label>)}</fieldset>
+        <fieldset className={styles.difficulties}><legend>练习难度</legend>{DIFFICULTIES.map((option) => <label key={option.value} className={difficulty === option.value ? styles.activeDifficulty : styles.difficulty}><input type="radio" name="difficulty" value={option.value} checked={difficulty === option.value} disabled={busy} onChange={() => setDifficulty(option.value)} /><span><b>{option.label}</b><small>{option.hint}</small></span></label>)}</fieldset>
         <div className={styles.generateFooter}><p>几何与函数题会结合原题内容生成配图。</p><button type="button" className="button-primary" disabled={busy || taskLoading || loading || !studentId || !selectedIds.length} onClick={() => void generate()}>{busy ? "正在生成…" : `生成针对性练习${selectedIds.length ? `（已选 ${selectedIds.length} 道）` : ""}`}</button></div>
       </section>
 
       <section aria-labelledby="history-heading"><div className={styles.sectionHead}><div><h2 id="history-heading">我的模拟题</h2><p>每次练习，都从上一次的薄弱点出发。</p></div><span className={styles.count}>{visibleSets.length} 组练习</span></div>
-        {setsLoading ? <p className={styles.empty}>正在加载练习…</p> : visibleSets.length ? <div className={styles.sets}>{visibleSets.map((set) => <Link href={`/practice/${set.id}`} key={set.id} className={styles.setCard}><span className={styles.setIcon} aria-hidden="true">✦</span><div><h3>{set.title}</h3><p>{set.studentName} · {set.questions.length} 道题 · {new Date(set.createdAt).toLocaleDateString("zh-CN")}</p></div><span className={styles.setArrow} aria-hidden="true">→</span></Link>)}</div> : <EmptyState title="还没有模拟题" description="在上方选好原题与难度，点「生成针对性练习」，结果会出现在这里。" />}
+        {setsLoading ? <p className={styles.empty}>正在加载练习…</p> : visibleSets.length ? <div className={styles.sets}>{visibleSets.map((set) => <Link href={`/practice/${set.id}`} key={set.id} className={styles.setCard}><span className={styles.setIcon} aria-hidden="true"><Icon name="practice" size={22} /></span><div><h3>{set.title}</h3><p>{set.studentName} · {set.questions.length} 道题 · {new Date(set.createdAt).toLocaleDateString("zh-CN")}</p></div><span className={styles.setArrow} aria-hidden="true"><Icon name="arrow-right" size={18} /></span></Link>)}</div> : <EmptyState title="还没有模拟题" description="在上方选好原题与难度，点「生成针对性练习」，结果会出现在这里。" />}
       </section>
     </div>
   );

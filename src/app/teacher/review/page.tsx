@@ -42,7 +42,7 @@ function ReviewQueue() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">待复核 AI 错题</h1>
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      {error && <div role="alert" className="text-sm text-red-600">{error}</div>}
       {items.length === 0 && !error && (
         <EmptyState title="暂无待复核题目" description="学生提交错题后，需要复核的题目会出现在这里。" actionHref="/teacher/students" actionLabel="查看我的学生" />
       )}

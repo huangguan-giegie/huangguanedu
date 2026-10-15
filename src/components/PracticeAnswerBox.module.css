@@ -5,8 +5,8 @@
   margin-top: 18px;
   padding: 17px;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--paper-sunken, #f6f0e4);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
 }
 
 .head {
@@ -16,52 +16,66 @@
   justify-content: space-between;
   gap: 10px;
 }
-.head strong { font-size: 13px; }
+.head strong { font-size: var(--fs-body); font-weight: 700; }
 
-/* 英语/长文本作答 */
 .textarea {
   width: 100%;
+  min-height: var(--touch-min);
   padding: 11px 13px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  color: var(--foreground, #1e2a3a);
-  background: var(--paper-raised, white);
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  background: var(--surface);
+  font-size: var(--fs-body);
   line-height: 1.8;
   resize: vertical;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
 .reset {
-  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-min);
   padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: 11px;
-  color: var(--violet, #754be6);
-  background: var(--paper-raised, white);
-  font-size: 12px;
-  font-weight: 750;
-  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: var(--primary-ink);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
-.reset:disabled { cursor: not-allowed; opacity: 0.55; }
+.reset:hover { border-color: var(--ring-violet); background: var(--surface-sunken); }
+.reset:disabled { cursor: not-allowed; opacity: .55; }
 
-/* 判分结果：文字与背景同色系，不使用穿过文字的线条 */
+/* 判分结果：文字与背景同色系，不使用穿过文字的线条。
+   fallback 全部删掉 —— 保留旧值 fallback 会在 token 拼错时静默回退到旧配色，
+   导致"深色主题下某个局部还是紫的"这种极难排查的问题。 */
 .feedback {
   padding: 13px 15px;
-  border-radius: 11px;
-  font-size: 13px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-body);
   line-height: 1.8;
 }
 .feedback p { margin: 6px 0 0; }
-.feedback.correct { background: var(--tint-green-bg, #eaf3c1); color: var(--success-ink, #2f7346); }
-.feedback.partial { background: var(--tint-warm-bg, #f9f6ff); color: var(--violet, #754be6); }
-.feedback.incorrect { background: var(--tint-badge-bg, #fdeceb); color: var(--coral, #c9633a); }
+.feedback.correct {
+  border-color: color-mix(in srgb, var(--success-ink) 30%, transparent);
+  color: var(--success-ink);
+  background: var(--success-soft);
+}
+.feedback.partial {
+  border-color: color-mix(in srgb, var(--primary-ink) 30%, transparent);
+  color: var(--primary-ink);
+  background: var(--primary-soft);
+}
+.feedback.incorrect {
+  border-color: color-mix(in srgb, var(--danger-ink) 30%, transparent);
+  color: var(--danger-ink);
+  background: var(--danger-soft);
+}
 
 .resultLine {
   display: flex;
@@ -69,19 +83,20 @@
   align-items: baseline;
   gap: 10px;
 }
-.resultLine strong { font-size: 14px; }
-.resultLine span { font-size: 12px; }
+.resultLine strong { font-size: var(--fs-body); font-weight: 700; }
+.resultLine span { font-size: var(--fs-sm); }
 
 .tag {
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: var(--surface-soft, #f0e7d6);
-  font-size: 10px;
-  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.55;
 }
 
-.mastery {
-  color: var(--muted, #7c7386);
-  font-size: 11.5px;
-  line-height: 1.8;
-}
+.mastery { color: var(--muted); font-size: var(--fs-sm); line-height: 1.8; }

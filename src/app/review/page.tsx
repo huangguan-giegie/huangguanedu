@@ -96,7 +96,7 @@ function ReviewDashboard() {
           根据错题、历史作答和复习间隔安排今天最值得练的知识点。
         </p>
       </div>
-      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div role="alert" className="callout callout--danger">{error}</div>}
       {plan && (
         <>
           <section className="grid gap-3 sm:grid-cols-3">

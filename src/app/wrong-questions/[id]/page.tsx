@@ -1,11 +1,13 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { api } from "../../../components/api";
 import { AuthGuard, type SafeUser } from "../../../components/AuthGuard";
+import { Icon } from "../../../components/icons";
+import { StatusTag } from "../../../components/StatusTag";
 import { latexToUnicode } from "../../../lib/latex-to-unicode";
 
 interface WrongQuestion {
@@ -42,7 +44,8 @@ const blankDraft: ReviewDraft = { recognizedQuestion: "", finalAnswer: "", corre
 const panel = "rounded-2xl border border-[#302a38]/10 bg-white p-5 sm:p-6";
 const button = "rounded-xl border border-[#302a38]/15 bg-white px-4 py-2 text-sm disabled:opacity-40";
 const primary = "rounded-xl bg-[#754be6] px-5 py-2 text-sm font-semibold text-white disabled:opacity-40";
-const statusLabels: Record<string, string> = { PROCESSING: "AI 分析中", PENDING_STUDENT_CONFIRMATION: "待确认识别", PUBLISHED: "AI 初步生成", NEEDS_REVIEW: "待老师复核", REVIEWED: "老师已审核" };
+// 状态文案统一走 @/lib/wrong-question-status（原先此处 PROCESSING 写的是
+// "AI 分析中"，与列表页的"识别中"不一致，用户会怀疑是两个不同状态）
 const attemptLabels = { CORRECT: "答对了", PARTIAL: "部分正确", INCORRECT: "仍有错误" };
 function lines(value: string): string[] { return [...new Set(value.split("\n").map((line) => line.trim()).filter(Boolean))]; }
 function text(value: string | null | undefined): string { return value ? latexToUnicode(value) : "暂无内容"; }
@@ -65,6 +68,47 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
   const [candidates, setCandidates] = useState<Array<{ id: string; subject: string; status: string; recognizedQuestion: string | null }>>([]);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [targetId, setTargetId] = useState("");
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeDialog = useCallback(() => setActiveImage(null), []);
+
+  // 原图预览弹窗的焦点陷阱 + ESC 关闭 + 背景滚动锁定。
+  // 原先只有 role="dialog" + autoFocus，没有 Tab 循环限制 —— 键盘用户会 Tab
+  // 到弹窗背后的页面上（那里在视觉上被遮住），这是无障碍缺陷。
+  useEffect(() => {
+    if (!activeImage) return;
+    const dialog = dialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog?.querySelector<HTMLElement>("button, a[href]")?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDialog();
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusables = dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [activeImage, closeDialog]);
 
   async function load() {
     const data = await api.get<{ wrongQuestion: WrongQuestion }>(`/api/v1/wrong-questions/${id}`);
@@ -126,7 +170,7 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="space-y-6">
       <Link href={backHref} className="text-sm text-[#754be6]">← 返回错题本</Link>
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-bold">{w.subject === "MATH" ? "数学" : "英语"}错题详情</h1><div className="mt-2 flex items-center gap-3 text-sm"><span className="rounded-full bg-[#e9e2ff] px-3 py-1 text-[#754be6]">{statusLabels[w.status] ?? w.status}</span>{typeof w.aiConfidence === "number" && <span className="text-[#302a38]/60">AI 识别置信度 {Math.round(w.aiConfidence * 100)}%</span>}{!isFamily && <span className="text-[#302a38]/60">{w.studentName}</span>}</div></div><div className="flex flex-wrap gap-2"><button disabled={busy} aria-pressed={w.isFavorite} onClick={() => void act(async () => { const favorite = !w.isFavorite; await api.post(`/api/v1/wrong-questions/${id}/favorite`, { favorite }); setQuestion({ ...w, isFavorite: favorite }); })} className={`${button} text-[#754be6]`}>{w.isFavorite ? "★ 已收藏" : "☆ 收藏错题"}</button>{published && <Link href={practiceHref} className={primary}>生成同类练习 →</Link>}</div></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-bold">{w.subject === "MATH" ? "数学" : "英语"}错题详情</h1><div className="mt-2 flex items-center gap-3 text-sm"><StatusTag status={w.status} />{typeof w.aiConfidence === "number" && <span className="text-[#302a38]/60">AI 识别置信度 {Math.round(w.aiConfidence * 100)}%</span>}{!isFamily && <span className="text-[#302a38]/60">{w.studentName}</span>}</div></div><div className="flex flex-wrap gap-2"><button disabled={busy} aria-pressed={w.isFavorite} onClick={() => void act(async () => { const favorite = !w.isFavorite; await api.post(`/api/v1/wrong-questions/${id}/favorite`, { favorite }); setQuestion({ ...w, isFavorite: favorite }); })} className={`${button} inline-flex min-h-[44px] items-center gap-2 text-[#754be6]`}><Icon name={w.isFavorite ? "star-filled" : "star"} size={18} /> {w.isFavorite ? "已收藏" : "收藏错题"}</button>{published && <Link href={practiceHref} className={primary}>生成同类练习 →</Link>}</div></div>
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {message && <p role="status" className="rounded-xl bg-[#d7ef67]/30 p-3 text-sm">{message}</p>}
       {w.imageUrls.length > 0 && <section className={panel}><h2 className="font-semibold">题目原图</h2><p className="mt-1 text-xs text-[#302a38]/50">点击放大查看题干、图形和作答过程。</p><div className="mt-3 flex flex-wrap gap-3">{w.imageUrls.map((url, index) => <button key={url} aria-label={`查看第 ${index + 1} 张原图`} onClick={() => setActiveImage(url)} className="rounded-xl border border-[#302a38]/10 p-2"><NextImage src={url} alt={`第 ${index + 1} 张题目原图`} width={320} height={240} unoptimized className="h-40 w-56 object-contain" /></button>)}</div></section>}
@@ -138,7 +182,7 @@ function Detail({ params }: { params: Promise<{ id: string }> }) {
         {w.attempts.length > 0 && <section className={panel}><h2 className="font-semibold">再次作答记录</h2><div className="mt-3 space-y-3">{w.attempts.map((attempt) => <article key={attempt.id} className="rounded-xl bg-[#f7f6fa] p-3 text-sm"><div className="flex justify-between gap-3 text-xs text-[#302a38]/60"><span>{new Date(attempt.attemptedAt).toLocaleString("zh-CN")}</span><span>{attemptLabels[attempt.result]}</span></div><p className="mt-2 whitespace-pre-wrap">{text(attempt.answer)}</p></article>)}</div></section>}
         {canReview && <section className={panel}><h2 className="font-semibold">老师复核与订正</h2><p className="mt-1 text-xs text-[#302a38]/60">核对原图后修订内容。知识点、步骤、错因与练习建议每行一项，保存后发布给学生。</p><form className="mt-4 space-y-4" onSubmit={(event) => { event.preventDefault(); void act(async () => { await api.patch(`/api/v1/teacher/wrong-questions/${id}/review`, { ...draft, correctSteps: lines(draft.correctSteps), knowledgePoints: lines(draft.knowledgePoints), errorCauses: lines(draft.errorCauses), remedialPractice: lines(draft.remedialPractice) }); await load(); }, "审核结果已保存并发布"); }}><div className="grid gap-4 sm:grid-cols-2">{([ ["recognizedQuestion", "题目"], ["finalAnswer", "最终答案"], ["correctSteps", "解题步骤（每行一步）"], ["thinkingHint", "思路提示"], ["errorCauses", "错误原因（每行一项）"], ["knowledgePoints", "知识点（每行一项）"], ["remedialPractice", "补救练习建议（每行一项）"], ["teacherNote", "老师批注"] ] as const).map(([key, label]) => <label key={key} className="text-sm">{label}<textarea value={draft[key]} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} className="mt-1 min-h-24 w-full rounded-xl border border-[#302a38]/15 p-3" maxLength={20000} required={key === "recognizedQuestion" || key === "finalAnswer"} /></label>)}</div><div className="flex flex-wrap gap-4"><label className="grid gap-1 text-sm">难度<select value={draft.difficulty} onChange={(event) => setDraft({ ...draft, difficulty: event.target.value as ReviewDraft["difficulty"] })} className="rounded-xl border border-[#302a38]/15 px-3 py-2"><option value="UNKNOWN">未标记</option><option value="EASY">基础</option><option value="MEDIUM">中等</option><option value="HARD">较难</option></select></label><label className="grid gap-1 text-sm">错误类型<input value={draft.errorType} onChange={(event) => setDraft({ ...draft, errorType: event.target.value })} className="rounded-xl border border-[#302a38]/15 px-3 py-2" /></label></div><button disabled={busy} className={primary}>保存并完成审核</button></form><div className="mt-6 border-t border-[#302a38]/10 pt-4"><button disabled={busy} className={`${button} text-[#754be6]`} onClick={() => void openMerge()}>合并重复错题</button>{mergeOpen && <form className="mt-3 space-y-3" onSubmit={(event) => { event.preventDefault(); void act(async () => { await api.post(`/api/v1/teacher/wrong-questions/${id}/merge`, { targetId }); router.push(`/wrong-questions/${targetId}`); }); }}><p className="text-sm text-[#302a38]/65">选择保留的目标题，当前题的作答和错题记录将归入目标题。仅列出该学生同学科的最近 100 道错题。</p><select required aria-label="合并目标题" value={targetId} onChange={(event) => setTargetId(event.target.value)} className="w-full rounded-xl border border-[#302a38]/15 p-3 text-sm"><option value="">请选择保留的目标题</option>{candidates.map((item) => <option key={item.id} value={item.id}>{item.recognizedQuestion ? text(item.recognizedQuestion).slice(0, 120) : "待识别题目"}</option>)}</select>{!candidates.length && <p className="text-sm text-[#302a38]/60">当前没有其他可合并错题。</p>}<div className="flex gap-3"><button disabled={busy || !targetId} className={primary}>确认合并到目标题</button><button type="button" className={button} onClick={() => setMergeOpen(false)}>取消</button></div></form>}</div></section>}
       </>}
-      {activeImage && <div role="dialog" aria-modal="true" aria-label="题目原图预览" className="fixed inset-0 z-50 flex items-center justify-center bg-[#302a38]/80 p-5" onClick={() => setActiveImage(null)}><div className="max-h-[95vh] max-w-5xl overflow-auto rounded-2xl bg-white p-4" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex justify-end"><button autoFocus className={button} onClick={() => setActiveImage(null)}>关闭预览 ✕</button></div><NextImage src={activeImage} alt="放大的题目原图" width={1600} height={1600} unoptimized className="h-auto max-h-[80vh] w-auto max-w-full object-contain" /></div></div>}
+      {activeImage && <div role="dialog" aria-modal="true" aria-label="题目原图预览" className="fixed inset-0 z-50 flex items-center justify-center bg-[#302a38]/80 p-5" onClick={closeDialog}><div ref={dialogRef} className="max-h-[95vh] max-w-5xl overflow-auto rounded-2xl bg-white p-4" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex justify-end"><button className={`${button} inline-flex min-h-[44px] items-center gap-2`} onClick={closeDialog}>关闭预览 <Icon name="close" size={16} /></button></div><NextImage src={activeImage} alt="放大的题目原图" width={1600} height={1600} unoptimized className="h-auto max-h-[80vh] w-auto max-w-full object-contain" /></div></div>}
     </div>
   );
 }
