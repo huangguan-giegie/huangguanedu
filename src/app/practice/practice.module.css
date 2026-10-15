@@ -185,6 +185,8 @@
 .setCard > div { min-width: 0; flex: 1; }
 .setCard h3 { margin: 0; color: var(--foreground); font-size: var(--fs-h3); font-weight: 700; line-height: 1.5; }
 .setCard p { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-sm); }
+/* setIcon / detailMark 用琥珀族装饰色（--accent-warm-ink on --accent-warm-soft），
+   而非主色：✦ 是纯装饰件，用装饰色才语义正确。
    删掉全部 fallback，让 token 拼写错误立即暴露而不是静默回退到旧配色。 */
 .setIcon {
   display: grid;
