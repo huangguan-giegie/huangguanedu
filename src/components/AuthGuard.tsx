@@ -85,7 +85,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const unlock = () => { document.body.style.overflow = ""; };
     menu.addEventListener("close", unlock);
     return () => { menu.removeEventListener("close", unlock); unlock(); };
-  }, [user]);
+  }, [user, loading]);
 
   useEffect(() => {
     let cancelled = false;

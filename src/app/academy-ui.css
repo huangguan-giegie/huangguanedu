@@ -36,7 +36,7 @@ body::before { display:none; }
 .academy-logo-title { display:block; font-size:16px; font-weight:700; line-height:1.4; }
 .academy-logo-subtitle { display:block; font-size:9px; letter-spacing:.16em; margin-top:4px; opacity:.6; }
 .academy-sidebar-caption { margin:46px 14px 16px; font-size:10px; letter-spacing:.16em; color:#a4b6dc; }
-.academy-nav { display:flex; flex-direction:column; gap:5px; }
+.academy-nav { display:flex; flex-direction:column; gap:5px; min-height:0; overflow-y:auto; }
 .academy-nav-link { display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:14px; font-size:14px; text-decoration:none; color:inherit; transition:background .16s,transform .16s var(--coastal-ease),color .16s; }
 .academy-sidebar .academy-nav-link { color:#bdcbea; }
 .academy-sidebar .academy-nav-link:hover { color:#fff; background:#ffffff0c; transform:translateX(2px); }
