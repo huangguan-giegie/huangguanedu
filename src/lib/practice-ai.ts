@@ -80,7 +80,17 @@ async function generateOnce(
     '仅支持三种图形：{"type":"rectangle","width":6,"height":4,"task":"AREA"}（task 为 AREA 或 PERIMETER）；' +
     '{"type":"right_triangle","triple":"3-4-5"}（triple 仅可选 3-4-5、5-12-13、8-15-17、7-24-25）；' +
     '{"type":"linear_function","slope":2,"intercept":-1}（斜率非零，绝对值不超过3，截距绝对值不超过4）。' +
-    '没有图形的题目省略 diagram 字段。优先给中学生安排包含正确配图的几何或函数题，给小学生安排长方形题。';
+    '高级圆与几何图支持：' +
+    '{"type":"circle_sector","radius":6,"centralAngle":60,"task":"ARC_LENGTH"}（task=ARC_LENGTH 或 SECTOR_AREA；centralAngle 仅 30/45/60/90/120）；' +
+    '{"type":"circle_inscribed_angle","centralAngle":100}（仅 60/80/90/100/120/140）；' +
+    '{"type":"triangle_altitude","base":12,"height":7,"foot":"LEFT"}（base 为6到24间的偶数，height为2到15，foot仅LEFT/MIDDLE/RIGHT）；' +
+    '{"type":"triangle_midline","base":14}（base 为4到24间的偶数）。' +
+    '函数综合图支持：' +
+    '{"type":"quadratic_vertex","a":-1,"h":1,"k":2}（a仅可为-2/-1/1/2，h为-2到2，k为-4到4）；' +
+    '{"type":"linear_intersection","slopes":"1,-2","x":1,"y":2}（slopes 仅可为 1,-1 / 2,-1 / 1,-2 / -1,2 / -2,1 / 2,-2；交点 x为-2到2，y为-3到3）；' +
+    '{"type":"quadratic_line_intersection","roots":"-2,2","slope":1,"intercept":-1}（roots仅可为-3,1 / -2,2 / -1,3 / -3,2 / -1,2 / 0,3 / -2,1；slope为-2到2，intercept为-3到3）。' +
+    '图形题请优先生成这些受支持的图形结构，重点匹配薄弱知识点；绘图参数必须是JSON里的数字或枚举，不允许自由文本坐标。' +
+    '不适合上述图形类型的题目省略 diagram 字段，且题目必须不依赖配图。';
 
   let response: Response;
   try {
