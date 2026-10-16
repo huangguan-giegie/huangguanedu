@@ -168,7 +168,6 @@ function quadraticRoots(p:Polynomial):{texts:string[];rationalRoots:Rational[]}{
   const roots=one.n===two.n&&one.d===two.d?[one]:[one,two];
   return {texts:roots.map(rootText),rationalRoots:roots};
  }
- const den=rmul(rat(2),a);
  const Dnum=Number(D.n/D.d);
  const aNum=a.n/a.d,bNum=b.n/b.d;
  const roots=[(-bNum-Math.sqrt(Dnum))/(2*aNum),(-bNum+Math.sqrt(Dnum))/(2*aNum)]
