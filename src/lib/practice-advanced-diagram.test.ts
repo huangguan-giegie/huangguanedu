@@ -31,6 +31,28 @@ describe("高级几何与函数图形的一致性", () => {
     }
   });
 
+  it("圆外切线和半径垂直，待求斜边符合勾股定理", () => {
+    for (const triple of ["3-4-5","5-12-13","8-15-17"] as const) {
+      const [radius,tangent,op] = triple.split("-").map(Number);
+      expect(radius ** 2 + tangent ** 2).toBe(op ** 2);
+      const q = compileDiagramProblem({type:"circle_tangent",triple});
+      expect(q.question).toContain(`OA＝${radius} cm`);
+      expect(q.question).toContain(`PA＝${tangent} cm`);
+      expect(q.answer).toBe(`${op} cm`);
+    }
+  });
+
+  it("垂径定理中弦长是半弦长的两倍，端点保持在圆上", () => {
+    for (const triple of ["3-4-5","5-12-13","8-15-17"] as const) {
+      const [distance,halfChord,radius] = triple.split("-").map(Number);
+      expect(distance ** 2 + halfChord ** 2).toBe(radius ** 2);
+      const q = compileDiagramProblem({type:"circle_chord",triple});
+      expect(q.answer).toBe(`${halfChord*2} cm`);
+      expect(q.question).toContain(`OB＝${radius} cm`);
+      expect(q.question).toContain(`OH＝${distance} cm`);
+    }
+  });
+
   it("辅助高线保证面积等于底乘高除二", () => {
     for (const base of [6,10,14,20,24]) {
       for (const height of [2,5,8,15]) {
@@ -100,6 +122,8 @@ describe("高级几何与函数图形的一致性", () => {
       {type:"circle_sector",radius:3,centralAngle:200,task:"ARC_LENGTH"},
       {type:"circle_sector",radius:0,centralAngle:60,task:"ARC_LENGTH"},
       {type:"circle_inscribed_angle",centralAngle:170},
+      {type:"circle_tangent",triple:"3-4-6"},
+      {type:"circle_chord",triple:"5-8-10"},
       {type:"triangle_altitude",base:7,height:8,foot:"MIDDLE"},
       {type:"triangle_altitude",base:12,height:-1,foot:"MIDDLE"},
       {type:"triangle_midline",base:9},
