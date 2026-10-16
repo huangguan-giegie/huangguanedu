@@ -3,7 +3,7 @@
 import type { AdvancedDiagram } from "../lib/practice-advanced-diagram";
 import {
   constructBisector, constructSimilarity, constructExternalTangent,
-  type Point2, type Triangle2,
+  type Point2,
 } from "../lib/practice-construction-constraints";
 
 type ConstructionDiagram = Extract<AdvancedDiagram,
