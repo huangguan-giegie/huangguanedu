@@ -91,6 +91,10 @@ async function generateOnce(
     '{"type":"quadratic_vertex","a":-1,"h":1,"k":2}（a仅可为-2/-1/1/2，h为-2到2，k为-4到4）；' +
     '{"type":"linear_intersection","slopes":"1,-2","x":1,"y":2}（slopes 仅可为 1,-1 / 2,-1 / 1,-2 / -1,2 / -2,1 / 2,-2；交点 x为-2到2，y为-3到3）；' +
     '{"type":"quadratic_line_intersection","roots":"-2,2","slope":1,"intercept":-1}（roots仅可为-3,1 / -2,2 / -1,3 / -3,2 / -1,2 / 0,3 / -2,1；slope为-2到2，intercept为-3到3）。' +
+    '新增高阶辅助线与多圆构造题：' +
+    '{"type":"triangle_angle_bisector","sides":"6-8-7"}（sides仅6-8-7/6-9-10/8-12-10/9-12-7/10-15-15；AD平分∠A，求BD）；' +
+    '{"type":"similar_right_triangles","smallLegs":"3-4","factor":2,"task":"LARGE_BASE"}（smallLegs仅3-4/4-5/5-7/6-8，factor仅2或3，task仅LARGE_BASE或LARGE_HEIGHT）；' +
+    '{"type":"two_circles_external_tangent","circles":"7-2-13"}（circles仅4-1-5/7-2-13/10-2-17，数值依次为大半径/小半径/圆心距，求同侧公切线段）。' +
     '图形题请优先生成这些受支持的图形结构，重点匹配薄弱知识点；绘图参数必须是JSON里的数字或枚举，不允许自由文本坐标。' +
     '不适合上述图形类型的题目省略 diagram 字段，且题目必须不依赖配图。';
 
