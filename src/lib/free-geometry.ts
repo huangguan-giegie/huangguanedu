@@ -152,9 +152,10 @@ export function createIntersections(doc:GeometryDocument,a:string,b:string):{doc
   let working=doc;
   const ids:string[]=[];
   for(let i=0;i<pts.length;i++){
+    const reverseIndex=intersections(B,A).findIndex(p=>same(p,pts[i]));
     const exists=working.objects.some(o=>o.kind==="intersection"&&
       ((o.first===a&&o.second===b&&o.solution===i) ||
-       (o.first===b&&o.second===a&&intersections(B,A).some(p=>same(p,pts[i])))));
+       (o.first===b&&o.second===a&&o.solution===reverseIndex)));
     if(exists)continue;
     const id=nextId(working);
     working=addObject(working,{id,label:"I"+id.slice(1),kind:"intersection",first:a,second:b,solution:i as 0|1});
