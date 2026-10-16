@@ -54,6 +54,7 @@ describe("模拟题 API 权限与异步任务", () => {
     const f = await fixture();
     await prisma.wrongQuestion.update({ where: { id: f.q.id }, data: { subject: "MATH", recognizedQuestion: "已知圆的半径，求弧长。" } });
     vi.stubEnv("QWEN_MODE", "live"); vi.stubEnv("DASHSCOPE_API_KEY", "test");
+    vi.stubEnv("DASHSCOPE_BASE_URL", "https://example.test/v1");
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
       title: "圆的变式练习", questions: [{ question: "模型错误题面", answer: "999", explanation: "模型错误解析", diagram: { type: "circle_sector", radius: 6, centralAngle: 60, task: "ARC_LENGTH" } }],
     }) } }] }))));

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         actor: { id: auth.user.id, name: auth.user.name }, action: "GENERATE_PRACTICE_SET",
         targetType: "PracticeSet", targetId: set.id, summary: `生成数学模拟题组：${set.title}`, ip: getClientIp(request),
       });
-      return NextResponse.json({ success: true, data: { ...set, studentName: set.student.name } });
+      return NextResponse.json({ success: true, data: { id: set.id, studentId: set.studentId, studentName: set.student.name, title: set.title, questions: set.questions, createdAt: set.createdAt } });
     } catch (error) {
       if (error instanceof PracticeSetError) return jsonError(error.status, error.code, error.message);
       if (error instanceof PracticeAiError) return jsonError(error.retryable ? 503 : 502, "PRACTICE_AI_FAILED", error.message);
