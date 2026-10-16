@@ -28,7 +28,7 @@ function Dashboard() {
 
   if (user.role === "FAMILY") {
     return (
-      <div className="space-y-8">
+      <div className="academy-home-fade space-y-8">
         <section className="academy-hero">
           <span className="academy-eyebrow">MY LEARNING SPACE · 学习中心</span>
           <h1>欢迎回来，{studentName || "同学"}。</h1>
@@ -51,7 +51,7 @@ function Dashboard() {
   }
   if (user.role === "TEACHER") {
     return (
-      <div className="space-y-8">
+      <div className="academy-home-fade space-y-8">
         <section className="academy-hero"><span className="academy-eyebrow">TEACHER WORKSPACE · 教学管理</span><h1>老师工作台</h1><p>从复核错题到制定精准练习，让每一个教学决策都有依据。</p></section><div className="academy-section-heading"><h2>教学工具</h2></div>
         <LinkList
           items={[
@@ -65,7 +65,7 @@ function Dashboard() {
     );
   }
   return (
-    <div className="space-y-8">
+    <div className="academy-home-fade space-y-8">
       <section className="academy-hero"><span className="academy-eyebrow">ADMIN CONSOLE · 管理中心</span><h1>管理后台</h1><p>统一管理学生、老师与课程计划，跟踪学习服务运转情况。</p></section><div className="academy-section-heading"><h2>管理工具</h2></div>
       <LinkList
         items={[

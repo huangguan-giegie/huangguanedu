@@ -111,7 +111,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (loading) {
-    return <div className="academy-loading" role="status"><span className="academy-logo-mark">冠</span><span>正在进入学习空间…</span></div>;
+    return <div className="academy-loading" role="status" aria-busy="true"><span className="sr-only">正在加载页面</span></div>;
   }
   if (!user || user.mustChangePassword) return null;
 
@@ -153,7 +153,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             <Link className="academy-account-link" href="/account" aria-label="账户设置"><Icon name="account" size={21} /></Link>
           </div>
         </header>
-        <main key={pathname} className="academy-workspace app-content" id="main-content" tabIndex={-1}>{children}</main>
+        <main key={pathname} className={`academy-workspace app-content${pathname === "/" ? " academy-home-workspace" : ""}`} id="main-content" tabIndex={-1}>{children}</main>
         <footer className="academy-footer"><span>每天进步一点，都值得被看见。</span><span>黄冠 AI Academy</span></footer>
       </div>
       <nav className="academy-bottom-nav" aria-label="移动端主导航">
