@@ -181,7 +181,11 @@ export function FreeGeometryEditor() {
   }
  };
  const zoom=(factor:number)=>{
-  setView(v=>({scale:Math.max(17,Math.min(130,v.scale*factor)),ox:W/2+(v.ox-W/2)*factor,oy:H/2+(v.oy-H/2)*factor}));
+  setView(v=>{
+   const scale=Math.max(17,Math.min(130,v.scale*factor));
+   const actualFactor=scale/v.scale;
+   return {scale,ox:W/2+(v.ox-W/2)*actualFactor,oy:H/2+(v.oy-H/2)*actualFactor};
+  });
  };
  const centered=()=>setView({scale:44,ox:W/2,oy:H/2});
  const exportJson=()=>saveAs("geometry-construction.json","application/json;charset=utf-8",JSON.stringify(docRef.current,null,2));
