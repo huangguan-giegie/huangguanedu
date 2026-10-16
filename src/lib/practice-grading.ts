@@ -38,7 +38,9 @@ function normalized(value: string): string {
 }
 
 function scalar(value: string): number | null {
-  const cleaned = normalized(value).replace(/^(?:x|y|答案|answer)=?/i, "");
+  const cleaned = normalized(value)
+    .replace(/^(?:x|y|答案|answer)=?/i, "")
+    .replace(/(?:cm²|cm2|平方厘米|cm|厘米)$/i, "");
   if (!/^[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?$/i.test(cleaned)) return null;
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
@@ -50,7 +52,7 @@ function deterministicGrade(expected: string, submitted: string): GradeOutput | 
   if (!b) {
     return { result: "INCORRECT", score: 0, feedback: "还没有填写答案。", method: "DETERMINISTIC" };
   }
-  if (a === b) {
+  if (a === b || (a.startsWith("y=") && a.slice(2) === b)) {
     return { result: "CORRECT", score: 100, feedback: "答案正确。", method: "DETERMINISTIC" };
   }
 
