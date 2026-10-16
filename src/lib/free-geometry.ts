@@ -8,7 +8,9 @@ const Free = z.object({ ...Base, kind:z.literal("point"), x:z.number().finite().
 const Meet = z.object({ ...Base, kind:z.literal("intersection"), first:Identifier, second:Identifier, solution:z.union([z.literal(0),z.literal(1)]) }).strict();
 const Line = z.object({ ...Base, kind:z.enum(["line","segment"]), a:Identifier,b:Identifier }).strict();
 const Circle = z.object({ ...Base, kind:z.literal("circle"),center:Identifier,through:Identifier }).strict();
-export const GeometryObjectSchema=z.discriminatedUnion("kind",[Free,Meet,Line,Circle]);
+const Polygon = z.object({...Base,kind:z.literal("polygon"),vertices:z.array(Identifier).min(3).max(30)}).strict();
+const Locus = z.object({...Base,kind:z.literal("locus"),driver:Identifier,path:Identifier,target:Identifier,samples:z.number().int().min(24).max(160)}).strict();
+export const GeometryObjectSchema=z.discriminatedUnion("kind",[Free,Meet,Line,Circle,Polygon,Locus]);
 export const GeometryDocumentSchema=z.object({version:z.literal(1),objects:z.array(GeometryObjectSchema).max(250)}).strict();
 export type GeometryObject=z.infer<typeof GeometryObjectSchema>;
 export type GeometryDocument=z.infer<typeof GeometryDocumentSchema>;
@@ -18,6 +20,7 @@ export type Resolved = {
   point?:Point;
   line?:{a:Point;b:Point};
   circle?:{center:Point;radius:number};
+  polygon?:Point[];
 };
 export const EPS=1e-9;
 const sq=(x:number)=>x*x;
@@ -30,11 +33,14 @@ const finite=(p:Point)=>Number.isFinite(p.x)&&Number.isFinite(p.y);
 const same=(a:Point,b:Point)=>dist(a,b)<EPS;
 export const blankDocument=():GeometryDocument=>({version:1,objects:[]});
 export const isShape=(v:GeometryObject):boolean=>v.kind==="line"||v.kind==="segment"||v.kind==="circle";
+export const isPoint=(v:GeometryObject):boolean=>v.kind==="point"||v.kind==="intersection";
 
 function references(v:GeometryObject):string[]{
   if(v.kind==="line"||v.kind==="segment")return [v.a,v.b];
   if(v.kind==="circle")return [v.center,v.through];
   if(v.kind==="intersection")return [v.first,v.second];
+  if(v.kind==="polygon")return v.vertices;
+  if(v.kind==="locus")return [v.driver,v.path,v.target];
   return [];
 }
 export function validateDocument(value:unknown):GeometryDocument{
@@ -48,10 +54,18 @@ export function validateDocument(value:unknown):GeometryDocument{
       if((o.kind==="line"||o.kind==="segment"||o.kind==="circle") &&
         parent.kind!=="point"&&parent.kind!=="intersection")throw Error("线/圆只能引用点");
       if(o.kind==="intersection"&&!isShape(parent))throw Error("交点只能引用两条线/圆");
+      if(o.kind==="polygon"&&!isPoint(parent))throw Error("多边形顶点只能引用点");
+      if(o.kind==="locus"&&((id===o.driver&&parent.kind!=="point")||(id===o.path&&!isShape(parent))||(id===o.target&&!isPoint(parent))))throw Error("轨迹必须引用自由驱动点、路径和目标点");
     }
     if((o.kind==="line"||o.kind==="segment")&&o.a===o.b)throw Error("两个端点不能相同");
     if(o.kind==="circle"&&o.center===o.through)throw Error("圆心和圆周点不能相同");
     if(o.kind==="intersection"&&o.first===o.second)throw Error("交点须来自不同对象");
+    if(o.kind==="polygon"&&new Set(o.vertices).size!==o.vertices.length)throw Error("多边形顶点不能重复");
+    if(o.kind==="locus"){
+      const ancestors=(id:string,visited=new Set<string>()):Set<string>=>{for(const ref of references(seen.get(id)!)){if(!visited.has(ref)){visited.add(ref);ancestors(ref,visited);}}return visited;};
+      if(!ancestors(o.target).has(o.driver))throw Error("目标点必须依赖驱动点");
+      if(ancestors(o.path).has(o.driver))throw Error("驱动路径不能依赖自身");
+    }
     seen.set(o.id,o);
   }
   return doc;
@@ -111,6 +125,11 @@ export function resolveDocument(document:GeometryDocument):Resolved[]{
     else if(object.kind==="intersection"){
       const A=resolved.get(object.first),B=resolved.get(object.second);
       if(A&&B)item.point=intersections(A,B)[object.solution];
+    }else if(object.kind==="polygon"){
+      const vertices=object.vertices.map(id=>resolved.get(id)?.point);
+      if(vertices.every((p):p is Point=>Boolean(p))&&validSimplePolygon(vertices as Point[]))item.polygon=vertices as Point[];
+    }else if(object.kind==="locus"){
+      // Locus is sampled in the UI with the validated construction graph, not recursively here.
     }else if(object.kind==="circle"){
       const a=resolved.get(object.center)?.point,b=resolved.get(object.through)?.point;
       if(a&&b&&dist(a,b)>EPS)item.circle={center:a,radius:dist(a,b)};
@@ -122,6 +141,49 @@ export function resolveDocument(document:GeometryDocument):Resolved[]{
     out.push(item);
   }
   return out;
+}
+function orient(a:Point,b:Point,c:Point):number{return cross(diff(b,a),diff(c,a));}
+function onSegment(a:Point,b:Point,p:Point):boolean{
+ return Math.abs(orient(a,b,p))<=EPS&&p.x>=Math.min(a.x,b.x)-EPS&&p.x<=Math.max(a.x,b.x)+EPS&&
+  p.y>=Math.min(a.y,b.y)-EPS&&p.y<=Math.max(a.y,b.y)+EPS;
+}
+function segmentsTouch(a:Point,b:Point,c:Point,d:Point):boolean{
+ const o1=orient(a,b,c),o2=orient(a,b,d),o3=orient(c,d,a),o4=orient(c,d,b);
+ if(o1*o2<-EPS&&o3*o4<-EPS)return true;
+ return (Math.abs(o1)<=EPS&&onSegment(a,b,c))||(Math.abs(o2)<=EPS&&onSegment(a,b,d))||
+   (Math.abs(o3)<=EPS&&onSegment(c,d,a))||(Math.abs(o4)<=EPS&&onSegment(c,d,b));
+}
+export function polygonMeasures(points:Point[]):{area:number;perimeter:number}{
+ const twiceArea=points.reduce((sum,p,i)=>sum+cross(p,points[(i+1)%points.length]),0);
+ const perimeter=points.reduce((sum,p,i)=>sum+dist(p,points[(i+1)%points.length]),0);
+ return {area:Math.abs(twiceArea)/2,perimeter};
+}
+export function validSimplePolygon(points:Point[]):boolean{
+ const n=points.length;
+ if(n<3||n>30||points.some(p=>!finite(p)))return false;
+ const measure=polygonMeasures(points);
+ if(measure.area<=EPS)return false;
+ for(let i=0;i<n;i++){
+  if(dist(points[i],points[(i+1)%n])<EPS)return false;
+  for(let j=i+1;j<n;j++){
+   if((j===i+1)||(i===0&&j===n-1))continue;
+   if(segmentsTouch(points[i],points[(i+1)%n],points[j],points[(j+1)%n]))return false;
+  }
+ }
+ return true;
+}
+export function createPolygon(doc:GeometryDocument,vertices:string[]):{document:GeometryDocument;id:string}{
+ if(vertices.length<3||vertices.length>30||new Set(vertices).size!==vertices.length)throw Error("多边形须由 3–30 个不同顶点构成");
+ const items=new Map(resolveDocument(doc).map(v=>[v.object.id,v]));
+ const points=vertices.map(id=>items.get(id)?.point);
+ if(points.some(p=>!p)||!validSimplePolygon(points as Point[]))throw Error("多边形须为非自交、非退化的闭合折线");
+ const id=nextId(doc);
+ return {document:addObject(doc,{id,label:"poly"+id.slice(1),kind:"polygon",vertices}),id};
+}
+export function createLocus(doc:GeometryDocument,driver:string,path:string,target:string,samples=96):{document:GeometryDocument;id:string}{
+ const id=nextId(doc);
+ const next=addObject(doc,{id,label:"locus"+id.slice(1),kind:"locus",driver,path,target,samples});
+ return {document:next,id};
 }
 export function nextId(document:GeometryDocument):string{
   return "g"+(document.objects.reduce((max,o)=>Math.max(max,Number(o.id.slice(1))),0)+1);
