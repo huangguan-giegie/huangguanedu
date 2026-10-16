@@ -83,6 +83,8 @@ async function generateOnce(
     '高级圆与几何图支持：' +
     '{"type":"circle_sector","radius":6,"centralAngle":60,"task":"ARC_LENGTH"}（task=ARC_LENGTH 或 SECTOR_AREA；centralAngle 仅 30/45/60/90/120）；' +
     '{"type":"circle_inscribed_angle","centralAngle":100}（仅 60/80/90/100/120/140）；' +
+    '{"type":"circle_tangent","triple":"3-4-5"}（三元组仅3-4-5/5-12-13/8-15-17，用于切线与半径垂直）；' +
+    '{"type":"circle_chord","triple":"5-12-13"}（三元组仅3-4-5/5-12-13/8-15-17，用于弦心距、垂径定理）；' +
     '{"type":"triangle_altitude","base":12,"height":7,"foot":"LEFT"}（base 为6到24间的偶数，height为2到15，foot仅LEFT/MIDDLE/RIGHT）；' +
     '{"type":"triangle_midline","base":14}（base 为4到24间的偶数）。' +
     '函数综合图支持：' +
