@@ -1,7 +1,7 @@
 # Copy this server block into the HOST Nginx configuration.
 # Replace academy.example.com and certificate paths.
 #
-# huangguanedu itself listens only on 127.0.0.1:3001.
+# huangguanedu itself listens on the ECS Docker bridge address 172.18.0.1:3001.
 
 server {
     listen 80;
@@ -27,7 +27,7 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     location / {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://172.18.0.1:3001;
         proxy_http_version 1.1;
 
         # These headers are required for TRUSTED_PROXY=true.

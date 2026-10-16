@@ -1,222 +1,103 @@
-// GET/POST /api/v1/wrong-questions：家庭端错题列表与上传单道错题图片
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
+// 上传一道错题（英语长文可多图）以及按角色查看、筛选错题。
+import { NextResponse, type NextRequest } from "next/server";
 import { requireRole } from "../../../../lib/auth";
 import { assertStateChangeAllowed } from "../../../../lib/csrf";
 import { prisma } from "../../../../lib/db";
 import { jsonError } from "../../../../lib/http";
-import {
-  ImageError,
-  isAllowedMime,
-  MAX_IMAGE_BYTES,
-  normalizeImage,
-} from "../../../../lib/image";
+import { ImageError, isAllowedMime, MAX_IMAGE_BYTES, normalizeImage } from "../../../../lib/image";
 import { getStorage } from "../../../../lib/storage";
+import { loadConfig } from "../../../../lib/config";
+import { WrongQuestionError } from "../../../../lib/wrong-question";
+import { wrongQuestionWhere } from "../../../../lib/wrong-question-query";
 
-const IMAGE_RETENTION_HOURS = 24;
+const IMAGE_RETENTION_DAYS = 91;
+const MAX_ENGLISH_IMAGES = 6;
+const WEEKLY_WRONG_QUESTION_QUOTA = 100;
 
-// POST：上传单道错题图片 -> 规范化 -> 临时图 -> WrongQuestion + AnalysisJob -> PROCESSING
-export async function POST(request: NextRequest) {
-  const auth = await requireRole(request, prisma, ["FAMILY"]);
-  if ("error" in auth) {
-    return auth.error;
-  }
-
-  const csrfError = assertStateChangeAllowed(request);
-  if (csrfError) {
-    return csrfError;
-  }
-
-  const familyAccount = await prisma.familyAccount.findUnique({
-    where: { userId: auth.user.id },
-    include: { student: true },
-  });
-  if (!familyAccount?.student) {
-    return jsonError(404, "STUDENT_NOT_FOUND", "当前账户未绑定学生");
-  }
-  const student = familyAccount.student;
-
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return jsonError(400, "INVALID_FORM", "请求必须是 multipart/form-data");
-  }
-
-  const subjectRaw = String(formData.get("subject") ?? "");
-  const subject =
-    subjectRaw === "MATH" || subjectRaw === "ENGLISH" ? subjectRaw : null;
-  if (!subject) {
-    return jsonError(400, "INVALID_SUBJECT", "请选择学科（数学或英语）");
-  }
-
-  const files = formData.getAll("image");
-  if (files.length !== 1) {
-    return jsonError(400, "INVALID_FILE_COUNT", "每次仅上传一道题的图片");
-  }
-  const file = files[0];
-  if (!(file instanceof File)) {
-    return jsonError(400, "INVALID_FILE", "image 字段必须是文件");
-  }
-  if (!isAllowedMime(file.type)) {
-    return jsonError(400, "INVALID_FILE_TYPE", "仅支持 JPG/JPEG/PNG 图片");
-  }
-  if (file.size > MAX_IMAGE_BYTES) {
-    return jsonError(400, "FILE_TOO_LARGE", "图片不能超过 8MB");
-  }
-
-  const original = Buffer.from(await file.arrayBuffer());
-  let normalized: { buffer: Buffer; mimeType: string; extension: string };
-  try {
-    normalized = await normalizeImage(original);
-  } catch (error) {
-    if (error instanceof ImageError) {
-      return jsonError(error.status, error.code, error.message);
-    }
-    return jsonError(400, "IMAGE_PROCESS_FAILED", "图片处理失败，请换一张图片");
-  }
-
-  const relativePath = await getStorage().save(normalized.buffer, {
-    extension: normalized.extension,
-    subdir: "questions",
-  });
-
-  const expiresAt = new Date(
-    Date.now() + IMAGE_RETENTION_HOURS * 60 * 60 * 1000,
-  );
-  const result = await prisma.$transaction(async (tx) => {
-    const wrongQuestion = await tx.wrongQuestion.create({
-      data: {
-        studentId: student.id,
-        subject,
-        status: "PROCESSING",
-      },
-    });
-    const imageRecord = await tx.rawQuestionImage.create({
-      data: {
-        studentId: student.id,
-        wrongQuestionId: wrongQuestion.id,
-        filePath: relativePath,
-        mimeType: normalized.mimeType,
-        sizeBytes: normalized.buffer.length,
-        expiresAt,
-        reviewStatus: "NORMAL",
-      },
-    });
-    const job = await tx.analysisJob.create({
-      data: {
-        wrongQuestionId: wrongQuestion.id,
-        status: "PENDING",
-      },
-    });
-    return { wrongQuestion, imageRecord, job };
-  });
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      wrongQuestionId: result.wrongQuestion.id,
-      imageId: result.imageRecord.id,
-      jobId: result.job.id,
-      status: "PROCESSING",
-    },
-  });
+function currentWeekStart(): Date {
+  const utc8 = new Date(Date.now() + 8 * 3600000);
+  const daysSinceMonday = (utc8.getUTCDay() + 6) % 7;
+  return new Date(Date.UTC(utc8.getUTCFullYear(), utc8.getUTCMonth(), utc8.getUTCDate() - daysSinceMonday) - 8 * 3600000);
 }
 
-// GET：家庭端错题列表（按学科/知识点/mastered 筛选）
+export async function POST(request: NextRequest) {
+  const auth = await requireRole(request, prisma, ["FAMILY"]);
+  if ("error" in auth) return auth.error;
+  const csrfError = assertStateChangeAllowed(request);
+  if (csrfError) return csrfError;
+  const account = await prisma.familyAccount.findUnique({ where: { userId: auth.user.id }, include: { student: true } });
+  if (!account?.student) return jsonError(404, "STUDENT_NOT_FOUND", "当前账户未绑定学生");
+  const studentId = account.student.id;
+  const used = await prisma.wrongQuestion.count({ where: { studentId, deletedAt: null, createdAt: { gte: currentWeekStart() } } });
+  if (used >= WEEKLY_WRONG_QUESTION_QUOTA) return jsonError(429, "WEEKLY_QUOTA_EXCEEDED", "本周错题额度已用完（每周 100 题），请下周再试");
+  let form: FormData;
+  try { form = await request.formData(); } catch { return jsonError(400, "INVALID_FORM", "请求必须是 multipart/form-data"); }
+  const subject = form.get("subject");
+  if (subject !== "MATH" && subject !== "ENGLISH") return jsonError(400, "INVALID_SUBJECT", "请选择学科（数学或英语）");
+  const requestedModel = form.get("model");
+  if (requestedModel && requestedModel !== "qwen-vl-max" && requestedModel !== "qwen-vl-plus" && requestedModel !== "qwen3.7-plus") return jsonError(400, "INVALID_MODEL", "请选择有效的识别模型");
+  // 兼容旧版小程序上传值；生产账号当前只开通 qwen3.7-plus，统一使用配置模型。
+  const model = requestedModel && process.env.NODE_ENV === "production" && (requestedModel === "qwen-vl-max" || requestedModel === "qwen-vl-plus")
+    ? loadConfig().qwen.model
+    : requestedModel;
+  const files = form.getAll("image");
+  const maxFiles = subject === "ENGLISH" ? MAX_ENGLISH_IMAGES : 1;
+  if (!files.length || files.length > maxFiles) return jsonError(400, "INVALID_FILE_COUNT", subject === "ENGLISH" ? "英语题请上传 1 至 6 张图片" : "数学题每次请上传一张图片");
+  for (const file of files) {
+    if (!(file instanceof File)) return jsonError(400, "INVALID_FILE", "image 字段必须是文件");
+    if (!isAllowedMime(file.type)) return jsonError(400, "INVALID_FILE_TYPE", "仅支持 JPG/JPEG/PNG 图片");
+    if (file.size > MAX_IMAGE_BYTES) return jsonError(400, "FILE_TOO_LARGE", "每张图片不能超过 8MB");
+  }
+  const storage = getStorage();
+  const images: Array<{ filePath: string; mimeType: string; sizeBytes: number }> = [];
+  try {
+    for (const file of files as File[]) {
+      const normalized = await normalizeImage(Buffer.from(await file.arrayBuffer()));
+      const filePath = await storage.save(normalized.buffer, { extension: normalized.extension, subdir: `questions/${studentId}` });
+      images.push({ filePath, mimeType: normalized.mimeType, sizeBytes: normalized.buffer.length });
+    }
+  } catch (error) {
+    await Promise.all(images.map((image) => storage.delete(image.filePath).catch(() => undefined)));
+    if (error instanceof ImageError) return jsonError(error.status, error.code, error.message);
+    return jsonError(503, "IMAGE_PROCESS_FAILED", "图片处理或保存失败，请稍后重试");
+  }
+  try {
+    const now = Date.now();
+    const expiresAt = new Date(now + IMAGE_RETENTION_DAYS * 24 * 3600000);
+    const result = await prisma.$transaction(async (tx) => {
+      // 同一学生并发上传时串行核对额度，避免两次请求同时绕过上限。
+      await tx.$queryRaw`SELECT "id" FROM "Student" WHERE "id" = ${studentId} FOR UPDATE`;
+      const count = await tx.wrongQuestion.count({ where: { studentId, deletedAt: null, createdAt: { gte: currentWeekStart() } } });
+      if (count >= WEEKLY_WRONG_QUESTION_QUOTA) throw new WrongQuestionError(429, "WEEKLY_QUOTA_EXCEEDED", "本周错题额度已用完（每周 100 题），请下周再试");
+      const wrongQuestion = await tx.wrongQuestion.create({ data: { studentId, subject, status: "PROCESSING" } });
+      const imageRecords = [];
+      for (const [index, image] of images.entries()) imageRecords.push(await tx.rawQuestionImage.create({ data: { ...image, studentId, wrongQuestionId: wrongQuestion.id, expiresAt, reviewStatus: "NORMAL", createdAt: new Date(now + index) } }));
+      const job = await tx.analysisJob.create({ data: { wrongQuestionId: wrongQuestion.id, status: "PENDING", ...(model ? { modelOverride: model as string } : {}) } });
+      return { wrongQuestion, imageRecords, job };
+    });
+    return NextResponse.json({ success: true, data: { wrongQuestionId: result.wrongQuestion.id, imageId: result.imageRecords[0].id, imageIds: result.imageRecords.map((image) => image.id), jobId: result.job.id, status: "PROCESSING" } });
+  } catch (error) {
+    await Promise.all(images.map((image) => storage.delete(image.filePath).catch(() => undefined)));
+    if (error instanceof WrongQuestionError) return jsonError(error.status, error.code, error.message);
+    return jsonError(503, "QUESTION_CREATE_FAILED", "错题创建失败，请稍后重试");
+  }
+}
 
 export async function GET(request: NextRequest) {
-  const auth = await requireRole(request, prisma, ["FAMILY"]);
-  if ("error" in auth) {
-    return auth.error;
+  const auth = await requireRole(request, prisma, ["FAMILY", "TEACHER", "ADMIN"]);
+  if ("error" in auth) return auth.error;
+  const params = new URL(request.url).searchParams;
+  try {
+    const where = await wrongQuestionWhere(prisma, auth.user, params);
+    const page = Math.max(1, Math.min(100000, Math.floor(Number(params.get("page")) || 1)));
+    const pageSize = Math.max(1, Math.min(100, Math.floor(Number(params.get("pageSize")) || 20)));
+    const [total, items] = await Promise.all([
+      prisma.wrongQuestion.count({ where }),
+      prisma.wrongQuestion.findMany({ where, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize, include: { student: { select: { name: true } }, knowledgePointRecords: true, favorites: { where: { userId: auth.user.id }, select: { id: true } } } }),
+    ]);
+    return NextResponse.json({ success: true, data: { total, page, pageSize, items: items.map((w) => ({ id: w.id, studentId: w.studentId, studentName: w.student.name, subject: w.subject, recognizedQuestion: w.recognizedQuestion, knowledgePoints: w.knowledgePointRecords.map((record) => record.knowledgePoint), mastered: w.mastered, status: w.status, isAiGenerated: w.isAiGenerated, isTeacherReviewed: w.isTeacherReviewed, isFavorite: w.favorites.length > 0, firstSeenAt: w.firstSeenAt, lastReviewedAt: w.lastReviewedAt, updatedAt: w.updatedAt })) } });
+  } catch (error) {
+    if (error instanceof WrongQuestionError) return jsonError(error.status, error.code, error.message);
+    throw error;
   }
-
-  const familyAccount = await prisma.familyAccount.findUnique({
-    where: { userId: auth.user.id },
-    include: { student: true },
-  });
-  if (!familyAccount?.student) {
-    return NextResponse.json({ success: true, data: { items: [], total: 0 } });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const subject = searchParams.get("subject");
-  const knowledgePoint = searchParams.get("knowledgePoint")?.trim();
-  const mastered = searchParams.get("mastered");
-  const from = searchParams.get("from");
-  const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
-  const pageSize = Math.min(
-    100,
-    Math.max(1, Number(searchParams.get("pageSize") ?? 20) || 20),
-  );
-
-  const where: Record<string, unknown> = {
-    studentId: familyAccount.student.id,
-    deletedAt: null,
-    status: {
-      in: [
-        "PROCESSING",
-        "PENDING_STUDENT_CONFIRMATION",
-        "PUBLISHED",
-        "NEEDS_REVIEW",
-        "REVIEWED",
-      ],
-    },
-  };
-  if (subject === "MATH" || subject === "ENGLISH") {
-    where.subject = subject;
-  }
-  if (mastered === "true" || mastered === "false") {
-    where.mastered = mastered === "true";
-  }
-  if (from) {
-    const fromDate = new Date(from);
-    if (Number.isNaN(fromDate.getTime())) {
-      return jsonError(400, "INVALID_INPUT", "开始时间格式不正确");
-    }
-    where.updatedAt = { gte: fromDate };
-  }
-  if (knowledgePoint) {
-    where.knowledgePointRecords = {
-      some: { knowledgePoint: { contains: knowledgePoint } },
-    };
-  }
-
-  const [total, items] = await Promise.all([
-    prisma.wrongQuestion.count({ where }),
-    prisma.wrongQuestion.findMany({
-      where,
-      orderBy: { updatedAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        knowledgePointRecords: true,
-        favorites: { where: { userId: auth.user.id }, select: { id: true } },
-      },
-    }),
-  ]);
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      total,
-      page,
-      pageSize,
-      items: items.map((w) => ({
-        id: w.id,
-        subject: w.subject,
-        recognizedQuestion: w.recognizedQuestion,
-        knowledgePoints: w.knowledgePointRecords.map((k) => k.knowledgePoint),
-        mastered: w.mastered,
-        status: w.status,
-        isAiGenerated: w.isAiGenerated,
-        isTeacherReviewed: w.isTeacherReviewed,
-        isFavorite: w.favorites.length > 0,
-        firstSeenAt: w.firstSeenAt,
-        lastReviewedAt: w.lastReviewedAt,
-        updatedAt: w.updatedAt,
-      })),
-    },
-  });
 }

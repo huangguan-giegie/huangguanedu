@@ -10,20 +10,18 @@ import { Client } from "pg";
 
 const require = createRequire(join(process.cwd(), "package.json"));
 
-function embeddedBinDir(): string {
-  if (process.platform !== "win32") {
-    throw new Error(
-      "当前平台不支持 Windows 嵌入式 PostgreSQL；请提供可用 PostgreSQL（默认端口 55432 或 YY_TEST_PG_PORT）",
-    );
-  }
+// 该包是 optionalDependencies（os: win32 / cpu: x64），Linux 与 macOS 上npm ci 会跳过安装。
+// 所以这里不能放在模块顶层解析——那会让本模块在任何非 Windows 上一被 import 就抛
+// MODULE_NOT_FOUND连带 test-db.ts / vitest-global-setup.ts 一起加载失败。
+// 改成惰性解析：只有真的要启动嵌入式实例时才解析，解析不到就抛出可读的提示。
+function resolveBinDir(): string {
   try {
-    const pkgDir = dirname(
-      dirname(require.resolve("@embedded-postgres/windows-x64")),
-    );
-    return join(pkgDir, "native", "bin");
+    // 通过包根导出（dist/index.js）定位包根目录
+    return join(dirname(dirname(require.resolve("@embedded-postgres/windows-x64"))), "native", "bin");
   } catch {
     throw new Error(
-      "未安装 @embedded-postgres/windows-x64；请执行 npm install 或提供外部 PostgreSQL",
+      "@embedded-postgres/windows-x64 未安装（仅在 Windows x64 上可用）。" +
+        "非 Windows 环境请改用外部 PostgreSQL，并设置 TEST_DATABASE_URL 或 DATABASE_URL。",
     );
   }
 }
@@ -68,7 +66,6 @@ export async function isPostgresUp(port: number): Promise<boolean> {
 
 /** 启动嵌入式 PostgreSQL（阻塞直到可用），返回控制句柄。 */
 export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
-  const binDir = embeddedBinDir();
   const dataDir = mkdtempSync(join(tmpdir(), "yy-pg-"));
   const logFile = join(dataDir, "postgres.log");
 
@@ -88,7 +85,7 @@ export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
     }
   };
 
-  run(join(binDir, "initdb.exe"), [
+  run(join(resolveBinDir(), "initdb.exe"), [
     "-D",
     dataDir,
     "-U",
@@ -99,7 +96,7 @@ export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
     "--no-locale",
   ]);
   run(
-    join(binDir, "pg_ctl.exe"),
+    join(resolveBinDir(), "pg_ctl.exe"),
     [
       "-D",
       dataDir,
@@ -114,7 +111,7 @@ export function startTestPostgres(port = DEFAULT_TEST_PG_PORT): TestPostgres {
   );
 
   const stop = () => {
-    spawnSync(join(binDir, "pg_ctl.exe"), ["-D", dataDir, "stop", "-m", "fast"], {
+    spawnSync(join(resolveBinDir(), "pg_ctl.exe"), ["-D", dataDir, "stop", "-m", "fast"], {
       stdio: "ignore",
     });
     rmSync(markerPath(port), { force: true });
@@ -188,9 +185,8 @@ export async function getOrStartTestPostgres(): Promise<TestPostgres> {
       stop() {
         // 复用的实例若由本机启动过（标记文件存在），负责停止，避免进程残留
         if (ownedDataDir) {
-          const binDir = embeddedBinDir();
           spawnSync(
-            join(binDir, "pg_ctl.exe"),
+            join(resolveBinDir(), "pg_ctl.exe"),
             ["-D", ownedDataDir, "stop", "-m", "fast"],
             { stdio: "ignore" },
           );
