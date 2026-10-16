@@ -1,5 +1,6 @@
 // 错题状态流转：学生反馈、老师审核、合并（事务）
 import type { PrismaClient } from "../generated/prisma/client";
+import { z } from "zod";
 import { getStorage } from "./storage";
 
 export type TransactionClient = Omit<
@@ -17,10 +18,25 @@ export class WrongQuestionError extends Error {
   }
 }
 
+const reviewSchema = z.object({
+  recognizedQuestion: z.string().max(20000).optional(),
+  finalAnswer: z.string().max(20000).optional(),
+  correctSteps: z.array(z.string().max(20000)).max(200).optional(),
+  thinkingHint: z.string().max(20000).optional(),
+  errorCauses: z.array(z.string().max(20000)).max(100).optional(),
+  knowledgePoints: z.array(z.string().min(1).max(200)).max(100).optional(),
+  difficulty: z.enum(["EASY", "MEDIUM", "HARD", "UNKNOWN"]).optional(),
+  aiConfidence: z.number().min(0).max(1).optional(),
+  remedialPractice: z.array(z.string().max(20000)).max(100).optional(),
+  teacherNote: z.string().max(20000).optional(),
+  errorType: z.string().max(200).optional(),
+  mastered: z.boolean().optional(),
+});
+
 /**
  * 学生反馈：
- * - ACCURATE：直接发布完整解答（无需老师审核），保留 AI 初步生成标记，原图按普通题 24h 保留
- * - NEEDS_REVIEW：进入老师复核队列，原图延长保留至 7 天
+ * - ACCURATE：直接发布完整解答（无需老师审核），保留 AI 初步生成标记。
+ * - NEEDS_REVIEW：进入老师复核队列，原图至少再保留 7 天。
  */
 export async function studentFeedbackTx(
   prisma: PrismaClient,
@@ -33,7 +49,7 @@ export async function studentFeedbackTx(
       where: { id: wrongQuestionId },
       include: { rawImages: true },
     });
-    if (!wrongQuestion) {
+    if (!wrongQuestion || wrongQuestion.deletedAt) {
       throw new WrongQuestionError(404, "WRONG_QUESTION_NOT_FOUND", "错题不存在");
     }
     if (wrongQuestion.status !== "PENDING_STUDENT_CONFIRMATION") {
@@ -65,13 +81,13 @@ export async function studentFeedbackTx(
           needsTeacherReview: true,
         },
       });
-      // 延长原图保留至 7 天，标记待复核
+      // 待复核至少保留 7 天，不能缩短多图上传原本的保留期限。
       const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       for (const image of wrongQuestion.rawImages) {
         await tx.rawQuestionImage.update({
           where: { id: image.id },
           data: {
-            expiresAt,
+            expiresAt: image.expiresAt > expiresAt ? image.expiresAt : expiresAt,
             reviewStatus: "AWAITING_REVIEW",
           },
         });
@@ -104,6 +120,9 @@ export async function teacherReviewTx(
   actorId: string,
   now: Date = new Date(),
 ): Promise<void> {
+  const parsed = reviewSchema.safeParse(data);
+  if (!parsed.success) throw new WrongQuestionError(400, "INVALID_INPUT", "审核内容格式不正确，请检查文字、列表、难度和置信度");
+  data = parsed.data;
   return prisma.$transaction(async (tx) => {
     const wrongQuestion = await tx.wrongQuestion.findUnique({
       where: { id: wrongQuestionId },
@@ -116,9 +135,10 @@ export async function teacherReviewTx(
         rawImages: true,
       },
     });
-    if (!wrongQuestion) {
+    if (!wrongQuestion || wrongQuestion.deletedAt) {
       throw new WrongQuestionError(404, "WRONG_QUESTION_NOT_FOUND", "错题不存在");
     }
+    if (wrongQuestion.status === "PROCESSING") throw new WrongQuestionError(400, "INVALID_STATUS", "请等待分析完成后再审核");
 
     const isAdmin = (await tx.user.findUnique({ where: { id: actorId } }))?.role === "ADMIN";
     const isAssignedTeacher = wrongQuestion.student.teacherAssignments.some(
@@ -154,6 +174,13 @@ export async function teacherReviewTx(
       },
     });
 
+    // 同步检索表，老师订正后知识点筛选与薄弱点统计立即生效。
+    if (data.knowledgePoints !== undefined) {
+      await tx.wrongQuestionKnowledgePoint.deleteMany({ where: { wrongQuestionId } });
+      const points = [...new Set(data.knowledgePoints.map((point) => point.trim()).filter(Boolean))];
+      if (points.length) await tx.wrongQuestionKnowledgePoint.createMany({ data: points.map((knowledgePoint) => ({ wrongQuestionId, knowledgePoint })) });
+    }
+
     // 审核完成立即删除原图（文件 + 记录）
     for (const image of wrongQuestion.rawImages) {
       await tx.rawQuestionImage.update({
@@ -184,12 +211,14 @@ export async function mergeWrongQuestionsTx(
       where: { id: targetId },
       include: { student: true },
     });
-    if (!source || !target) {
+    if (!source || !target || source.deletedAt || target.deletedAt) {
       throw new WrongQuestionError(404, "WRONG_QUESTION_NOT_FOUND", "错题不存在");
     }
     if (source.studentId !== target.studentId) {
       throw new WrongQuestionError(400, "DIFFERENT_STUDENT", "只能合并同一学生的错题");
     }
+    if (source.subject !== target.subject) throw new WrongQuestionError(400, "DIFFERENT_SUBJECT", "只能合并同一学科的错题");
+    if (source.status === "PROCESSING" || target.status === "PROCESSING") throw new WrongQuestionError(400, "INVALID_STATUS", "请等待错题分析完成后再合并");
 
     // 迁移关联记录到目标
     await tx.wrongQuestionOccurrence.updateMany({
@@ -200,10 +229,14 @@ export async function mergeWrongQuestionsTx(
       where: { wrongQuestionId: sourceId },
       data: { wrongQuestionId: targetId },
     });
-    await tx.wrongQuestionKnowledgePoint.updateMany({
-      where: { wrongQuestionId: sourceId },
-      data: { wrongQuestionId: targetId },
-    });
+    const points = await tx.wrongQuestionKnowledgePoint.findMany({ where: { wrongQuestionId: sourceId }, select: { knowledgePoint: true } });
+    if (points.length) await tx.wrongQuestionKnowledgePoint.createMany({ data: points.map(({ knowledgePoint }) => ({ wrongQuestionId: targetId, knowledgePoint })), skipDuplicates: true });
+    await tx.wrongQuestionKnowledgePoint.deleteMany({ where: { wrongQuestionId: sourceId } });
+    const favorites = await tx.wrongQuestionFavorite.findMany({ where: { wrongQuestionId: sourceId }, select: { userId: true } });
+    if (favorites.length) await tx.wrongQuestionFavorite.createMany({ data: favorites.map(({ userId }) => ({ wrongQuestionId: targetId, userId })), skipDuplicates: true });
+    await tx.wrongQuestionFavorite.deleteMany({ where: { wrongQuestionId: sourceId } });
+    const mergedPoints = await tx.wrongQuestionKnowledgePoint.findMany({ where: { wrongQuestionId: targetId }, select: { knowledgePoint: true } });
+    await tx.wrongQuestion.update({ where: { id: targetId }, data: { knowledgePoints: mergedPoints.map(({ knowledgePoint }) => knowledgePoint) } });
     // 原图重新关联（若有）
     await tx.rawQuestionImage.updateMany({
       where: { wrongQuestionId: sourceId },

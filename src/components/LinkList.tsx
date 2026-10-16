@@ -12,6 +12,7 @@ const symbols: Record<string, string> = {
   "/wrong-questions": "✎",
   "/review": "✓",
   "/practice-sets": "∑",
+  "/practice": "∑",
   "/bookings": "◷",
   "/reports": "▤",
   "/account": "⚙",
@@ -24,13 +25,13 @@ const symbols: Record<string, string> = {
 };
 export function LinkList({ items }: { items: LinkItem[] }) {
   return (
-    <div className="quick-grid">
+    <div className="academy-quick-grid">
       {items.map((item) => (
-        <Link key={item.href} href={item.href} className="quick-card">
-          <span aria-hidden className="quick-card-icon">{symbols[item.href] ?? "→"}</span>
-          <span aria-hidden className="quick-card-arrow">↗</span>
-          <span className="quick-card-title">{item.label}</span>
-          <span className="quick-card-description">{item.description}</span>
+        <Link key={item.href} href={item.href} className="academy-quick-card">
+          <span aria-hidden className="academy-quick-card-icon">{symbols[item.href] ?? "→"}</span>
+          <span aria-hidden className="academy-quick-card-arrow">↗</span>
+          <span className="academy-quick-card-title">{item.label}</span>
+          <span className="academy-quick-card-description">{item.description}</span>
         </Link>
       ))}
     </div>

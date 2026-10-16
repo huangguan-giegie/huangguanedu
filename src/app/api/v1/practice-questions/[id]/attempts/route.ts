@@ -53,7 +53,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
       explanation: question.explanation,
       submittedAnswer: answer,
     });
-    const knowledgePoints = asStringArray(question.knowledgePoints);
+    // 知识点优先取练习题自身；为空时回退到来源错题——
+    // 掌握度模型的输入最终来自错题上的知识点，那是唯一可靠的标注来源。
+    let knowledgePoints = asStringArray(question.knowledgePoints);
+    if (knowledgePoints.length === 0) {
+      const sourceIds = asStringArray(question.sourceWrongQuestionIds);
+      if (sourceIds.length > 0) {
+        const sources = await prisma.wrongQuestion.findMany({
+          where: { id: { in: sourceIds } },
+          include: { knowledgePointRecords: true },
+        });
+        knowledgePoints = [
+          ...new Set(sources.flatMap((item) => item.knowledgePointRecords.map((r) => r.knowledgePoint))),
+        ];
+      }
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const attempt = await tx.practiceAttempt.create({

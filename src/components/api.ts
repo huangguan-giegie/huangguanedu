@@ -37,10 +37,6 @@ async function request<T>(
         : undefined),
   });
 
-  if (response.status === 401) {
-    throw new Error("未登录");
-  }
-
   const data = (await response.json().catch(() => null)) as
     | { success: true; data: T }
     | { success: false; error: { code: string; message: string } }

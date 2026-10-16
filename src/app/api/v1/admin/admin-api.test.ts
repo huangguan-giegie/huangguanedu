@@ -3,14 +3,17 @@ import { NextRequest } from "next/server";
 
 import type { PrismaClient } from "../../../../generated/prisma/client";
 import { CSRF_COOKIE_NAME } from "../../../../lib/csrf";
-import { hashPassword } from "../../../../lib/password";
+import { hashPassword, verifyPassword } from "../../../../lib/password";
 import { SESSION_COOKIE_NAME } from "../../../../lib/session";
 import { createTestPrisma } from "../../../../lib/test-db";
 import { POST as createAssignment } from "./assignments/route";
 import { DELETE as deleteAssignment } from "./assignments/[id]/route";
 import { GET as listStudents } from "./students/route";
 import { PATCH as patchStudent } from "./students/[id]/route";
+import { DELETE as disableStudent } from "./students/[id]/route";
 import { POST as createTeacher } from "./teachers/route";
+import { DELETE as disableTeacher } from "./teachers/[id]/route";
+import { POST as createFamilyAccount, GET as listFamilyAccounts } from "./family-accounts/route";
 import { POST as resetPassword } from "./teachers/[id]/reset-password/route";
 import { GET as getMyStudent } from "../me/student/route";
 import { GET as getTeacherStudents } from "../teacher/students/route";
@@ -254,6 +257,105 @@ describe("账户与学生/老师管理 API", () => {
       }),
     );
     expect(res.status).toBe(409);
+  });
+
+  it("管理员创建家庭账户与学生资料，密码只在创建响应返回一次", async () => {
+    const { admin } = await seedDemo();
+    const { sessionToken, csrfToken } = await authedSession(admin.phone);
+    const response = await createFamilyAccount(
+      authedRequest("/api/v1/admin/family-accounts", "POST", sessionToken, csrfToken, {
+        phone: "13800000009", studentName: "新学生", grade: "初三", school: "实验中学",
+      }),
+    );
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data.tempPassword).toMatch(/^[A-Za-z0-9]{12}$/);
+    const created = await prisma.user.findUniqueOrThrow({
+      where: { phone: "13800000009" }, include: { familyAccount: { include: { student: true } } },
+    });
+    expect(created.role).toBe("FAMILY");
+    expect(created.mustChangePassword).toBe(true);
+    expect(await verifyPassword(data.tempPassword, created.passwordHash)).toBe(true);
+    expect(created.familyAccount?.student?.id).toBe(data.account.studentId);
+    expect(created.familyAccount?.student?.name).toBe("新学生");
+    expect(await prisma.auditLog.count({ where: { action: "CREATE_FAMILY_ACCOUNT" } })).toBe(1);
+
+    const listed = await listFamilyAccounts(authedRequest("/api/v1/admin/family-accounts", "GET", sessionToken, csrfToken));
+    const listedBody = await listed.json();
+    expect(JSON.stringify(listedBody)).not.toContain(data.tempPassword);
+    expect(JSON.stringify(listedBody)).not.toContain("passwordHash");
+  });
+
+  it("家庭账户创建拒绝重复手机号和非管理员", async () => {
+    const { admin, family } = await seedDemo();
+    const adminSession = await authedSession(admin.phone);
+    const before = await prisma.user.count();
+    const repeated = await createFamilyAccount(authedRequest("/api/v1/admin/family-accounts", "POST", adminSession.sessionToken, adminSession.csrfToken, {
+      phone: family.phone, studentName: "重复账户",
+    }));
+    expect(repeated.status).toBe(409);
+    expect(await prisma.user.count()).toBe(before);
+    const familySession = await authedSession(family.phone);
+    const forbidden = await createFamilyAccount(authedRequest("/api/v1/admin/family-accounts", "POST", familySession.sessionToken, familySession.csrfToken, {
+      phone: "13800000009", studentName: "越权创建",
+    }));
+    expect(forbidden.status).toBe(403);
+  });
+
+  it("停用家庭账户撤销会话并解除负责关系，保留学生历史资料", async () => {
+    const { admin, family, student } = await seedDemo();
+    const adminSession = await authedSession(admin.phone);
+    await authedSession(family.phone);
+    const response = await disableStudent(
+      authedRequest(`/api/v1/admin/students/${student.id}`, "DELETE", adminSession.sessionToken, adminSession.csrfToken),
+      { params: Promise.resolve({ id: student.id }) },
+    );
+    expect(response.status).toBe(200);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: family.id } });
+    expect(user.isActive).toBe(false);
+    expect(user.deletedAt).not.toBeNull();
+    expect(await prisma.session.count({ where: { userId: family.id } })).toBe(0);
+    expect(await prisma.teacherStudentAssignment.count({ where: { studentId: student.id, endsAt: null } })).toBe(0);
+    expect(await prisma.student.findUnique({ where: { id: student.id } })).not.toBeNull();
+    expect((await doLogin(family.phone)).status).toBe(401);
+    expect(await prisma.auditLog.count({ where: { action: "DISABLE_FAMILY_ACCOUNT" } })).toBe(1);
+  });
+
+  it("停用老师账户解除负责关系并撤销全部会话", async () => {
+    const { admin, teacher, teacherProfile } = await seedDemo();
+    const adminSession = await authedSession(admin.phone);
+    await authedSession(teacher.phone);
+    const response = await disableTeacher(
+      authedRequest(`/api/v1/admin/teachers/${teacherProfile.id}`, "DELETE", adminSession.sessionToken, adminSession.csrfToken),
+      { params: Promise.resolve({ id: teacherProfile.id }) },
+    );
+    expect(response.status).toBe(200);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: teacher.id } })).isActive).toBe(false);
+    expect(await prisma.session.count({ where: { userId: teacher.id } })).toBe(0);
+    expect(await prisma.teacherStudentAssignment.count({ where: { teacherId: teacherProfile.id, endsAt: null } })).toBe(0);
+    expect(await prisma.teacherProfile.findUnique({ where: { id: teacherProfile.id } })).not.toBeNull();
+    expect(await prisma.auditLog.count({ where: { action: "DISABLE_TEACHER_ACCOUNT" } })).toBe(1);
+  });
+
+  it("学生列表分页可访问第 100 名之后的学生", async () => {
+    const { admin, family } = await seedDemo();
+    await prisma.$transaction(Array.from({ length: 101 }, (_, index) => prisma.user.create({
+      data: {
+        phone: `13900000${String(index).padStart(3, "0")}`,
+        passwordHash: family.passwordHash,
+        role: "FAMILY",
+        name: `分页学生 ${index}`,
+        familyAccount: { create: { student: { create: { name: `分页学生 ${index}`, grade: "初二", school: "测试中学" } } } },
+      },
+    })));
+    const { sessionToken, csrfToken } = await authedSession(admin.phone);
+    const response = await listStudents(authedRequest("/api/v1/admin/students?page=6&pageSize=20", "GET", sessionToken, csrfToken));
+    const { data } = await response.json();
+    expect(response.status).toBe(200);
+    expect(data.total).toBe(102);
+    expect(data.page).toBe(6);
+    expect(data.students).toHaveLength(2);
+    expect(data.students.every((student: { isActive: boolean }) => student.isActive)).toBe(true);
   });
 
   it("管理员重置密码：撤销全部 Session 并强制改密", async () => {

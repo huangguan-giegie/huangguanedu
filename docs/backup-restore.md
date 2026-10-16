@@ -1,35 +1,29 @@
-# RDS 备份与恢复演练
+# PostgreSQL backup and restore drill
 
-## 自动备份
+Production PostgreSQL is an external/native service. The ECS host runs `/opt/huangguanedu/ops/backup-postgres-to-oss-native.cjs`; it does not use Docker or `ossutil` for the production backup path.
 
-1. RDS 控制台开启自动备份（建议每日，保留 7-30 天）。
-2. 备份窗口避开业务高峰。
-3. 与 RDS 高可用（主备/多可用区）配合，见阿里云“高可用与容灾”说明。
+## Daily backup
 
-## 手动备份
+The host cron runs at 03:30 Asia/Shanghai:
 
-```bash
-# 通过 RDS 控制台或 API 创建手动快照，发版前必须执行
-aliyun rds CreateBackup --DBInstanceId <rds-id> --BackupMethod Physical
+```cron
+CRON_TZ=Asia/Shanghai
+30 3 * * * /usr/bin/flock -n /var/lock/huangguanedu-backup.lock /opt/node-v22/bin/node /opt/huangguanedu/ops/backup-postgres-to-oss-native.cjs /opt/huangguanedu/.env.production
 ```
 
-## 恢复演练（建议每季度一次）
+The helper uses native `pg_dump --format=custom`, writes a SHA-256 sidecar, uploads both objects through `ali-oss`, and verifies remote existence and object sizes with OSS `head`. It resolves `OSS_BACKUP_BUCKET` with fallback to `OSS_BUCKET`, and `OSS_BACKUP_PREFIX` with fallback to `backups/postgres`.
 
-1. 从备份创建临时实例（或克隆实例），确认结构、数据行数、关键业务表完整。
-2. 用临时实例验证应用启动与登录流程。
-3. 验证后释放临时实例，避免费用残留。
+Local dump files are kept in the dedicated `.backups/postgres-native` directory for exactly 14 days. OSS objects are retained indefinitely. The helper never deletes remote OSS objects. Both success and failure are sent to `logger`/journald with a safe metadata summary; secrets and connection strings are never logged.
 
-## 恢复到生产（事故场景）
+## Safe manual restore drill
 
-1. 停止 jobs 与 web 写入流量（可先停 jobs，再停 web）。
-2. 选择目标时间点/备份进行恢复（RDS 支持按时间点恢复，需 binlog/WAL 保留）。
-3. 恢复后核对：
-   - `_prisma_migrations` 与应用迁移记录一致；
-   - 学习总结/错题/预约数据行数；
-   - 应用健康检查与登录流程。
-4. 确认无误后恢复流量，记录演练结论与耗时。
+Perform this drill on an isolated temporary PostgreSQL cluster, never on production:
 
-## 提示
+1. Download one `.dump` object and its matching `.sha256` object into a temporary directory.
+2. Verify the checksum locally with `sha256sum -c <dump>.sha256`.
+3. Create a temporary PostgreSQL cluster with separate credentials, storage, and network identity. Do not reuse the production `DATABASE_URL`.
+4. Restore the custom-format dump into that temporary cluster with `pg_restore --no-owner --no-acl`.
+5. Check migration metadata, representative row counts, and read-only application behavior against the temporary connection.
+6. Record the drill result, then remove the temporary cluster and its local dump files according to the host's temporary-data policy.
 
-- 备份文件与恢复后实例的权限保持最小化，防止数据泄露。
-- 生产密钥（DATABASE_URL 等）在恢复流程中不变，避免误改连接串。
+This task does not include a production restore, production service restart, migration, release switch, account creation, OSS lifecycle change, or remote cleanup.
