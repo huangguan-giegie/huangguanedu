@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import type { PracticeDiagram as Diagram } from "../lib/practice-diagram";
+import { AdvancedPracticeDiagram } from "./AdvancedPracticeDiagram";
 
 /** Render only validated, structured figures; do not render AI-authored SVG/HTML. */
 export function PracticeDiagram({ diagram }: { diagram: Diagram }) {
@@ -14,6 +15,9 @@ export function PracticeDiagram({ diagram }: { diagram: Diagram }) {
     strokeLinejoin: "round" as const,
   };
   const label = { fill: "#263b54", fontSize: 17, fontWeight: 600 };
+  if (diagram.type !== "rectangle" && diagram.type !== "right_triangle" && diagram.type !== "linear_function") {
+    return <AdvancedPracticeDiagram diagram={diagram} />;
+  }
   if (diagram.type === "rectangle") {
     const scale = Math.min(236 / diagram.width, 150 / diagram.height);
     const w = diagram.width * scale;
@@ -39,14 +43,14 @@ export function PracticeDiagram({ diagram }: { diagram: Diagram }) {
     );
   }
   if (diagram.type === "right_triangle") {
-    const [a, b, c] = diagram.triple.split("-").map(Number);
+    const [a, b] = diagram.triple.split("-").map(Number);
     const unit = Math.min(170 / a, 220 / b);
     const A = { x: 135, y: 235 };
     const B = { x: A.x, y: A.y - a * unit };
     const C = { x: A.x + b * unit, y: A.y };
     return (
       <figure className="practice-diagram">
-        <svg role="img" aria-label={`直角三角形 ABC，A 是直角，AB 为 ${a} 厘米，AC 为 ${b} 厘米，BC 为 ${c} 厘米`} viewBox="0 0 480 300" className="w-full max-w-[480px]">
+        <svg role="img" aria-label={`直角三角形 ABC，A 是直角，AB 为 ${a} 厘米，AC 为 ${b} 厘米，BC 是待求斜边`} viewBox="0 0 480 300" className="w-full max-w-[480px]">
           <path d={`M ${A.x} ${A.y} L ${B.x} ${B.y} L ${C.x} ${C.y} Z`} {...common} fill="#e8f2ff" />
           <path d={`M ${A.x} ${A.y - 18} H ${A.x + 18} V ${A.y}`} fill="none" stroke="#6083b5" strokeWidth="2" />
           <g {...label}>
@@ -55,7 +59,7 @@ export function PracticeDiagram({ diagram }: { diagram: Diagram }) {
             <text x={C.x + 7} y={C.y + 19}>C</text>
             <text x={A.x - 14} y={(A.y + B.y) / 2} textAnchor="end">{a} cm</text>
             <text x={(A.x + C.x) / 2} y={A.y + 26} textAnchor="middle">{b} cm</text>
-            <text x={(B.x + C.x) / 2 + 15} y={(B.y + C.y) / 2 - 12}>{c} cm</text>
+            <text x={(B.x + C.x) / 2 + 15} y={(B.y + C.y) / 2 - 12}>?</text>
           </g>
         </svg>
         <figcaption>直角、边长及顶点由同一组勾股数确定</figcaption>
