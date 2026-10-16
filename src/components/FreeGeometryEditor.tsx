@@ -2,13 +2,14 @@
 
 import { useCallback,useEffect,useId,useRef,useState,type PointerEvent,type ChangeEvent } from "react";
 import {
- blankDocument,createPoint,createShape,createIntersections,resolveDocument,
+ blankDocument,createPoint,createShape,createIntersections,createPolygon,createLocus,polygonMeasures,resolveDocument,
  movePoint,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
  starterDocument,type GeometryDocument,type GeometryObject,type Resolved,type Point,
 } from "../lib/free-geometry";
+import {sampleLocus,locusPaths} from "../lib/geometry-locus";
 import styles from "./FreeGeometryEditor.module.css";
 
-type Tool="move"|"point"|"line"|"segment"|"circle"|"intersection";
+type Tool="move"|"point"|"line"|"segment"|"circle"|"intersection"|"polygon"|"locus";
 type View={scale:number;ox:number;oy:number};
 type ActiveDrag={kind:"point";id:string;pointerId:number}|{kind:"pan";last:Point;pointerId:number};
 const W=960,H=590;
@@ -19,9 +20,11 @@ const TOOLS: {id:Tool;name:string;hint:string}[]=[
  {id:"segment",name:"线段",hint:"依次选择两个点，创建有限线段"},
  {id:"circle",name:"圆",hint:"先选择圆心，再选择圆周点"},
  {id:"intersection",name:"交点",hint:"依次选择两条线或圆，自动创建所有有限交点"},
+ {id:"polygon",name:"多边形",hint:"顺序选择三个以上的点，然后点击「完成多边形」"},
+ {id:"locus",name:"轨迹",hint:"先选自由驱动点，再选路径线/圆，最后选依赖驱动点的目标点"},
 ];
 const isPoint=(o:GeometryObject)=>o.kind==="point"||o.kind==="intersection";
-const isShape=(o:GeometryObject)=>!isPoint(o);
+const isShape=(o:GeometryObject)=>o.kind==="line"||o.kind==="segment"||o.kind==="circle";
 function saveAs(name:string,mime:string,content:string) {
  const blob=new Blob([content],{type:mime});
  const url=URL.createObjectURL(blob),a=document.createElement("a");
@@ -30,7 +33,7 @@ function saveAs(name:string,mime:string,content:string) {
 }
 function docName(o:GeometryObject):string{
  return o.kind==="point"?"自由点":o.kind==="intersection"?"交点":
- o.kind==="line"?"直线":o.kind==="segment"?"线段":"圆";
+ o.kind==="line"?"直线":o.kind==="segment"?"线段":o.kind==="circle"?"圆":o.kind==="polygon"?"多边形":"轨迹";
 }
 const safeError=(error:unknown)=>error instanceof Error?error.message:"操作失败";
 
@@ -40,6 +43,8 @@ export function FreeGeometryEditor() {
  const [hydrated,setHydrated]=useState(false);
  const [tool,setTool]=useState<Tool>("move");
  const [pending,setPending]=useState<string|null>(null);
+ const [polygonVertices,setPolygonVertices]=useState<string[]>([]);
+ const [locusDraft,setLocusDraft]=useState<{driver:string;path?:string}|null>(null);
  const [selected,setSelected]=useState<string|null>(null);
  const [notice,setNotice]=useState("选择工具，开始探索。");
  const [view,setView]=useState<View>({scale:44,ox:W/2,oy:H/2});
@@ -74,7 +79,7 @@ export function FreeGeometryEditor() {
   const previous=undo[undo.length-1];
   setRedo(items=>[...items.slice(-49),docRef.current]);
   setUndo(items=>items.slice(0,-1));
-  docRef.current=previous;setDoc(previous);setPending(null);setSelected(null);
+  docRef.current=previous;setDoc(previous);setPending(null);setSelected(null);setPolygonVertices([]);setLocusDraft(null);
   note("已撤销");
  };
  const redoAction=()=>{
@@ -82,7 +87,7 @@ export function FreeGeometryEditor() {
   const next=redo[redo.length-1];
   setUndo(items=>[...items.slice(-49),docRef.current]);
   setRedo(items=>items.slice(0,-1));
-  docRef.current=next;setDoc(next);setPending(null);setSelected(null);
+  docRef.current=next;setDoc(next);setPending(null);setSelected(null);setPolygonVertices([]);setLocusDraft(null);
   note("已重做");
  };
  // Read once. No server-side data or account data is stored.
@@ -125,6 +130,22 @@ export function FreeGeometryEditor() {
  const selectPoint=(id:string)=>{
   if(tool==="move"){setSelected(id);return;}
   if(tool==="point"){setSelected(id);return;}
+  if(tool==="polygon"){
+   if(polygonVertices.includes(id)){note("顶点不能重复，点击完成按钮闭合多边形");return;}
+   setPolygonVertices(v=>[...v,id]);note("已选 "+(polygonVertices.length+1)+" 个顶点");return;
+  }
+  if(tool==="locus"){
+   if(!locusDraft){
+    if(docRef.current.objects.find(o=>o.id===id)?.kind!=="point"){note("驱动点必须是可拖动自由点");return;}
+    setLocusDraft({driver:id});note("下一步：选择作为运动路径的直线、线段或圆");return;
+   }
+   if(!locusDraft.path){note("下一步须选择路径线或圆");return;}
+   try{
+    const created=createLocus(docRef.current,locusDraft.driver,locusDraft.path,id);
+    commit(created.document);setSelected(created.id);note("已生成 96 采样点的关联轨迹");
+   }catch(e){note(safeError(e));}
+   setLocusDraft(null);return;
+  }
   if(tool==="intersection"){note("交点工具需要先后选择两条线或圆");return;}
   if(!pending){setPending(id);note("请选择第二个点");return;}
   try{
@@ -133,6 +154,11 @@ export function FreeGeometryEditor() {
   }catch(e){setPending(null);note(safeError(e));}
  };
  const selectShape=(id:string)=>{
+  if(tool==="locus"){
+   if(!locusDraft){note("请先选择自由驱动点");return;}
+   if(locusDraft.path){note("路径已选，请选择目标点");return;}
+   setLocusDraft({...locusDraft,path:id});note("最后一步：选择随驱动点变化的目标点");return;
+  }
   if(tool!=="intersection"){setSelected(id);note("已选中对象");return;}
   if(!pending){setPending(id);note("请选择第二条线或圆");return;}
   try{
@@ -163,11 +189,13 @@ export function FreeGeometryEditor() {
    setSelected(null);
    svg.current?.setPointerCapture(event.pointerId);
    drag.current={kind:"pan",pointerId:event.pointerId,last:p};
-  }else if(tool!=="intersection"){
+  }else if(tool!=="intersection"&&tool!=="locus"){
    try{
     const result=createPoint(docRef.current,toWorld(p));
     if(tool==="point"){commit(result.document);setSelected(result.id);note("已创建自由点");}
-    else{
+    else if(tool==="polygon"){
+     commit(result.document);setPolygonVertices(v=>[...v,result.id]);note("已追加新顶点，请继续选择顶点");
+    }else{
      // Create a point first, then connect it to the pending first point.
      let next=result.document; const chosen=result.id; let output=chosen;
      if(pending){
@@ -206,6 +234,13 @@ export function FreeGeometryEditor() {
    commit(parsed);setPending(null);setSelected(null);note("已导入并验证 "+parsed.objects.length+" 个对象");
   }catch(e){note("导入失败："+safeError(e));}
  };
+ const completePolygon=()=>{
+  try{
+   const created=createPolygon(docRef.current,polygonVertices);
+   commit(created.document);setSelected(created.id);note("多边形已闭合，面积和周长可在属性中查看");
+  }catch(e){note(safeError(e));}
+  setPolygonVertices([]);
+ };
  const deleteSelected=()=>{
   if(!selected)return;
   const removed=doc.objects.length-deleteCascade(doc,selected).objects.length;
@@ -243,13 +278,14 @@ export function FreeGeometryEditor() {
   <div className={styles.tools} role="group" aria-label="绘图工具">
    {TOOLS.map(t=><button key={t.id} type="button" title={t.hint}
     aria-pressed={tool===t.id} className={tool===t.id?styles.toolActive:styles.tool}
-    onClick={()=>{setTool(t.id);setPending(null);note(t.hint);}}>{t.name}</button>)}
+    onClick={()=>{setTool(t.id);setPending(null);setPolygonVertices([]);setLocusDraft(null);note(t.hint);}}>{t.name}</button>)}
   </div>
   <div className={styles.layout}>
    <section className={styles.canvasBox}>
     <div className={styles.canvasToolbar}>
      <span>{TOOLS.find(t=>t.id===tool)?.hint}</span>
      <div>
+      {tool==="polygon"&&<button disabled={polygonVertices.length<3} onClick={completePolygon}>完成多边形（{polygonVertices.length} 点）</button>}
       <label><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/> 网格</label>
       <button onClick={()=>zoom(1.2)} aria-label="放大">＋</button>
       <button onClick={()=>zoom(1/1.2)} aria-label="缩小">－</button>
@@ -277,6 +313,23 @@ export function FreeGeometryEditor() {
       </>}
      </g>
      <g clipPath={"url(#"+clipId+")"}>
+      {polygonVertices.length>0&&<polyline points={polygonVertices.map(id=>{
+        const p=resolved.find(v=>v.object.id===id)?.point;
+        if(!p)return "";
+        const q=toScreen(p);return q.x+","+q.y;
+       }).filter(Boolean).join(" ")} fill="none" stroke="#ec8d58" strokeWidth="3" strokeDasharray="7 5" pointerEvents="none"/>}
+      {resolved.filter(r=>r.object.kind==="locus"&&!r.object.hidden).map(r=>{
+       if(r.object.kind!=="locus")return null;
+       const paths=locusPaths(sampleLocus(doc,r.object),toScreen);
+       return <g key={r.object.id} pointerEvents="none">
+        {paths.map((d,i)=><path key={i} d={d} fill="none" stroke={r.object.id===selected?"#ec8d58":"#aa56b4"} strokeWidth="2.6" strokeDasharray="5 3"/>)}
+       </g>;
+      })}
+      {resolved.filter(r=>r.object.kind==="polygon"&&!r.object.hidden&&r.polygon).map(r=>{
+       const polygon=r.polygon!;const points=polygon.map(p=>{const q=toScreen(p);return q.x+","+q.y;}).join(" ");
+       return <polygon key={r.object.id} points={points} fill="#4eabb42b" stroke={r.object.id===selected?"#e98647":"#20a5a9"} strokeWidth="2.5"
+        onPointerDown={e=>{e.stopPropagation();setSelected(r.object.id);}}/>;
+      })}
       {resolved.filter(r=>isShape(r.object)&&!r.object.hidden).map(r=>{
        const active=r.object.id===selected||r.object.id===pending;
        const color=active?"#e98647":"#246b9c";
@@ -325,7 +378,7 @@ export function FreeGeometryEditor() {
       {doc.objects.length===0&&<p className={styles.empty}>暂无对象。选择「点」开始绘制。</p>}
       {doc.objects.map(o=><div key={o.id} className={o.id===selected?styles.objectSelected:styles.object}>
        <button title={"选择"+o.label} onClick={()=>{setSelected(o.id);note("已选择 "+o.label)}} className={styles.objectName}>
-        <span className={styles.objectGlyph}>{o.kind==="circle"?"◯":o.kind==="line"?"⟷":o.kind==="segment"?"━":o.kind==="intersection"?"×":"●"}</span>
+        <span className={styles.objectGlyph}>{o.kind==="circle"?"◯":o.kind==="polygon"?"⬡":o.kind==="locus"?"∿":o.kind==="line"?"⟷":o.kind==="segment"?"━":o.kind==="intersection"?"×":"●"}</span>
         <span><strong>{o.label}</strong><small>{docName(o)}</small></span>
        </button>
        <button className={styles.visibility} title={o.hidden?"显示":"隐藏"} aria-label={(o.hidden?"显示":"隐藏")+o.label}
@@ -340,6 +393,8 @@ export function FreeGeometryEditor() {
        <label>名称<input type="text" maxLength={12} value={selectedObject.label} onChange={e=>{
         try{commit(renameObject(docRef.current,selectedObject.id,e.target.value));}catch{/** allow only nonempty labels */}}}/></label>
        <p className={styles.meta}>{docName(selectedObject)} · {selectedObject.id}</p>
+       {selectedObject.kind==="polygon"&&(()=>{const points=resolved.find(v=>v.object.id===selectedObject.id)?.polygon;const m=points?polygonMeasures(points):null;return <p className={styles.meta}>{m?`面积 ${m.area.toFixed(3)} · 周长 ${m.perimeter.toFixed(3)}`:"几何退化：请移动顶点恢复有效多边形"}</p>;})()}
+       {selectedObject.kind==="locus"&&<p className={styles.meta}>轨迹通过采样驱动点沿路径移动，并重算其关联目标点获得。拖动父点可更新。</p>}
        {selectedObject.kind==="point"?<div className={styles.xy}>
         {(["x","y"] as const).map(axis=><label key={axis}>{axis.toUpperCase()} 坐标
          <input type="number" step=".25" min="-1000" max="1000" value={selectedObject[axis]}
