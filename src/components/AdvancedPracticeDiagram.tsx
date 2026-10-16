@@ -240,7 +240,7 @@ export function AdvancedPracticeDiagram({ diagram }: { diagram: AdvancedDiagram 
     return <Graph
       curves={[{name:"抛物线",color:orange,fn:(x)=>a*(x-h)**2+k}]}
       points={[{x:h,y:k,label:"V"}]} axisX={h}
-      description={`二次函数图像，开口${a>0?"向上":"向下"}，顶点 V(${h}, ${k})，对称轴 x 等于 ${h}`}
+      description={`二次函数图像，开口${a>0?"向上":"向下"}，顶点标为 V，虚线为对称轴`}
       caption="虚线为对称轴，顶点与整条曲线由顶点式计算"
     />;
   }
@@ -265,7 +265,7 @@ export function AdvancedPracticeDiagram({ diagram }: { diagram: AdvancedDiagram 
       {name:"直线",color:teal,fn:(x)=>m*x+b},
     ]}
     points={[{x:r1,y:m*r1+b,label:"A"},{x:r2,y:m*r2+b,label:"B"}]}
-    description={`二次函数与直线的两个交点 A 和 B，横坐标分别为 ${r1} 与 ${r2}`}
+    description="二次函数与直线的两个交点分别标为 A 和 B"
     caption="曲线与直线共同代入验证 A、B 两个交点"
   />;
 }
