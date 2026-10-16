@@ -20,7 +20,6 @@ const TOOLS: {id:Tool;name:string;hint:string}[]=[
  {id:"circle",name:"圆",hint:"先选择圆心，再选择圆周点"},
  {id:"intersection",name:"交点",hint:"依次选择两条线或圆，自动创建所有有限交点"},
 ];
-const num=(x:number)=>Number(x.toFixed(3)).toString();
 const isPoint=(o:GeometryObject)=>o.kind==="point"||o.kind==="intersection";
 const isShape=(o:GeometryObject)=>!isPoint(o);
 function saveAs(name:string,mime:string,content:string) {
@@ -52,7 +51,6 @@ export function FreeGeometryEditor() {
  const importRef=useRef<HTMLInputElement|null>(null);
  const gridId=useId(),clipId=useId();
  const resolved=resolveDocument(doc);
- const resolvedMap=new Map(resolved.map(r=>[r.object.id,r]));
  const selectedObject=doc.objects.find(o=>o.id===selected);
  const toScreen=useCallback((p:Point):Point=>({x:view.ox+p.x*view.scale,y:view.oy-p.y*view.scale}),[view]);
  const toWorld=useCallback((p:Point):Point=>({x:(p.x-view.ox)/view.scale,y:(view.oy-p.y)/view.scale}),[view]);
@@ -89,19 +87,23 @@ export function FreeGeometryEditor() {
  };
  // Read once. No server-side data or account data is stored.
  useEffect(()=>{
-  try{
-   const value=window.localStorage.getItem("hg-geometry-editor-v1");
-   if(value){
-    const loaded=parseDocumentJSON(value);
-    docRef.current=loaded;setDoc(loaded);
-   }
-  }catch{setNotice("本地画布无法恢复，已加载默认示例。");}
-  setHydrated(true);
+  // Restore after first paint to keep server/client markup identical.
+  const frame=window.requestAnimationFrame(()=>{
+   try{
+    const value=window.localStorage.getItem("hg-geometry-editor-v1");
+    if(value){
+     const loaded=parseDocumentJSON(value);
+     docRef.current=loaded;setDoc(loaded);
+    }
+   }catch{setNotice("本地画布无法恢复，已加载默认示例。");}
+   setHydrated(true);
+  });
+  return ()=>window.cancelAnimationFrame(frame);
  },[]);
  useEffect(()=>{
   if(!hydrated)return;
   try{window.localStorage.setItem("hg-geometry-editor-v1",JSON.stringify(doc));}
-  catch{setNotice("本地空间不足：建议导出 JSON 备份。");}
+  catch{window.queueMicrotask(()=>setNotice("本地空间不足：建议导出 JSON 备份。"));}
  },[doc,hydrated]);
  const endDragging=(event:PointerEvent<SVGSVGElement>)=>{
   if(!drag.current||drag.current.pointerId!==event.pointerId)return;
@@ -167,7 +169,7 @@ export function FreeGeometryEditor() {
     if(tool==="point"){commit(result.document);setSelected(result.id);note("已创建自由点");}
     else{
      // Create a point first, then connect it to the pending first point.
-     let next=result.document, chosen=result.id, output=chosen;
+     let next=result.document; const chosen=result.id; let output=chosen;
      if(pending){
       const shape=createShape(next,tool,pending,chosen);
       next=shape.document;output=shape.id;setPending(null);
