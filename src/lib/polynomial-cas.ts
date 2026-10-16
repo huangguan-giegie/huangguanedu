@@ -46,6 +46,7 @@ const polyPow=(p:Polynomial,n:number):Polynomial=>{
 };
 type Token={type:"number"|"x"|"op"|"end";value:string};
 function tokenize(expr:string):Token[]{
+ expr=expr.replace(/²/g,"^2").replace(/³/g,"^3").replace(/[×·]/g,"*").replace(/÷/g,"/").replace(/[－−]/g,"-").replace(/＝/g,"=");
  if(expr.length>MAX_TEXT)throw Error("表达式最多 150 字符");
  const raw:Token[]=[];
  let i=0;
