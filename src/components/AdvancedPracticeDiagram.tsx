@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import type { AdvancedDiagram } from "../lib/practice-advanced-diagram";
+import { ConstructionPracticeDiagram } from "./ConstructionPracticeDiagram";
 
 type Point = { x: number; y: number };
 const ink = "#23405b";
@@ -106,6 +107,9 @@ function Graph({ curves, points, axisX, description, caption }: {
 }
 
 export function AdvancedPracticeDiagram({ diagram }: { diagram: AdvancedDiagram }) {
+  if (diagram.type === "triangle_angle_bisector" || diagram.type === "similar_right_triangles" || diagram.type === "two_circles_external_tangent") {
+    return <ConstructionPracticeDiagram diagram={diagram} />;
+  }
   if (diagram.type === "circle_sector") {
     const cx = 235, cy = 148, r = 98;
     const a = polar(cx,cy,r,-90);
