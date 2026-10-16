@@ -25,6 +25,22 @@ describe("practice grading", () => {
     expect(result.result).toBe("CORRECT");
   });
 
+  it("accepts correct diagram measurements with or without the units", async () => {
+    for (const [expectedAnswer, submittedAnswer] of [["24 cm²", "24"], ["5 cm", "5"], ["20 cm", "20厘米"]]) {
+      const result = await gradePracticeAnswer({
+        question: "计算图形边长或面积", expectedAnswer, submittedAnswer,
+      });
+      expect(result).toMatchObject({ result: "CORRECT", score: 100, method: "DETERMINISTIC" });
+    }
+  });
+
+  it("accepts the equivalent straight-line expression without y =", async () => {
+    const result = await gradePracticeAnswer({
+      question: "求直线方程", expectedAnswer: "y = -2x + 3", submittedAnswer: "-2x + 3",
+    });
+    expect(result.result).toBe("CORRECT");
+  });
+
   it("falls back to AI for non-trivial symbolic answers", async () => {
     vi.stubEnv("QWEN_MODE", "live");
     vi.stubEnv("DASHSCOPE_API_KEY", "test-key");

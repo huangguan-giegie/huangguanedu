@@ -122,6 +122,7 @@ export async function generatePracticeSetTx(
           question: question.question,
           answer: question.answer,
           explanation: question.explanation,
+          ...(question.diagram ? { diagram: question.diagram } : {}),
           difficulty: question.difficulty ?? input.difficulty ?? "MEDIUM",
           knowledgePoints: question.knowledgePoints?.length
             ? question.knowledgePoints

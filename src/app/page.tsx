@@ -29,12 +29,12 @@ function Dashboard() {
   if (user.role === "FAMILY") {
     return (
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold">欢迎，{studentName || "同学"}</h1>
-          <p className="mt-1 text-sm text-[#1e2a3a]/60">
-            月卡包含周一至周四线下小班课，周末一对一可在网页预约
-          </p>
-        </div>
+        <section className="hero">
+          <span className="eyebrow">MY LEARNING SPACE · 学习中心</span>
+          <h1>欢迎回来，{studentName || "同学"} <span aria-hidden>✦</span></h1>
+          <p>从今天的复习开始，循序提升数学能力。错题分析、针对性练习和课程预约，都在同一个学习空间。</p>
+        </section>
+        <div className="section-heading"><h2>探索你的学习工具</h2><span className="text-xs text-slate-500">选择一个入口开始</span></div>
         <LinkList
           items={[
             { href: "/wrong-questions/new", label: "上传错题", description: "拍照上传一道题，AI 分析并生成解析" },
@@ -52,7 +52,7 @@ function Dashboard() {
   if (user.role === "TEACHER") {
     return (
       <div className="space-y-8">
-        <h1 className="text-2xl font-bold">老师工作台</h1>
+        <section className="hero"><span className="eyebrow">TEACHER WORKSPACE · 教学管理</span><h1>老师工作台</h1><p>从复核错题到制定精准练习，让每一个教学决策都有依据。</p></section><div className="section-heading"><h2>教学工具</h2></div>
         <LinkList
           items={[
             { href: "/teacher/review", label: "待复核 AI 错题", description: "审核学生错题分析并修订" },
@@ -66,7 +66,7 @@ function Dashboard() {
   }
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">管理后台</h1>
+      <section className="hero"><span className="eyebrow">ADMIN CONSOLE · 管理中心</span><h1>管理后台</h1><p>统一管理学生、老师与课程计划，跟踪学习服务运转情况。</p></section><div className="section-heading"><h2>管理工具</h2></div>
       <LinkList
         items={[
           { href: "/admin/students", label: "学生管理", description: "查看与修改学生信息" },
