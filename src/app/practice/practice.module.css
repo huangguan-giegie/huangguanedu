@@ -1,0 +1,386 @@
+.page { display: grid; gap: var(--space-5); }
+
+/* ── 主视觉面板 ──────────────────────────────────────────────────────────
+   配色在 CSS Module 内自行声明（全局选择器匹配不到带哈希的类名）。
+   这里的 --primary 等 token 由 theme-08t.css 的 :root 提供。 */
+.hero {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
+  min-height: 190px;
+  padding: 30px 34px;
+  border-radius: var(--radius-xl);
+  color: var(--on-primary);
+  background: linear-gradient(155deg,
+    color-mix(in srgb, var(--primary) 92%, #ffffff 8%) 0%,
+    var(--primary) 58%,
+    color-mix(in srgb, var(--primary) 84%, #000000 16%) 100%);
+  box-shadow: var(--shadow-overlay);
+}
+/* 主视觉标题：这是 L0 展示标题（营销语），不是页面 h1 —— 页面的 h1 是
+   "生成新练习"那个区块。用 <p> 承载，视觉仍是 display 级。 */
+.heroTitle {
+  max-width: 700px;
+  margin: 0;
+  color: var(--on-primary);
+  font-family: var(--font-title);
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: var(--ls-title);
+}
+.hero p:not(.eyebrow) {
+  margin: 12px 0 0;
+  color: color-mix(in srgb, var(--on-primary) 88%, transparent);
+  font-size: var(--fs-body);
+  line-height: 1.7;
+}
+.eyebrow {
+  margin: 0 0 var(--space-3);
+  color: var(--accent-warm-ink);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: .12em;
+}
+.hero .eyebrow { color: var(--accent-warm); }
+/* 装饰字：降存在感，从 140px → 120px。它不承担任何信息。 */
+.heroMark { margin: -24px -5px -42px 30px; color: var(--accent-warm); font-size: 120px; line-height: 1; transform: rotate(12deg); }
+
+.panel { padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.sectionHead { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 18px; }
+.sectionHead h2 { margin: 0; font-size: var(--fs-h1); font-weight: 700; line-height: 1.3; letter-spacing: var(--ls-title); }
+.sectionHead p { margin: 5px 0 0; color: var(--muted); font-size: var(--fs-sm); }
+
+.stepBadge, .count {
+  flex-shrink: 0;
+  min-height: 22px;
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: var(--ls-label);
+}
+
+.filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+.field { display: grid; min-width: 170px; gap: 7px; font-size: var(--fs-sm); }
+.field > span, .subjects legend { color: var(--muted); font-size: var(--fs-xs); font-weight: 500; letter-spacing: var(--ls-label); }
+.field select { width: 100%; min-height: var(--touch-min); padding: 8px 35px 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--foreground); background: var(--surface); font-size: var(--fs-body); }
+.subjects { display: flex; gap: 7px; margin: 0; padding: 0; border: 0; }
+.subjects legend { margin-bottom: 7px; }
+/* 学科切换是本页主控件，原 min-height:40px 不足 44px —— 手指命中率低 */
+.tab, .activeTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-min);
+  padding: 8px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.tab { color: var(--muted); background: var(--surface); }
+.activeTab { border-color: var(--ring-violet); color: var(--primary-ink); background: var(--primary-soft); font-weight: 700; }
+
+.selectionHead { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin: 18px 0 var(--space-3); color: var(--muted); font-size: var(--fs-sm); }
+.selectionHead b { color: var(--primary-ink); }
+/* 文字按钮原 padding:3px 0（实际高约 24px），是"显示答案/重新加载/选择全部"
+   这类高频操作的命中区 —— 严重不足 */
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--touch-min);
+  padding: 0 4px;
+  border: 0;
+  color: var(--primary-ink);
+  background: transparent;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+.textButton:hover { text-decoration: underline; }
+
+.sources { display: grid; max-height: 450px; overflow-y: auto; gap: var(--space-2); padding: 3px; }
+.source {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.source:hover { border-color: var(--ring-violet); background: var(--surface-soft); }
+/* 选中态：底色 + 边框变色双通道（不用只靠颜色，色弱用户看不出） */
+.selectedSource { border-color: var(--ring-violet); background: var(--primary-soft); }
+.source input, .difficulty input, .activeDifficulty input, .toolbar input { flex: 0 0 auto; width: 17px; min-height: 0; height: 17px; margin-top: 3px; }
+.source > div { min-width: 0; }
+/* 题目原文是核心阅读内容，原 13px 偏小 */
+.sourceText {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--foreground);
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.tags span { padding: 2px 8px; border-radius: var(--radius-sm); color: var(--muted); background: var(--surface-soft); font-size: var(--fs-xs); font-weight: 500; }
+
+.difficulties { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: var(--space-5) 0 0; padding: 0; border: 0; }
+.difficulties legend { margin-bottom: var(--space-3); color: var(--muted); font-size: var(--fs-xs); font-weight: 500; letter-spacing: var(--ls-label); }
+.difficulty, .activeDifficulty { display: flex; align-items: flex-start; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; }
+.activeDifficulty { border-color: var(--ring-violet); background: var(--primary-soft); }
+.difficulty b, .activeDifficulty b { display: block; font-size: var(--fs-sm); font-weight: 700; }
+.difficulty small, .activeDifficulty small { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--fs-xs); }
+
+.generateFooter { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-top: var(--space-5); }
+.generateFooter p { margin: 0; color: var(--muted); font-size: var(--fs-sm); }
+.generateFooter button { flex-shrink: 0; }
+
+.task, .error { padding: 14px 16px; margin: var(--space-4) 0; border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--fs-sm); line-height: 1.65; }
+.task { border-color: color-mix(in srgb, var(--success-ink) 30%, transparent); color: var(--foreground); background: var(--success-soft); }
+.error { border-color: color-mix(in srgb, var(--danger-ink) 30%, transparent); color: var(--foreground); background: var(--danger-soft); }
+.task strong, .error strong { font-weight: 700; }
+.task p, .error p { margin: 5px 0; }
+.task .textButton, .error .textButton { margin-left: 7px; }
+
+.empty { padding: var(--space-5); border: 1px dashed var(--border-dashed); border-radius: var(--radius-lg); color: var(--muted); text-align: center; font-size: var(--fs-body); line-height: 1.7; }
+.empty strong { color: var(--foreground); font-weight: 700; }
+.empty p { margin: 6px 0 10px; font-size: var(--fs-sm); }
+
+.sets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.setCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  text-decoration: none;
+  transform: translateY(0);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.setCard:hover { border-color: var(--ring-violet); transform: translateY(-2px); }
+.setCard:active { transform: translateY(0) scale(.99); }
+.setCard > div { min-width: 0; flex: 1; }
+.setCard h3 { margin: 0; color: var(--foreground); font-size: var(--fs-h3); font-weight: 700; line-height: 1.5; }
+.setCard p { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-sm); }
+/* setIcon / detailMark 用琥珀族装饰色（--accent-warm-ink on --accent-warm-soft），
+   而非主色：✦ 是纯装饰件，用装饰色才语义正确。
+   删掉全部 fallback，让 token 拼写错误立即暴露而不是静默回退到旧配色。 */
+.setIcon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  color: var(--accent-warm-ink);
+  background: var(--accent-warm-soft);
+}
+.setArrow { color: var(--primary-ink); }
+
+.detailHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.detailHead p:not(.eyebrow) { margin: 10px 0 0; color: var(--muted); font-size: var(--fs-sm); }
+/* 原 color:var(--violet) —— 填充/文字未分离，深色下不可读 */
+.detailMark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 67px;
+  height: 67px;
+  border-radius: var(--radius-md);
+  color: var(--accent-warm-ink);
+  background: var(--accent-warm-soft);
+}
+
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.toolbar label { display: flex; align-items: center; gap: 9px; font-size: var(--fs-sm); }
+.toolbar > div { display: flex; flex-wrap: wrap; gap: 9px; }
+/* 原 min-height:43px，差 1px 就是不达标 —— 直接给 44 */
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--touch-min);
+  padding: 10px 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--primary-ink);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.secondaryButton:hover { border-color: var(--ring-violet); background: var(--surface-sunken); }
+.printHint { margin: -12px 0 0; color: var(--muted); font-size: var(--fs-xs); }
+
+.questions { display: grid; gap: 17px; }
+.questionCard { padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.questionHead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 18px; }
+.questionIndex {
+  padding: 2px 9px;
+  border-radius: var(--radius-sm);
+  color: var(--primary-ink);
+  background: var(--primary-soft);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: var(--ls-label);
+}
+.questionHint { color: var(--muted); font-size: var(--fs-xs); }
+/* 题目是核心内容，保持 16px，移动端也不缩小 */
+.questionText { margin: 0; font-size: var(--fs-body); line-height: 1.9 !important; white-space: pre-wrap; overflow-wrap: anywhere; }
+.diagramButton { display: block; max-width: 100%; margin: 18px auto; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+.diagram { display: block; max-width: 100%; max-height: 470px; margin: auto; object-fit: contain; }
+/* 原 padding:9px 0（实际高约 36px），而这是练习页最高频的操作 */
+.answerToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch-min);
+  margin-top: var(--space-3);
+  padding: 0;
+  border: 0;
+  color: var(--primary-ink);
+  background: transparent;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.answer { margin-top: 14px; padding: 17px; border-radius: var(--radius-md); background: var(--surface-sunken); }
+.answer h2 { margin: 0 0 7px; color: var(--primary-ink); font-size: var(--fs-sm); font-weight: 700; }
+.answer p { margin: 0 0 18px; font-size: var(--fs-body); line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.answer p:last-child { margin-bottom: 0; }
+.imageHelp { color: var(--muted); text-align: center; font-size: var(--fs-xs); }
+.imageHelp .textButton { margin-left: 7px; }
+.imageDialog {
+  width: min(94vw, 950px);
+  max-height: 92vh;
+  margin: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.imageDialog::backdrop { background: var(--scrim); }
+.imageDialog > button { display: block; margin-left: auto; min-height: var(--touch-min); }
+.imageDialog img { display: block; max-width: 100%; max-height: 75vh; margin: 12px auto 0; object-fit: contain; }
+.page button:disabled { cursor: not-allowed; opacity: .55; }
+
+/* ── 在线答题（PracticeAnswerBox） ───────────────────────────────────────
+   作答区是可选功能，不参与打印：调用处已加 noPrint，
+   这里的样式只负责屏幕呈现。 */
+.answerModeBar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+.answerModeToggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: var(--touch-min);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.answerModeToggle input { width: 16px; height: 16px; cursor: pointer; }
+.answerModeHint { margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.75; }
+
+/* ── 响应式 ────────────────────────────────────────────────────────────
+   原为 max-width:650px，与 globals.css 的 620px 冲突：620–650 区间两处规则
+   都命中，行为取决于 source order。统一到 768（--bp-md）。 */
+@media (max-width: 768px) {
+  .page { gap: var(--space-4); }
+  .hero { min-height: 170px; padding: var(--space-5); }
+  .heroTitle { font-size: clamp(24px, 2.6vw, 32px); }
+  .heroMark { margin: 0 -50px 0 -15px; font-size: 96px; opacity: .4; }
+  .panel { padding: var(--space-5); }
+  .sectionHead p { font-size: var(--fs-sm); }
+  .filters { gap: 13px; }
+  .field { min-width: 150px; flex: 1; }
+  .subjects { flex: 1; }
+  .tab, .activeTab { flex: 1; padding: 8px 13px; }
+  .source { padding: var(--space-3); gap: 9px; }
+  .difficulties { gap: 6px; }
+  .difficulty, .activeDifficulty { padding: 10px 7px; gap: 5px; }
+  .difficulty b, .activeDifficulty b { font-size: var(--fs-sm); }
+  .difficulty small, .activeDifficulty small { font-size: var(--fs-xs); }
+  .difficulty input, .activeDifficulty input { width: 13px; height: 13px; }
+  .generateFooter, .toolbar { align-items: stretch; flex-direction: column; gap: 10px; }
+  .generateFooter button { width: 100%; }
+  .sets { grid-template-columns: 1fr; }
+  .detailHead { padding: var(--space-5); }
+  .detailMark { width: 45px; height: 45px; }
+  .toolbar > div { width: 100%; }
+  .toolbar > div > button { flex: 1; }
+  .questionCard { padding: var(--space-4); }
+  .questionHint { display: none; }
+  /* ⚠️ 原这里有 `.stepBadge { display: none }` —— 移动端用户完全看不到自己在
+     第几步。这是练习页最大的体验缺陷：用户不知道自己在流程的哪个位置。
+     现在步骤由全局 .stepper 承载，移动端只降级不隐藏（见 globals.css）。 */
+}
+
+@media (max-width: 480px) {
+  .difficulties { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── 打印 ──────────────────────────────────────────────────────────────
+   token 在 globals.css 的 @media print 里已重置为浅色，这里只处理结构。 */
+@media print {
+  :global(body):has(.page) { color: #222; background: white; }
+  :global(body):has(.page) :global(.app-sidebar),
+  :global(body):has(.page) :global(.app-topbar),
+  :global(body):has(.page) :global(.app-footer),
+  :global(body):has(.page) :global(.app-tabbar),
+  .noPrint { display: none !important; }
+  :global(.app-shell):has(.page) { display: block; width: 100%; min-height: 0; padding: 0; }
+  :global(.app-main):has(.page) { padding: 0; }
+  .page { display: block; }
+  .hero { min-height: 0; padding: 0 0 12px; border-radius: 0; color: #222; background: none; box-shadow: none; }
+  .heroTitle { color: #222; font-size: 18pt; }
+  .hero p:not(.eyebrow) { color: #222; }
+  .heroMark, .eyebrow { display: none; }
+  .detailHead { margin-bottom: 18px; padding: 0 0 18px; border: 0; border-bottom: 1px solid #ccc; border-radius: 0; background: none; }
+  .detailMark, .questionHint { display: none; }
+  .questionCard { margin-bottom: 20px; padding: 15px 0; border: 0; border-bottom: 1px solid #ddd; border-radius: 0; background: none; break-inside: avoid; }
+  .questionText { font-size: 12pt; }
+  .questionIndex { padding-left: 0; color: #222; background: none; }
+  .diagram { max-height: 250px; }
+  .answer { padding: 12px 0; background: none; border-top: 1px dotted #aaa; }
+  .answer h2 { color: #333; }
+  .answer p { font-size: 10pt; }
+}

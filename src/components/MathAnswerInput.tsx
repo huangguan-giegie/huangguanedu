@@ -81,14 +81,18 @@ export function MathAnswerInput(props: {
           const target = event.currentTarget as MathFieldLike;
           props.onChange(target.value);
         },
+        // ⚠️ 不能写死 rgba(30,42,58,.2) / white：#1e2a3a 是旧皮肤的深蓝墨，
+        //    white 是纯白。深色主题下 math-field 内部会是一块刺眼白底 + 几乎
+        //    看不见的边框。改读 CSS 变量，跟随主题换肤。
         style: {
           display: "block",
           width: "100%",
           minHeight: "44px",
           padding: "9px 12px",
-          border: "1px solid rgba(30,42,58,.2)",
-          borderRadius: "8px",
-          background: "white",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--surface)",
+          color: "var(--foreground)",
         },
       })}
       <p className="mt-1 text-xs text-[#1e2a3a]/45">支持公式键盘与 LaTeX 输入</p>

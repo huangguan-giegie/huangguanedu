@@ -273,6 +273,7 @@ describe("学生反馈与老师审核 API", () => {
           finalAnswer: "x=4（老师确认）",
           teacherNote: "步骤正确",
           mastered: false,
+          knowledgePoints: ["移项", "等式性质", "移项"],
         },
       ),
       { params: Promise.resolve({ id: wrongQuestion.id }) },
@@ -286,6 +287,8 @@ describe("学生反馈与老师审核 API", () => {
     expect(updated.isTeacherReviewed).toBe(true);
     expect(updated.finalAnswer).toBe("x=4（老师确认）");
     expect(updated.mastered).toBe(false);
+    const points = await prisma.wrongQuestionKnowledgePoint.findMany({ where: { wrongQuestionId: wrongQuestion.id } });
+    expect(points.map((point) => point.knowledgePoint).sort()).toEqual(["移项", "等式性质"].sort());
 
     const image = await prisma.rawQuestionImage.findFirstOrThrow({
       where: { wrongQuestionId: wrongQuestion.id },
@@ -356,6 +359,8 @@ describe("学生反馈与老师审核 API", () => {
     await prisma.wrongQuestionOccurrence.create({
       data: { wrongQuestionId: source.id },
     });
+    await prisma.wrongQuestionKnowledgePoint.createMany({ data: [{ wrongQuestionId: source.id, knowledgePoint: "函数" }, { wrongQuestionId: target.id, knowledgePoint: "函数" }] });
+    await prisma.wrongQuestionFavorite.createMany({ data: [{ wrongQuestionId: source.id, userId: teacher.id }, { wrongQuestionId: target.id, userId: teacher.id }] });
 
     const teacherSession = await sessionFor(teacher.phone);
     const res = await merge(
@@ -378,6 +383,9 @@ describe("学生反馈与老师审核 API", () => {
       where: { id: source.id },
     });
     expect(sourceAfter.deletedAt).not.toBeNull();
+    expect(await prisma.wrongQuestionKnowledgePoint.count({ where: { wrongQuestionId: target.id } })).toBe(1);
+    expect(await prisma.wrongQuestionFavorite.count({ where: { wrongQuestionId: target.id } })).toBe(1);
+    expect(await prisma.wrongQuestionFavorite.count({ where: { wrongQuestionId: source.id } })).toBe(0);
   });
 
   it("非负责老师合并错题被拒绝（403）", async () => {

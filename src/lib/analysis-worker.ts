@@ -4,6 +4,8 @@ import { getAnalyzer } from "./analyzer";
 import { QwenAnalyzerError } from "./analyzer/qwen";
 import { loadConfig } from "./config";
 import { getStorageReadUrl } from "./storage";
+import { readFile } from "node:fs/promises";
+import { resolve, sep } from "node:path";
 
 // 重试退避：第 n 次重试延迟 30s * n
 function retryDelayMs(attempt: number): number {
@@ -21,6 +23,11 @@ export async function processAnalysisJobs(
   limit = 10,
 ): Promise<number> {
   const config = loadConfig();
+  // 服务重启后恢复超过执行时限的任务，避免一直显示分析中。
+  await prisma.analysisJob.updateMany({
+    where: { status: "RUNNING", lockedAt: { lt: new Date(Date.now() - Math.max(config.qwen.requestTimeoutMs * 2, 300_000)) } },
+    data: { status: "PENDING", lockedAt: null, nextRunAt: new Date() },
+  });
   const jobs = await prisma.analysisJob.findMany({
     where: {
       status: "PENDING",
@@ -31,7 +38,7 @@ export async function processAnalysisJobs(
     take: limit,
     include: {
       wrongQuestion: {
-        include: { rawImages: true },
+        include: { rawImages: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } } },
       },
     },
   });
@@ -48,18 +55,27 @@ export async function processAnalysisJobs(
     }
 
     const analyzer = getAnalyzer();
-    const image = job.wrongQuestion.rawImages[0];
-    // live 模式需要可访问的图片 URL：OSS 用短期签名 URL，本地存储回退到站内图片路由
-    let imageUrl: string | undefined;
-    if (config.qwen.mode === "live" && image) {
-      imageUrl =
-        (await getStorageReadUrl(image.filePath, 300)) ??
-        `${process.env.APP_BASE_URL ?? "http://localhost:3000"}/api/v1/images/${image.id}`;
-    }
-
+    const images = job.wrongQuestion.rawImages;
+    const image = images[0];
+    // OSS 使用短期签名 URL，本地图片由服务端转为数据 URL。
+    const imageUrls: string[] = [];
     try {
+      if (config.qwen.mode === "live") {
+        for (const page of images) {
+          let url = await getStorageReadUrl(page.filePath, 300);
+          if (!url) {
+            const root = resolve(process.env.STORAGE_DIR ?? resolve(process.cwd(), "storage"));
+            const file = resolve(/* turbopackIgnore: true */ root, page.filePath);
+            if (!file.startsWith(root + sep)) throw new Error("非法图片路径");
+            url = `data:${page.mimeType};base64,${(await readFile(file)).toString("base64")}`;
+          }
+          imageUrls.push(url);
+        }
+      }
       const result = await analyzer.analyze({
-        imageUrl,
+        imageUrl: imageUrls[0],
+        imageUrls,
+        model: job.modelOverride ?? undefined,
         mimeType: image?.mimeType === "image/png" ? "image/png" : "image/jpeg",
         subject: job.wrongQuestion.subject,
       });
