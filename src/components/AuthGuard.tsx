@@ -24,6 +24,7 @@ const menus = {
     { href: "/wrong-questions", label: "错题本" },
     { href: "/review", label: "今日复习" },
     { href: "/practice", label: "错题模拟题" },
+    { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/bookings", label: "课程预约" },
     { href: "/reports", label: "学习总结" },
     { href: "/account", label: "账户设置" },
@@ -36,6 +37,7 @@ const menus = {
     { href: "/review", label: "智能复习" },
     { href: "/teacher/summaries", label: "学习总结审核" },
     { href: "/practice", label: "错题模拟题" },
+    { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/account", label: "账户设置" },
   ],
   ADMIN: [
@@ -47,6 +49,7 @@ const menus = {
     { href: "/teacher/review", label: "错题审核" },
     { href: "/teacher/summaries", label: "学习总结审核" },
     { href: "/practice", label: "错题模拟题" },
+    { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/account", label: "账户设置" },
   ],
 } as const;
