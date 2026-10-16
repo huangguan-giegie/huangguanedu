@@ -87,6 +87,8 @@ export function MathAnswerInput(props: {
         style: {
           display: "block",
           width: "100%",
+          minWidth: 0,
+          maxWidth: "100%",
           minHeight: "44px",
           padding: "9px 12px",
           border: "1px solid var(--line)",

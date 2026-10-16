@@ -93,3 +93,10 @@
 .academy-shell { width:100%; }
 .academy-workspace.app-content { max-width:1260px; margin:auto; }
 .academy-content { background:var(--background); }
+
+/* 打印练习卷时隐藏新外壳，沿用既有题目与答案的打印样式。 */
+@media print {
+  .academy-sidebar, .academy-topbar, .academy-mobile-nav { display:none!important; }
+  .academy-shell { display:block; min-height:0; }
+  .academy-workspace.app-content { max-width:none; padding:0; }
+}
