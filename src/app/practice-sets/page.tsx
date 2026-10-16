@@ -6,6 +6,8 @@ import Link from "next/link";
 import { api } from "../../components/api";
 import { AuthGuard, type SafeUser } from "../../components/AuthGuard";
 import { MathAnswerInput } from "../../components/MathAnswerInput";
+import { PracticeDiagram } from "../../components/PracticeDiagram";
+import type { PracticeDiagram as Diagram } from "../../lib/practice-diagram";
 import { TutorPanel } from "../../components/TutorPanel";
 
 interface LastAttempt {
@@ -23,6 +25,7 @@ interface PracticeQuestion {
   question: string;
   answer: string;
   explanation: string | null;
+  diagram?: Diagram | null;
   difficulty: string;
   knowledgePoints: unknown;
   lastAttempt: LastAttempt | null;
@@ -155,29 +158,30 @@ function PracticeSets() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="practice-page space-y-6">
+      <div className="hero flex flex-wrap items-center justify-between gap-5">
         <div>
-          <h1 className="text-2xl font-bold">数学练习</h1>
+          <span className="eyebrow">SMART PRACTICE · 精准训练</span>
+          <h1 className="!mb-2 !text-3xl">数学练习</h1>
           <p className="mt-1 text-sm text-[#1e2a3a]/60">
             根据错题和掌握度生成练习；答案由服务器判定并更新下一次复习时间。
           </p>
         </div>
         {user?.role === "FAMILY" && (
-          <Link href="/review" className="rounded-lg bg-[#e8863a] px-4 py-2 text-sm font-semibold text-white">
+          <Link href="/review" className="btn-secondary">
             今日复习计划
           </Link>
         )}
       </div>
 
       {user && user.role !== "FAMILY" && (
-        <section className="rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
-          <h2 className="font-semibold">生成新题组</h2>
+        <section className="panel">
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-extrabold">生成新题组</h2><span className="text-xs text-slate-500">图形题使用数值校验后绘制的图</span></div>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="text-sm">
-              <span className="mb-1 block text-[#1e2a3a]/60">学生</span>
+              <span className="field-label">学生</span>
               <select
-                className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+                className="field-control"
                 value={studentId}
                 onChange={(event) => setStudentId(event.target.value)}
               >
@@ -189,9 +193,9 @@ function PracticeSets() {
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-[#1e2a3a]/60">题目数量</span>
+              <span className="field-label">题目数量</span>
               <select
-                className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+                className="field-control"
                 value={count}
                 onChange={(event) => setCount(Number(event.target.value))}
               >
@@ -201,9 +205,9 @@ function PracticeSets() {
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-[#1e2a3a]/60">难度</span>
+              <span className="field-label">难度</span>
               <select
-                className="rounded-lg border border-[#1e2a3a]/20 px-3 py-2"
+                className="field-control"
                 value={difficulty}
                 onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}
               >
@@ -213,7 +217,7 @@ function PracticeSets() {
               </select>
             </label>
             <button
-              className="rounded-lg bg-[#e8863a] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="btn-primary"
               disabled={busy || !studentId}
               onClick={() => void generate()}
             >
@@ -227,10 +231,10 @@ function PracticeSets() {
 
       <div className="space-y-4">
         {items.map((set) => (
-          <section key={set.id} className="rounded-xl border border-[#1e2a3a]/10 bg-white p-5">
+          <section key={set.id} className="practice-set-card">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="font-bold">{set.title}</h2>
+                <h2 className="text-lg font-extrabold">{set.title}</h2>
                 <p className="mt-1 text-xs text-[#1e2a3a]/50">
                   {set.mode === "ADAPTIVE_REVIEW" ? "自适应复习" : set.mode === "SELECTED_WRONG_QUESTIONS" ? "选定错题变式" : "薄弱点专项"}
                 </p>
@@ -245,9 +249,9 @@ function PracticeSets() {
                 const attempt = question.lastAttempt;
                 const familyMode = user?.role === "FAMILY";
                 return (
-                  <li key={question.id} className="rounded-lg bg-[#faf6ee] p-4">
+                  <li key={question.id} className="practice-question">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="font-medium">{index + 1}. {question.question}</p>
+                      <p className="max-w-3xl font-semibold leading-8"><span className="mr-2 inline-grid h-7 w-7 place-items-center rounded-full bg-[#e5f3f5] text-xs font-bold text-[#126b7d]">{index + 1}</span>{question.question}</p>
                       <div className="flex flex-wrap gap-1 text-xs">
                         {knowledgePoints.map((point) => (
                           <span key={point} className="rounded bg-white px-2 py-0.5">{point}</span>
@@ -258,6 +262,7 @@ function PracticeSets() {
                       </div>
                     </div>
 
+                    {question.diagram && <PracticeDiagram diagram={question.diagram} />}
                     {familyMode ? (
                       <div className="mt-3 space-y-3">
                         <MathAnswerInput
@@ -268,7 +273,7 @@ function PracticeSets() {
                         />
                         <div className="flex flex-wrap items-center gap-3">
                           <button
-                            className="rounded-lg bg-[#1e2a3a] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                            className="btn-primary"
                             disabled={submitting === question.id || !(answers[question.id] ?? "").trim()}
                             onClick={() => void submitAnswer(question.id)}
                           >
@@ -308,7 +313,7 @@ function PracticeSets() {
           </section>
         ))}
         {items.length === 0 && !error && (
-          <p className="text-sm text-[#1e2a3a]/50">暂无练习题组</p>
+          <div className="empty-state"><strong className="block text-lg text-slate-700">还没有数学练习</strong><p className="mt-2">创建题组后，题目和对应的数学图形会展示在这里。</p></div>
         )}
       </div>
     </div>
