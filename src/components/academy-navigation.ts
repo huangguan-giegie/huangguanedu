@@ -8,6 +8,7 @@ const icons: Record<string, IconName> = {
   "/practice": "practice",
   "/geometry-lab": "sparkle",
   "/geometry-editor": "edit",
+  "/math-studio": "practice",
   "/practice-sets": "practice",
   "/bookings": "booking",
   "/reports": "report",

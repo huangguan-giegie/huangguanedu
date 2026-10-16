@@ -11,7 +11,7 @@ export const SURFACE_LABELS:Record<SurfaceKind,string>={
  saddle:"双曲抛物面 z = a(x² - y²)/4",
  sphere:"球面 x² + y² + z² = 9",
  torus:"环面 R=2, r=0.8",
- helix:"螺旋线 (2cos t, 2sin t, at/4)",
+ helix:"螺旋线 (2cos t, 2sin t, at/4 - 3)",
 };
 const rad=(n:number)=>n*Math.PI/180;
 const safe=(v:number)=>Number.isFinite(v)?v:0;
