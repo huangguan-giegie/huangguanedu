@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { constructBisector, constructSimilarity, constructExternalTangent, distance } from "./practice-construction-constraints";
 
 /**
  * Advanced mathematical figures have a restricted, declarative vocabulary.
@@ -6,6 +7,20 @@ import { z } from "zod";
  * All given measures, labels and answers are compiled by trusted code.
  */
 export const advancedDiagramOptions = [
+  z.object({
+    type: z.literal("triangle_angle_bisector"),
+    sides: z.enum(["6-8-7","6-9-10","8-12-10","9-12-7","10-15-15"]),
+  }),
+  z.object({
+    type: z.literal("similar_right_triangles"),
+    smallLegs: z.enum(["3-4","4-5","5-7","6-8"]),
+    factor: z.union([z.literal(2),z.literal(3)]),
+    task: z.enum(["LARGE_BASE","LARGE_HEIGHT"]),
+  }),
+  z.object({
+    type: z.literal("two_circles_external_tangent"),
+    circles: z.enum(["4-1-5","7-2-13","10-2-17"]),
+  }),
   z.object({
     type: z.literal("circle_sector"),
     radius: z.number().int().min(2).max(12),
@@ -105,6 +120,44 @@ export interface AdvancedProblem {
 /** Mathematics, not the model, is the source of truth. */
 export function compileAdvancedDiagramProblem(diagram: AdvancedDiagram): AdvancedProblem {
   switch (diagram.type) {
+    case "triangle_angle_bisector": {
+      const [AB, AC, BC] = diagram.sides.split("-").map(Number);
+      const g = constructBisector(AB, AC, BC);
+      const BD = Math.round(distance(g.B,g.D));
+      const DC = Math.round(distance(g.D,g.C));
+      return {
+        question: `如图，在△ABC中，AD平分∠BAC，D在BC上，AB＝${AB} cm，AC＝${AC} cm，BC＝${BC} cm，求BD的长度。`,
+        answer: `${BD} cm`,
+        explanation: `由角平分线定理BD/DC＝AB/AC＝${AB}/${AC}，又BD＋DC＝${BC}，所以BD＝BC×AB/(AB＋AC)＝${BC}×${AB}/(${AB}＋${AC})＝${BD} cm；DC＝${DC} cm。`,
+        diagram,
+      };
+    }
+    case "similar_right_triangles": {
+      const [smallBase, smallHeight] = diagram.smallLegs.split("-").map(Number);
+      const g = constructSimilarity(smallBase,smallHeight,diagram.factor);
+      const target = diagram.task === "LARGE_BASE" ? "DE" : "DF";
+      const known = diagram.task === "LARGE_BASE" ? "DF" : "DE";
+      const knownValue = diagram.task === "LARGE_BASE" ? distance(g.large.D,g.large.F) : distance(g.large.D,g.large.E);
+      const answer = diagram.task === "LARGE_BASE" ? distance(g.large.D,g.large.E) : distance(g.large.D,g.large.F);
+      const reference = diagram.task === "LARGE_BASE" ? "AC" : "AB";
+      return {
+        question: `如图，直角三角形△ABC∽△DEF，∠A＝∠D＝90°，A、B、C依次对应D、E、F。已知AB＝${smallBase} cm，AC＝${smallHeight} cm，${known}＝${knownValue} cm，求${target}的长度。`,
+        answer: `${answer} cm`,
+        explanation: `由相似三角形对应边成比例，放大倍数＝${known}/${reference}＝${knownValue}/${diagram.task === "LARGE_BASE" ? smallHeight : smallBase}＝${diagram.factor}，所以${target}＝${diagram.task === "LARGE_BASE" ? smallBase : smallHeight}×${diagram.factor}＝${answer} cm。`,
+        diagram,
+      };
+    }
+    case "two_circles_external_tangent": {
+      const [R,r,d] = diagram.circles.split("-").map(Number);
+      const g = constructExternalTangent(R,r,d);
+      const L=Math.round(distance(g.A,g.B));
+      return {
+        question: `如图，两圆O₁、O₂外离或外切，半径分别为${R} cm和${r} cm，圆心距O₁O₂＝${d} cm。AB是两圆的同侧公切线段，A、B分别是切点，求AB的长度。`,
+        answer: `${L} cm`,
+        explanation: `连接两圆心及切点，因为O₁A⊥AB、O₂B⊥AB，公切线长度满足AB²＝O₁O₂²－(O₁A－O₂B)²＝${d}²－(${R}－${r})²＝${L*L}，所以AB＝${L} cm。`,
+        diagram,
+      };
+    }
     case "circle_sector": {
       const { radius: r, centralAngle: t, task } = diagram;
       const length = exactPi(t * r, 180);

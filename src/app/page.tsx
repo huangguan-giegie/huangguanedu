@@ -31,7 +31,7 @@ function Dashboard() {
       <div className="space-y-8">
         <section className="academy-hero">
           <span className="academy-eyebrow">MY LEARNING SPACE · 学习中心</span>
-          <h1>欢迎回来，{studentName || "同学"} <span aria-hidden>✦</span></h1>
+          <h1>欢迎回来，{studentName || "同学"}。</h1>
           <p>从今天的复习开始，循序提升数学能力。错题分析、针对性练习和课程预约，都在同一个学习空间。</p>
         </section>
         <div className="academy-section-heading"><h2>探索你的学习工具</h2><span className="text-xs text-slate-500">选择一个入口开始</span></div>

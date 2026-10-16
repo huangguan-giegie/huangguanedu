@@ -186,4 +186,47 @@ describe("数学模拟题 AI", () => {
     expect(result.questions[0].answer).toBe("P(1, 2)");
   });
 
+  it("角平分线题的 AI 错误文字与答案被验证构造替换", async () => {
+    stubLiveEnv();
+    const response=JSON.stringify({
+      choices:[{message:{content:JSON.stringify({
+        title:"角平分线练习",
+        questions:Array.from({length:4},()=>({
+          question:"AI 编造：三角形 AB = 99，BD = 999",
+          answer:"999 cm",
+          explanation:"未经验证的绘图",
+          diagram:{type:"triangle_angle_bisector",sides:"6-9-10"},
+        })),
+      })}}],
+    });
+    const fetchMock=vi.fn(async()=>new Response(response,{status:200}));
+    const result=await generatePracticeAi(input,fetchMock as unknown as typeof fetch);
+    expect(result.questions[0].question).toContain("AB＝6 cm");
+    expect(result.questions[0].question).toContain("BC＝10 cm");
+    expect(result.questions[0].answer).toBe("4 cm");
+    expect(result.questions[0].explanation).toContain("角平分线定理");
+    expect(result.questions[0].explanation).not.toContain("未经验证");
+    expect(result.questions[0].diagram).toEqual({type:"triangle_angle_bisector",sides:"6-9-10"});
+  });
+
+  it("双圆公切线构造提供准确值而非模型臆测", async()=>{
+    stubLiveEnv();
+    const response=JSON.stringify({
+      choices:[{message:{content:JSON.stringify({
+        title:"两圆公切线",
+        questions:Array.from({length:4},()=>({
+          question:"题目中的所有半径都错了",
+          answer:"9999",
+          explanation:"不正确",
+          diagram:{type:"two_circles_external_tangent",circles:"7-2-13"},
+        })),
+      })}}],
+    });
+    const fetchMock=vi.fn(async()=>new Response(response,{status:200}));
+    const result=await generatePracticeAi(input,fetchMock as unknown as typeof fetch);
+    expect(result.questions[0].question).toContain("O₁O₂＝13 cm");
+    expect(result.questions[0].answer).toBe("12 cm");
+    expect(result.questions[0].explanation).toContain("AB²");
+  });
+
 });
