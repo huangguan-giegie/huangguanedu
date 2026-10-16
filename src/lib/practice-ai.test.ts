@@ -146,4 +146,44 @@ describe("数学模拟题 AI", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("高级圆题的错误 AI 答案被确定性公式替换", async () => {
+    stubLiveEnv();
+    const response = JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({
+        title: "圆的专项训练",
+        questions: Array.from({ length: 4 }, () => ({
+          question: "AI 写的错误条件",
+          answer: "9999 cm",
+          explanation: "AI 写的错误公式",
+          diagram: { type: "circle_sector", radius: 6, centralAngle: 60, task: "ARC_LENGTH" },
+        })),
+      }) } }],
+    });
+    const fetchMock = vi.fn(async () => new Response(response,{status:200}));
+    const result = await generatePracticeAi(input,fetchMock as unknown as typeof fetch);
+    expect(result.questions[0].answer).toBe("2π cm");
+    expect(result.questions[0].question).toContain("∠AOB＝60°");
+    expect(result.questions[0].explanation).not.toContain("错误");
+  });
+
+  it("高级函数交点由服务器重新解题，而不是相信模型输出", async () => {
+    stubLiveEnv();
+    const response = JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({
+        title: "函数交点训练",
+        questions: Array.from({ length: 4 }, () => ({
+          question: "直线没有交点",
+          answer: "无解",
+          explanation: "AI 错误解析",
+          diagram: { type: "linear_intersection", slopes: "1,-2", x: 1, y: 2 },
+        })),
+      }) } }],
+    });
+    const fetchMock = vi.fn(async () => new Response(response,{status:200}));
+    const result = await generatePracticeAi(input,fetchMock as unknown as typeof fetch);
+    expect(result.questions[0].question).toContain("y = x + 1");
+    expect(result.questions[0].question).toContain("y = -2x + 4");
+    expect(result.questions[0].answer).toBe("P(1, 2)");
+  });
+
 });
