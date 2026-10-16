@@ -150,6 +150,48 @@ export function AdvancedPracticeDiagram({ diagram }: { diagram: AdvancedDiagram 
       </Frame>
     );
   }
+  if (diagram.type === "circle_tangent") {
+    const [r, t] = diagram.triple.split("-").map(Number);
+    const scale = Math.min(92 / r, 180 / t);
+    const cx=181,cy=193, radius=r*scale;
+    const A={x:cx,y:cy-radius},P={x:cx+t*scale,y:cy-radius};
+    return (
+      <Frame description={`圆 O，OA 是半径，PA 在 A 点与圆相切，OA=${r} 厘米，PA=${t} 厘米`} caption="切线 PA 与半径 OA 在 A 处严格垂直">
+        <circle cx={cx} cy={cy} r={radius} stroke="#7399b3" strokeWidth="2.5" fill="#f8fcff"/>
+        <line x1={cx-45} y1={A.y} x2={P.x+20} y2={A.y} stroke={orange} strokeWidth="3"/>
+        <path d={`M ${cx} ${cy} L ${A.x} ${A.y} M ${cx} ${cy} L ${P.x} ${P.y}`} stroke={ink} strokeWidth="2.8" fill="none"/>
+        <path d={`M ${A.x} ${A.y+15} H ${A.x+15} V ${A.y}`} fill="none" stroke={teal} strokeWidth="2"/>
+        <text x={cx-34} y={(cy+A.y)/2} fontSize="14" fill={ink}>{r} cm</text>
+        <text x={(A.x+P.x)/2} y={A.y-14} fontSize="14" fill={ink} textAnchor="middle">{t} cm</text>
+        <text x={(cx+P.x)/2+12} y={(cy+P.y)/2+17} fontSize="15" fill={ink}>?</text>
+        <MarkedPoint x={cx} y={cy} text="O" dx={-20} dy={16}/>
+        <MarkedPoint {...A} text="A" dx={-13} dy={-10}/>
+        <MarkedPoint {...P} text="P" dx={10} dy={-10}/>
+      </Frame>
+    );
+  }
+  if (diagram.type === "circle_chord") {
+    const [distance, half, radius] = diagram.triple.split("-").map(Number);
+    const cx=240,cy=150,scale=105/radius;
+    const H={x:cx,y:cy-distance*scale};
+    const A={x:cx-half*scale,y:H.y},B={x:cx+half*scale,y:H.y};
+    return (
+      <Frame description={`圆 O 半径 ${radius} 厘米，弦 AB 的垂直距离 OH 为 ${distance} 厘米，H 是弦的中点`} caption="弦端点在圆周上，OH⊥AB；半弦、弦心距与半径满足勾股定理">
+        <circle cx={cx} cy={cy} r="105" stroke="#7399b3" strokeWidth="2.6" fill="#f9fcff"/>
+        <line x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke={orange} strokeWidth="3.3"/>
+        <line x1={cx} y1={cy} x2={H.x} y2={H.y} stroke={teal} strokeWidth="2.6" strokeDasharray="7 5"/>
+        <line x1={cx} y1={cy} x2={B.x} y2={B.y} stroke={ink} strokeWidth="2.4"/>
+        <path d={`M ${H.x+13} ${H.y} V ${H.y+13} H ${H.x}`} fill="none" stroke={teal} strokeWidth="2"/>
+        <text x={cx+16} y={(cy+H.y)/2+5} fontSize="14" fill={ink}>{distance} cm</text>
+        <text x={(cx+B.x)/2+12} y={(cy+B.y)/2+15} fontSize="14" fill={ink}>{radius} cm</text>
+        <text x={cx} y={H.y-12} fontSize="15" fill={ink} textAnchor="middle">AB = ?</text>
+        <MarkedPoint x={cx} y={cy} text="O" dx={-20} dy={20}/>
+        <MarkedPoint {...A} text="A" dx={-18} dy={-10}/>
+        <MarkedPoint {...B} text="B" dx={9} dy={-10}/>
+        <MarkedPoint {...H} text="H" dx={8} dy={20}/>
+      </Frame>
+    );
+  }
   if (diagram.type === "triangle_altitude") {
     // Derive all three side positions from the same unit scale as the
     // base and height. Tall/narrow vs. flat/wide questions now look correct.
