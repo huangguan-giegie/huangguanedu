@@ -1,7 +1,11 @@
+"use client";
+
+import { useId } from "react";
 import type { PracticeDiagram as Diagram } from "../lib/practice-diagram";
 
 /** Render only validated, structured figures; do not render AI-authored SVG/HTML. */
 export function PracticeDiagram({ diagram }: { diagram: Diagram }) {
+  const clipId = useId();
   const common = {
     fill: "none",
     stroke: "#233c5a",
@@ -66,7 +70,7 @@ export function PracticeDiagram({ diagram }: { diagram: Diagram }) {
   return (
     <figure className="practice-diagram">
       <svg role="img" aria-label={`直线经过点 A，坐标为零与 ${intercept}；点 B，坐标为一与 ${yB}`} viewBox="0 0 480 300" className="w-full max-w-[480px]">
-        <defs><clipPath id="practice-coordinate-clip"><rect x="59" y="16" width="362" height="268" /></clipPath></defs>
+        <defs><clipPath id={clipId}><rect x="59" y="16" width="362" height="268" /></clipPath></defs>
         <rect x="58" y="16" width="364" height="268" fill="#fff" stroke="#dbe6f2" />
         {Array.from({ length: 11 }, (_, i) => i - 5).map((x) => (
           <line key={`x${x}`} x1={xPos(x)} y1="16" x2={xPos(x)} y2="284" stroke="#e7edf5" />
@@ -75,7 +79,7 @@ export function PracticeDiagram({ diagram }: { diagram: Diagram }) {
           <line key={`y${y}`} x1="58" y1={yPos(y)} x2="422" y2={yPos(y)} stroke="#e7edf5" />
         ))}
         <path d={`M 58 150 H 422 M 240 284 V 16`} stroke="#7188a4" strokeWidth="1.5" />
-        <g clipPath="url(#practice-coordinate-clip)">
+        <g clipPath={`url(#${clipId})`}>
           <line x1={xPos(-5)} y1={yPos(-5 * slope + intercept)} x2={xPos(5)} y2={yPos(5 * slope + intercept)} stroke="#ed8750" strokeWidth="3" />
         </g>
         <circle cx={xPos(0)} cy={yPos(intercept)} r="5" fill="#245b9b" stroke="white" strokeWidth="2" />
