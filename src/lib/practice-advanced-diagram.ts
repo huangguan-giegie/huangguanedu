@@ -123,8 +123,8 @@ export function compileAdvancedDiagramProblem(diagram: AdvancedDiagram): Advance
     case "triangle_angle_bisector": {
       const [AB, AC, BC] = diagram.sides.split("-").map(Number);
       const g = constructBisector(AB, AC, BC);
-      const BD = distance(g.B,g.D);
-      const DC = distance(g.D,g.C);
+      const BD = Math.round(distance(g.B,g.D));
+      const DC = Math.round(distance(g.D,g.C));
       return {
         question: `如图，在△ABC中，AD平分∠BAC，D在BC上，AB＝${AB} cm，AC＝${AC} cm，BC＝${BC} cm，求BD的长度。`,
         answer: `${BD} cm`,
@@ -150,7 +150,7 @@ export function compileAdvancedDiagramProblem(diagram: AdvancedDiagram): Advance
     case "two_circles_external_tangent": {
       const [R,r,d] = diagram.circles.split("-").map(Number);
       const g = constructExternalTangent(R,r,d);
-      const L=distance(g.A,g.B);
+      const L=Math.round(distance(g.A,g.B));
       return {
         question: `如图，两圆O₁、O₂外离或外切，半径分别为${R} cm和${r} cm，圆心距O₁O₂＝${d} cm。AB是两圆的同侧公切线段，A、B分别是切点，求AB的长度。`,
         answer: `${L} cm`,
