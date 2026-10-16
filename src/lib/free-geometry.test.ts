@@ -148,4 +148,26 @@ describe("自由作图：数学交点与依赖图",()=>{
   expect(()=>parseDocumentJSON("{notjson")).toThrow();
   expect(()=>parseDocumentJSON("x".repeat(150001))).toThrow("文件过大");
  });
+ it("同一对对象重复或反向求交不会重复创建交点",()=>{
+  const s=setup();let doc=s.doc;
+  const a=createShape(doc,"line",s.A,s.B);doc=a.document;
+  const b=createShape(doc,"circle",s.C,s.D);doc=b.document;
+  const first=createIntersections(doc,a.id,b.id);
+  expect(first.ids).toHaveLength(2);
+  expect(createIntersections(first.document,a.id,b.id).ids).toHaveLength(0);
+  expect(createIntersections(first.document,b.id,a.id).ids).toHaveLength(0);
+  expect(first.document.objects).toHaveLength(doc.objects.length+2);
+ });
+ it("切线-圆和两圆外切分别只有一个解，极接近切线也不产生伪双交点",()=>{
+  let doc=blankDocument();const ids:string[]=[];
+  for(const p of [{x:-5,y:3},{x:5,y:3},{x:0,y:0},{x:3,y:0},{x:6,y:0},{x:9,y:0}]){
+   const q=createPoint(doc,p);doc=q.document;ids.push(q.id);
+  }
+  const line=createShape(doc,"line",ids[0],ids[1]);doc=line.document;
+  const circle=createShape(doc,"circle",ids[2],ids[3]);doc=circle.document;
+  expect(createIntersections(doc,line.id,circle.id).ids).toHaveLength(1);
+  const circle2=createShape(doc,"circle",ids[4],ids[5]);doc=circle2.document;
+  expect(createIntersections(doc,circle.id,circle2.id).ids).toHaveLength(1);
+ });
+
 });
