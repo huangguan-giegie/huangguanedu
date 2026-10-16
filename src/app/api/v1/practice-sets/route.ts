@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
           question: question.question,
           answer: question.answer,
           explanation: question.explanation,
+          diagram: question.diagram,
           difficulty: question.difficulty,
           knowledgePoints: question.knowledgePoints,
           lastAttempt: question.attempts[0] ?? null,
