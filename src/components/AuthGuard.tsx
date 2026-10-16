@@ -1,10 +1,13 @@
-// Centralized application chrome and role-aware navigation.
+// 统一页面外壳，按角色显示导航并保留现有业务入口。
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "./api";
+import { ThemeToggle } from "./ThemeToggle";
+import { Icon } from "./icons";
+import { activeNavigation, navigationIcon } from "./academy-navigation";
 
 export interface SafeUser {
   id: string;
@@ -20,7 +23,7 @@ const menus = {
     { href: "/wrong-questions/new", label: "上传错题" },
     { href: "/wrong-questions", label: "错题本" },
     { href: "/review", label: "今日复习" },
-    { href: "/practice-sets", label: "数学练习" },
+    { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/bookings", label: "课程预约" },
     { href: "/reports", label: "学习总结" },
@@ -30,8 +33,10 @@ const menus = {
     { href: "/", label: "老师工作台" },
     { href: "/teacher/review", label: "AI 错题复核" },
     { href: "/teacher/students", label: "我的学生" },
+    { href: "/wrong-questions", label: "学生错题本" },
+    { href: "/review", label: "智能复习" },
     { href: "/teacher/summaries", label: "学习总结审核" },
-    { href: "/practice-sets", label: "数学模拟题" },
+    { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/account", label: "账户设置" },
   ],
@@ -40,20 +45,24 @@ const menus = {
     { href: "/admin/students", label: "学生管理" },
     { href: "/admin/teachers", label: "老师管理" },
     { href: "/admin/slots", label: "课程时段" },
-    { href: "/practice-sets", label: "数学模拟题" },
+    { href: "/wrong-questions", label: "学生错题本" },
+    { href: "/teacher/review", label: "错题审核" },
+    { href: "/teacher/summaries", label: "学习总结审核" },
+    { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/account", label: "账户设置" },
   ],
 } as const;
 
 function Navigation({ user, pathname }: { user: SafeUser; pathname: string }) {
+  const selected = activeNavigation(pathname, menus[user.role]);
   return (
     <>
       {menus[user.role].map((item) => {
-        const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+        const active = selected === item.href;
         return (
-          <Link key={item.href} href={item.href} className="app-nav-link" aria-current={active ? "page" : undefined}>
-            <span aria-hidden className="app-nav-dot" />
+          <Link key={item.href} href={item.href} className="academy-nav-link" aria-current={active ? "page" : undefined}>
+            <Icon name={navigationIcon(item.href)} size={20} />
             <span>{item.label}</span>
           </Link>
         );
@@ -68,6 +77,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const menuRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => { menuRef.current?.close(); }, [pathname]);
+
+  // 原生对话框负责焦点限制、Escape 关闭和关闭后归还焦点。
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    const unlock = () => { document.body.style.overflow = ""; };
+    menu.addEventListener("close", unlock);
+    return () => { menu.removeEventListener("close", unlock); unlock(); };
+  }, [user, loading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,42 +114,73 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-slate-600" role="status">正在进入学习空间…</div>;
+    return <div className="academy-loading" role="status" aria-busy="true"><span className="sr-only">正在加载页面</span></div>;
   }
   if (!user || user.mustChangePassword) return null;
 
+  const tabs = user.role === "FAMILY"
+    ? [{ href: "/wrong-questions", label: "错题本" }, { href: "/practice", label: "练习" }, { href: "/", label: "首页" }, { href: "/review", label: "复习" }]
+    : user.role === "TEACHER"
+      ? [{ href: "/teacher/review", label: "复核" }, { href: "/teacher/students", label: "学生" }, { href: "/", label: "首页" }, { href: "/practice", label: "练习" }]
+      : [{ href: "/admin/students", label: "学生" }, { href: "/admin/slots", label: "课程" }, { href: "/", label: "首页" }, { href: "/practice", label: "练习" }];
+  const activeTab = activeNavigation(pathname, tabs);
+  const currentPage = menus[user.role].find(item => item.href === activeNavigation(pathname, menus[user.role]))?.label ?? "学习空间";
+
   return (
-    <div className="app-shell">
-      <aside className="app-sidebar" aria-label="侧边导航">
-        <Link href="/" className="app-logo">
-          <span className="app-logo-mark">冠</span>
-          <span><span className="app-logo-title">黄冠 AI Academy</span><span className="app-logo-subtitle">LEARN WITH CLARITY</span></span>
+    <div className="academy-shell">
+      <aside className="academy-sidebar" aria-label="侧边导航">
+        <Link href="/" className="academy-logo">
+          <span className="academy-logo-mark">冠</span>
+          <span><span className="academy-logo-title">黄冠 AI Academy</span><span className="academy-logo-subtitle">LEARN WITH CLARITY</span></span>
         </Link>
-        <p className="app-sidebar-caption">学习导航 / WORKSPACE</p>
-        <nav className="app-nav" aria-label="主导航"><Navigation user={user} pathname={pathname} /></nav>
-        <div className="app-sidebar-footer">
-          <div className="app-user-name">{user.name}</div>
-          <div className="app-user-role">{user.role === "FAMILY" ? "家庭账户" : user.role === "TEACHER" ? "教师账户" : "管理员"}</div>
-          <button type="button" className="app-signout" onClick={() => void signOut()} disabled={signingOut}>
+        <p className="academy-sidebar-caption">学习导航 / WORKSPACE</p>
+        <nav className="academy-nav" aria-label="主导航"><Navigation user={user} pathname={pathname} /></nav>
+        <div className="academy-sidebar-footer">
+          <div className="academy-user-name">{user.name}</div>
+          <div className="academy-user-role">{user.role === "FAMILY" ? "家庭账户" : user.role === "TEACHER" ? "教师账户" : "管理员"}</div>
+          <button type="button" className="academy-signout" onClick={() => void signOut()} disabled={signingOut}>
             {signingOut ? "正在退出…" : "退出登录 →"}
           </button>
         </div>
       </aside>
-      <div className="app-content">
-        <header className="app-topbar">
+      <div className="academy-content">
+        <a className="academy-skip-link" href="#main-content">跳转到页面内容</a>
+        <header className="academy-topbar">
           <div className="flex items-center gap-3">
-            <span className="app-logo-mark !h-9 !w-9 !rounded-xl !text-xl lg:hidden">冠</span>
-            <span className="app-topbar-label">AI 驱动的个性化学习平台</span>
+            <span className="academy-logo-mark !h-9 !w-9 !rounded-xl !text-xl lg:hidden">冠</span>
+            <span className="academy-topbar-label">黄冠 AI Academy <span className="academy-breadcrumb-divider">/</span> {currentPage}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="app-topbar-user">{user.name} · {user.role === "FAMILY" ? "家庭" : user.role === "TEACHER" ? "老师" : "管理员"}</span>
-            <Link className="text-sm font-semibold text-[#16677b] lg:hidden" href="/account">账户</Link>
-            <button type="button" className="text-sm font-semibold text-[#16677b] lg:hidden" onClick={() => void signOut()} disabled={signingOut}>退出</button>
+            <ThemeToggle />
+            <span className="academy-topbar-user">{user.name} · {user.role === "FAMILY" ? "家庭" : user.role === "TEACHER" ? "老师" : "管理员"}</span>
+            <Link className="academy-account-link" href="/account" aria-label="账户设置"><Icon name="account" size={21} /></Link>
           </div>
         </header>
-        <nav className="app-mobile-nav" aria-label="移动端主导航"><Navigation user={user} pathname={pathname} /></nav>
-        <main className="workspace" id="main-content">{children}</main>
+        <main key={pathname} className={`academy-workspace app-content${pathname === "/" ? " academy-home-workspace" : ""}`} id="main-content" tabIndex={-1}>{children}</main>
+        <footer className="academy-footer"><span>每天进步一点，都值得被看见。</span><span>黄冠 AI Academy</span></footer>
       </div>
+      <nav className="academy-bottom-nav" aria-label="移动端主导航">
+        {tabs.map(item => <Link key={item.href} href={item.href}
+          className={`academy-bottom-item${item.href === "/" ? " academy-bottom-home" : ""}`}
+          aria-current={activeTab === item.href ? "page" : undefined}>
+          <span className="academy-bottom-icon"><Icon name={navigationIcon(item.href)} size={22} /></span>
+          <span>{item.label}</span>
+        </Link>)}
+        <button type="button" className="academy-bottom-item" aria-label="全部功能" aria-haspopup="dialog"
+          data-active={!activeTab || undefined} onClick={() => { menuRef.current?.showModal(); document.body.style.overflow = "hidden"; }}>
+          <span className="academy-bottom-icon"><Icon name="filter" size={22} /></span><span>更多</span>
+        </button>
+      </nav>
+      <dialog className="academy-menu" ref={menuRef} aria-labelledby="academy-menu-title"
+        onClick={event => { if (event.target === event.currentTarget) menuRef.current?.close(); }}>
+        <div className="academy-menu-content">
+          <div className="academy-menu-heading"><div><span className="academy-eyebrow">YOUR WORKSPACE</span><h2 id="academy-menu-title">全部功能</h2></div>
+            <button type="button" className="academy-close" aria-label="关闭全部功能" onClick={() => menuRef.current?.close()}><Icon name="close" size={22} /></button>
+          </div>
+          <nav aria-label="全部功能导航" onClick={event => { if ((event.target as HTMLElement).closest("a")) menuRef.current?.close(); }}><Navigation user={user} pathname={pathname} /></nav>
+          <button type="button" className="academy-menu-signout" onClick={() => void signOut()} disabled={signingOut}><Icon name="logout" size={19} />{signingOut ? "正在退出…" : "退出登录"}</button>
+        </div>
+      </dialog>
     </div>
   );
 }

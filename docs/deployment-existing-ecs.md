@@ -1,283 +1,58 @@
-# Deploy on an existing Alibaba Cloud ECS + OSS
+# Existing ECS production path
 
-This deployment profile is for an ECS that already has a host-level Nginx serving other sites. It intentionally keeps huangguanedu isolated:
-
-```text
-Internet
-  -> existing host Nginx :80/:443
-      -> 127.0.0.1:3001 -> huangguanedu web container
-                            -> postgres container (Docker private network)
-                            -> OSS private bucket
-                            -> DashScope
-      -> huangguanedu jobs container
-```
-
-The project Nginx service in `docker-compose.yml` is **not** used by this profile, so it cannot take over ports 80/443.
-
-## 1. ECS prerequisites
-
-Recommended baseline:
-
-- Ubuntu LTS
-- Docker Engine + Docker Compose plugin
-- host Nginx already installed and running
-- at least 2 GB RAM; for a 2 GB host shared with other applications, add swap before building images
-- security group: public 80/443 only; restrict SSH 22 to administrator IPs
-
-Optional 4 GB swap for a small shared ECS:
-
-```bash
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-## 2. Prepare the application
-
-```bash
-sudo mkdir -p /opt/huangguanedu
-sudo chown "$USER":"$USER" /opt/huangguanedu
-
-git clone https://github.com/huangguan-giegie/huangguanedu.git /opt/huangguanedu
-cd /opt/huangguanedu
-
-cp deploy/production.env.example .env.production
-chmod 600 .env.production
-nano .env.production
-```
-
-Replace every `CHANGE_ME` value.
-
-Generate independent secrets:
-
-```bash
-openssl rand -hex 32
-openssl rand -hex 32
-```
-
-Use one output for `SESSION_SECRET` and the other for `CRON_SECRET`.
-
-### PostgreSQL URL
-
-The database hostname must remain `postgres` because the web/jobs containers resolve the database through the Compose network:
+This profile uses an existing host Nginx and an external/native PostgreSQL service. The production path is:
 
 ```text
-postgresql://USER:PASSWORD@postgres:5432/DB_NAME?sslmode=disable
+GitHub Actions build -> Actions artifact -> ECS release directory -> systemd -> host Nginx
+                                      \-> external/native PostgreSQL
+                                      \-> private OSS
 ```
 
-If the database password contains URL-reserved characters, URL-encode the password portion in `DATABASE_URL`.
+The 2 GiB ECS must not run a Next.js production build locally. GitHub Actions builds the application and publishes the artifact. The ECS only unpacks that artifact into `/opt/huangguanedu/releases/<git-sha>` and runs the existing systemd unit whose `WorkingDirectory` directly names the selected release. The service uses `/opt/node-v22/bin/node` and listens on `172.18.0.1:3001`; the host Nginx proxies to that address.
 
-## 3. OSS
+## Host prerequisites
 
-Use a **private** bucket and a least-privilege RAM identity. Do not use the Alibaba Cloud root-account AccessKey.
+- Alibaba Cloud Linux with systemd and host Nginx
+- Node.js runtime and `pg_dump` on the host
+- Network access from ECS to external PostgreSQL, restricted by private address and firewall
+- A private OSS bucket and least-privilege RAM credentials
+- A 2 GiB host must have enough swap for the runtime; it must not build Next.js locally
 
-For an OSS bucket in Shanghai, the application settings are:
+## Release layout
 
-```env
-OSS_ENDPOINT=https://oss-cn-shanghai.aliyuncs.com
-OSS_REGION=oss-cn-shanghai
-```
-
-Keep the public OSS endpoint in application configuration. The authenticated image endpoint returns short-lived signed URLs to the browser and Qwen, so an `-internal` endpoint would not be reachable by external clients.
-
-The backup helper uses ossutil 2.x, whose region ID is configured separately:
-
-```env
-OSSUTIL_REGION=cn-shanghai
-```
-
-## 4. Build and start PostgreSQL
-
-```bash
-cd /opt/huangguanedu
-
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.ecs.yml \
-  up -d postgres
-
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.ecs.yml \
-  ps
-```
-
-## 5. Build the application and apply migrations
-
-```bash
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.ecs.yml \
-  build web jobs
-
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.ecs.yml \
-  run --rm web npx prisma migrate deploy
-```
-
-Do **not** run `prisma db seed` in production.
-
-Start web and jobs:
-
-```bash
-docker compose \
-  --env-file .env.production \
-  -f docker-compose.ecs.yml \
-  up -d web jobs
-```
-
-The only host port exposed by this stack is:
+Keep release directories immutable after publication:
 
 ```text
-127.0.0.1:3001 -> web:3000
+/opt/huangguanedu/
+  releases/<git-sha>/
+  .env.production
 ```
 
-PostgreSQL is not exposed to the host or Internet.
+Copy the GitHub Actions artifact into its release directory, verify the artifact checksum, and set the environment file to mode `600`. The systemd unit should run `next start` from the selected `/opt/huangguanedu/releases/<git-sha>` and load `/opt/huangguanedu/.env.production`. Apply Prisma migrations from the selected release with `npm run db:deploy`; do not run the seed command in production.
 
-Smoke test from the ECS:
+## Host Nginx
+
+Adapt `deploy/nginx-huangguanedu.conf.example` for the existing Nginx, certificate paths, public hostname, and upstream `172.18.0.1:3001`. Validate with `nginx -t` and follow the host's normal configuration loading procedure. The application must set `TRUSTED_PROXY=true` and `TRUSTED_PROXY_HOPS=1` only when this Nginx overwrites the forwarded headers.
+
+## Native PostgreSQL backup
+
+Install Node.js dependencies for the shared host helper and make sure `pg_dump` is available on the host. Run:
 
 ```bash
-curl -I http://127.0.0.1:3001/
+/opt/node-v22/bin/node /opt/huangguanedu/ops/backup-postgres-to-oss-native.cjs /opt/huangguanedu/.env.production
 ```
 
-## 6. Reuse the existing host Nginx
+The helper reads `DATABASE_URL` without printing it, invokes native `pg_dump` without putting the password on the command line, calculates a local SHA-256, uploads the dump and `.sha256` through `ali-oss`, then uses OSS `head` to verify both objects exist and have the expected sizes. It uses `OSS_BACKUP_BUCKET` or falls back to `OSS_BUCKET`, and `OSS_BACKUP_PREFIX` or `backups/postgres`.
 
-Copy `deploy/nginx-huangguanedu.conf.example` into the host Nginx configuration and replace:
+Backups are stored only in the dedicated `.backups/postgres-native` directory and local files are retained for exactly 14 days. Remote OSS objects are retained indefinitely; the helper never deletes remote objects. Success and failure are sent with `logger` to journald using only safe metadata.
 
-- `academy.example.com`
-- TLS certificate path
-- TLS private-key path
-
-Then validate before reloading:
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-Set `APP_BASE_URL` in `.env.production` to the exact public HTTPS origin used by this server block.
-
-### If the existing proxy is Nginx Proxy Manager in Docker
-
-Use the Compose overlay so only the web container joins the proxy-manager network; PostgreSQL and jobs remain private:
-
-```bash
-docker compose --env-file .env.production \
-  -f docker-compose.ecs.yml \
-  -f docker-compose.ecs.npm.yml \
-  up -d --build
-```
-
-In Nginx Proxy Manager, add a proxy host for `academy.example.com` with scheme `http`, forward hostname `web`, and port `3000`. Enable WebSocket support, request a Let's Encrypt certificate, then enable Force SSL. Replace `academy.example.com` with the same hostname configured in `APP_BASE_URL`.
-
-The overlay expects the external Docker network `nginx-proxy-manage_default`; change its name to match the network shown by `docker network ls` on the target ECS. The host-only `127.0.0.1:3001` mapping remains available for local smoke checks.
-
-## 7. Production verification
-
-```bash
-cd /opt/huangguanedu
-
-docker compose --env-file .env.production -f docker-compose.ecs.yml ps
-
-docker compose --env-file .env.production -f docker-compose.ecs.yml logs --tail=100 web
-
-docker compose --env-file .env.production -f docker-compose.ecs.yml logs --tail=100 jobs
-```
-
-Verify manually:
-
-1. HTTPS opens without certificate errors.
-2. Login and password change work.
-3. Uploading a wrong-question image succeeds.
-4. Opening the image follows a temporary OSS signed URL and succeeds.
-5. A queued analysis job is picked up by `jobs`.
-6. The browser console and server logs do not expose OSS or DashScope secrets.
-
-## 8. PostgreSQL backup to OSS
-
-Install **ossutil 2.x** on the ECS and verify:
-
-```bash
-ossutil version
-```
-
-Run one backup manually:
-
-```bash
-cd /opt/huangguanedu
-bash scripts/backup-postgres-to-oss.sh .env.production
-```
-
-The script:
-
-- runs `pg_dump --format=custom` inside the PostgreSQL container;
-- calculates SHA-256;
-- uploads both the dump and checksum to OSS;
-- verifies both uploaded objects with `ossutil stat`;
-- deletes old **local** backup files after `BACKUP_RETENTION_DAYS`.
-
-It intentionally does not delete remote OSS backups. Configure an OSS Lifecycle rule for remote retention.
-
-Example daily cron at 03:20:
+Install this daily cron entry in the host's Asia/Shanghai timezone:
 
 ```cron
-20 3 * * * cd /opt/huangguanedu && /usr/bin/flock -n /var/lock/huangguanedu-backup.lock /bin/bash scripts/backup-postgres-to-oss.sh .env.production >> /var/log/huangguanedu-backup.log 2>&1
+CRON_TZ=Asia/Shanghai
+30 3 * * * /usr/bin/flock -n /var/lock/huangguanedu-backup.lock /opt/node-v22/bin/node /opt/huangguanedu/ops/backup-postgres-to-oss-native.cjs /opt/huangguanedu/.env.production
 ```
 
-## 9. Restore test
+## Restore drill
 
-Download a dump and its `.sha256` file from OSS, then verify:
-
-```bash
-sha256sum -c huangguanedu-YYYYMMDDTHHMMSSZ.dump.sha256
-```
-
-Before restoring production data, stop writers:
-
-```bash
-docker compose --env-file .env.production -f docker-compose.ecs.yml stop web jobs
-```
-
-Restore the custom-format dump:
-
-```bash
-cat huangguanedu-YYYYMMDDTHHMMSSZ.dump | \
-docker compose --env-file .env.production -f docker-compose.ecs.yml exec -T postgres \
-  sh -lc 'pg_restore \
-    --username="$POSTGRES_USER" \
-    --dbname="$POSTGRES_DB" \
-    --clean \
-    --if-exists \
-    --no-owner \
-    --no-acl'
-```
-
-After validation:
-
-```bash
-docker compose --env-file .env.production -f docker-compose.ecs.yml up -d web jobs
-```
-
-A restore should be rehearsed periodically; an untested backup is not a recovery plan.
-
-## 10. Upgrade procedure
-
-```bash
-cd /opt/huangguanedu
-git pull --ff-only
-
-# Backup before schema/application changes.
-bash scripts/backup-postgres-to-oss.sh .env.production
-
-docker compose --env-file .env.production -f docker-compose.ecs.yml build web jobs
-
-docker compose --env-file .env.production -f docker-compose.ecs.yml run --rm web \
-  npx prisma migrate deploy
-
-docker compose --env-file .env.production -f docker-compose.ecs.yml up -d web jobs
-
-docker compose --env-file .env.production -f docker-compose.ecs.yml logs --tail=100 web jobs
-```
+Download a dump and checksum from OSS into a temporary isolated directory, verify the checksum, and restore it into a temporary PostgreSQL cluster that is not connected to production. Validate migrations, representative row counts, and application reads against that isolated cluster. Tear down the temporary cluster after the drill. This repository does not perform or document a production restore procedure.

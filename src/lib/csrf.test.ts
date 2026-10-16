@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 import {
@@ -10,6 +10,7 @@ import {
 
 // Origin 同源校验与双提交 Cookie CSRF 校验的单元测试
 describe("状态变更防护（Origin + CSRF）", () => {
+  afterEach(() => vi.unstubAllEnvs());
   function buildRequest(overrides: {
     origin?: string | null;
     referer?: string | null;
@@ -57,6 +58,37 @@ describe("状态变更防护（Origin + CSRF）", () => {
     );
 
     expect(result?.status).toBe(403);
+  });
+
+  it("反向代理的内部地址与公开域名不同时允许配置的公开来源", () => {
+    vi.stubEnv("APP_BASE_URL", "https://academy.huangguanedu.cn");
+    expect(assertStateChangeAllowed(buildRequest({
+      origin: "https://academy.huangguanedu.cn",
+      csrfCookie: "token-abc", csrfHeader: "token-abc",
+    }))).toBeNull();
+  });
+
+  it("公开来源的 Referer 回退仍需匹配 CSRF 令牌", () => {
+    vi.stubEnv("APP_BASE_URL", "https://academy.huangguanedu.cn");
+    expect(assertStateChangeAllowed(buildRequest({
+      referer: "https://academy.huangguanedu.cn/practice",
+      csrfCookie: "token-abc", csrfHeader: "token-abc",
+    }))).toBeNull();
+    expect(assertStateChangeAllowed(buildRequest({
+      origin: "https://academy.huangguanedu.cn",
+      csrfCookie: "token-abc", csrfHeader: null,
+    }))?.status).toBe(403);
+  });
+
+  it("伪造转发头不能绕过配置的公开来源", () => {
+    vi.stubEnv("APP_BASE_URL", "https://academy.huangguanedu.cn");
+    const request = buildRequest({
+      origin: "https://evil.example.com",
+      csrfCookie: "token-abc", csrfHeader: "token-abc",
+    });
+    request.headers.set("x-forwarded-proto", "https");
+    request.headers.set("x-forwarded-host", "evil.example.com");
+    expect(assertStateChangeAllowed(request)?.status).toBe(403);
   });
 
   it("缺少 Origin 与 Referer 时拒绝", () => {

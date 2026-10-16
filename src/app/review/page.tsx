@@ -55,9 +55,27 @@ function ReviewDashboard() {
     setBusy(true);
     setError("");
     try {
+      // 出题接口只认 wrongQuestionIds，不认adaptive/count——后两者会被 Zod 直接丢弃。
+      // 这里必须先把「到期知识点」翻译成「相关错题」，否则请求永远过不了参数校验。
+      const due = plan.items.filter((item) => item.due).slice(0, 10);
+      const points = due.length > 0 ? due : plan.items.slice(0, 10);
+      if (points.length === 0) {
+        setError("还没有可复习的知识点，先去错题本订正几道题吧");
+        return;
+      }
+
+      const lookup = await api.get<{ wrongQuestionIds: string[] }>(
+        `/api/v1/me/review-plan/questions?knowledgePoints=${encodeURIComponent(
+          points.map((item) => item.knowledgePoint).join(","),
+        )}&limit=20`,
+      );
+      if (lookup.wrongQuestionIds.length === 0) {
+        setError("到期知识点还没有对应的错题，先上传或订正错题后才能生成练习");
+        return;
+      }
+
       await api.post("/api/v1/practice-sets/generate", {
-        adaptive: true,
-        count: 5,
+        wrongQuestionIds: lookup.wrongQuestionIds,
         difficulty: plan.suggestedDifficulty,
       });
       router.push("/practice-sets");
@@ -78,7 +96,7 @@ function ReviewDashboard() {
           根据错题、历史作答和复习间隔安排今天最值得练的知识点。
         </p>
       </div>
-      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div role="alert" className="callout callout--danger">{error}</div>}
       {plan && (
         <>
           <section className="grid gap-3 sm:grid-cols-3">
@@ -102,7 +120,7 @@ function ReviewDashboard() {
             disabled={busy}
             onClick={() => void startReview()}
           >
-            {busy ? "正在生成…" : "生成今日 5 道自适应练习"}
+            {busy ? "正在生成…" : "按到期知识点生成练习"}
           </button>
           <section className="rounded-xl border border-[#1e2a3a]/10 bg-white">
             <div className="border-b border-[#1e2a3a]/10 p-4 font-semibold">知识点掌握度</div>
