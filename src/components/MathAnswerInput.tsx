@@ -6,25 +6,40 @@ interface MathFieldLike extends HTMLElement {
   value: string;
 }
 
-const MATHLIVE_SRC = "https://cdn.jsdelivr.net/npm/mathlive@0.111.0/+esm";
+const MATHLIVE_BASE = "/vendor/mathlive/0.111.0";
+const MATHLIVE_SRC = `${MATHLIVE_BASE}/mathlive.min.mjs`;
+
+function configureMathLive() {
+  const element = customElements.get("math-field") as
+    | (CustomElementConstructor & { fontsDirectory: string; soundsDirectory: string })
+    | undefined;
+  if (element) {
+    element.fontsDirectory = `${MATHLIVE_BASE}/fonts`;
+    element.soundsDirectory = `${MATHLIVE_BASE}/sounds`;
+  }
+}
 
 function ensureMathLive(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  if (customElements.get("math-field")) return Promise.resolve();
+  if (customElements.get("math-field")) {
+    configureMathLive();
+    return Promise.resolve();
+  }
 
   return new Promise((resolve, reject) => {
+    const loaded = () => { configureMathLive(); resolve(); };
     const existing = document.querySelector<HTMLScriptElement>('script[data-huangguan-mathlive="1"]');
     if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("MathLive load failed")), { once: true });
+      existing.addEventListener("load", loaded, { once: true });
+      existing.addEventListener("error", () => reject(new Error("公式输入组件加载失败")), { once: true });
       return;
     }
     const script = document.createElement("script");
     script.type = "module";
     script.src = MATHLIVE_SRC;
     script.dataset.huangguanMathlive = "1";
-    script.addEventListener("load", () => resolve(), { once: true });
-    script.addEventListener("error", () => reject(new Error("MathLive load failed")), { once: true });
+    script.addEventListener("load", loaded, { once: true });
+    script.addEventListener("error", () => reject(new Error("公式输入组件加载失败")), { once: true });
     document.head.appendChild(script);
   });
 }

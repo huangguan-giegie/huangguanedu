@@ -19,6 +19,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     ".worktrees/**",
     "node_modules/**",
+    // 固定版本的第三方资源保持原样，只检查本站源码。
+    "public/vendor/**",
   ]),
 ]);
 
