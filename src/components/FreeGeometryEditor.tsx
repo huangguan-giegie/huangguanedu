@@ -23,7 +23,6 @@ const TOOLS: {id:Tool;name:string;hint:string}[]=[
  {id:"polygon",name:"多边形",hint:"顺序选择三个以上的点，然后点击「完成多边形」"},
  {id:"locus",name:"轨迹",hint:"先选自由驱动点，再选路径线/圆，最后选依赖驱动点的目标点"},
 ];
-const isPoint=(o:GeometryObject)=>o.kind==="point"||o.kind==="intersection";
 const isShape=(o:GeometryObject)=>o.kind==="line"||o.kind==="segment"||o.kind==="circle";
 function saveAs(name:string,mime:string,content:string) {
  const blob=new Blob([content],{type:mime});
