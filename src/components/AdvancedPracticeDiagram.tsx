@@ -41,9 +41,6 @@ function MarkedPoint({ x, y, text, dx = 9, dy = -10, color = blue }: Point & {
 
 // Graph coordinates are mathematically affine in both axes. Clips prevent
 // the extended curves from covering the formula labels or other content.
-const bounds = { xMin: -6, xMax: 6, yMin: -11, yMax: 11 };
-const gx = (x: number) => 55 + (x - bounds.xMin) * 370 / (bounds.xMax - bounds.xMin);
-const gy = (y: number) => 282 - (y - bounds.yMin) * 264 / (bounds.yMax - bounds.yMin);
 type Curve = { name: string; color: string; fn: (x: number) => number; dashed?: boolean };
 type GraphPoint = Point & { label: string };
 
@@ -52,6 +49,13 @@ function Graph({ curves, points, axisX, description, caption }: {
   description: string; caption: string;
 }) {
   const clipId = useId();
+  // Equal-sized x/y units are essential: unequal grid scales visually distort
+  // a 45-degree slope into another angle and misrepresent the actual function.
+  const furthestY = Math.max(0, ...points.map((point) => Math.abs(point.y)));
+  const yRange = Math.max(6, 2 * Math.ceil((furthestY + 1) / 2));
+  const pixelsPerUnit = Math.min(29, 256 / (2 * yRange));
+  const gx = (x: number) => 240 + x * pixelsPerUnit;
+  const gy = (y: number) => 150 - y * pixelsPerUnit;
   return (
     <Frame description={description} caption={caption}>
       <defs><clipPath id={clipId}><rect x="55" y="18" width="370" height="264" /></clipPath></defs>
@@ -62,7 +66,7 @@ function Graph({ curves, points, axisX, description, caption }: {
           {x !== 0 && x % 2 === 0 && <text x={gx(x)} y={gy(0) + 15} fontSize="11" fill="#64788f" textAnchor="middle">{x}</text>}
         </g>
       ))}
-      {Array.from({ length: 11 }, (_, i) => (i - 5) * 2).map((y) => (
+      {Array.from({ length: yRange + 1 }, (_, i) => (i - yRange / 2) * 2).map((y) => (
         <g key={y}>
           <line x1="55" y1={gy(y)} x2="425" y2={gy(y)} stroke="#e9eff5" />
           {y !== 0 && y % 4 === 0 && <text x={gx(0) - 8} y={gy(y) + 4} fontSize="11" fill="#64788f" textAnchor="end">{y}</text>}
@@ -147,7 +151,13 @@ export function AdvancedPracticeDiagram({ diagram }: { diagram: AdvancedDiagram 
     );
   }
   if (diagram.type === "triangle_altitude") {
-    const xa = 72, xb = 412, baseline = 244, top = 55;
+    // Derive all three side positions from the same unit scale as the
+    // base and height. Tall/narrow vs. flat/wide questions now look correct.
+    const unit = Math.min(340 / diagram.base, 185 / diagram.height);
+    const visibleBase = diagram.base * unit;
+    const xa = (480 - visibleBase) / 2;
+    const xb = xa + visibleBase;
+    const baseline = 244, top = baseline - diagram.height * unit;
     const ratio = diagram.foot === "LEFT" ? .3 : diagram.foot === "RIGHT" ? .7 : .5;
     const footX = xa + (xb-xa) * ratio;
     return (
