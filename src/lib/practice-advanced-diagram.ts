@@ -17,6 +17,14 @@ export const advancedDiagramOptions = [
     centralAngle: z.union([z.literal(60),z.literal(80),z.literal(90),z.literal(100),z.literal(120),z.literal(140)]),
   }),
   z.object({
+    type: z.literal("circle_tangent"),
+    triple: z.enum(["3-4-5","5-12-13","8-15-17"]),
+  }),
+  z.object({
+    type: z.literal("circle_chord"),
+    triple: z.enum(["3-4-5","5-12-13","8-15-17"]),
+  }),
+  z.object({
     type: z.literal("triangle_altitude"),
     base: z.number().int().min(6).max(24).refine((v) => v % 2 === 0),
     height: z.number().int().min(2).max(15),
@@ -121,6 +129,24 @@ export function compileAdvancedDiagramProblem(diagram: AdvancedDiagram): Advance
         question: `如图，A、B、C 在圆 O 上，C 位于不含劣弧 AB 的圆弧上，圆心角 ∠AOB＝${t}°，求圆周角 ∠ACB。`,
         answer: `${t / 2}°`,
         explanation: `∠ACB 与 ∠AOB 所对的都是劣弧 AB，圆周角等于同弧所对圆心角的一半，所以 ∠ACB＝${t}°÷2＝${t / 2}°。`,
+        diagram,
+      };
+    }
+    case "circle_tangent": {
+      const [radius, tangent, hypotenuse] = diagram.triple.split("-").map(Number);
+      return {
+        question: `如图，PA 是圆 O 在 A 点的切线，半径 OA＝${radius} cm，切线段 PA＝${tangent} cm，求线段 OP 的长度。`,
+        answer: `${hypotenuse} cm`,
+        explanation: `切线性质：OA⊥PA，因此△OAP 在 A 处为直角。由勾股定理 OP²＝OA²＋AP²＝${radius}²＋${tangent}²＝${hypotenuse * hypotenuse}，故 OP＝${hypotenuse} cm。`,
+        diagram,
+      };
+    }
+    case "circle_chord": {
+      const [distance, halfChord, radius] = diagram.triple.split("-").map(Number);
+      return {
+        question: `如图，圆 O 的半径 OB＝${radius} cm，OH⊥弦 AB 于 H，OH＝${distance} cm。求弦 AB 的长度。`,
+        answer: `${halfChord * 2} cm`,
+        explanation: `垂径定理得 AH＝HB；在直角三角形 OHB 中，HB＝√(OB²－OH²)＝√(${radius}²－${distance}²)＝${halfChord} cm，因此 AB＝2HB＝${halfChord * 2} cm。`,
         diagram,
       };
     }
