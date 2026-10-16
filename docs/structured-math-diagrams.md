@@ -68,6 +68,14 @@ including in accessible descriptions.
 
 ## Existing deployment requirements
 
+### 线上功能整合
+
+PR #9 的界面与精确图形功能已接入现有线上分支：保留异步生成任务、数学及英语变式练习、题组详情、在线判分、复制打印和深浅主题。新界面使用独立的 `academy-` 类名，避免覆盖既有页面。
+
+异步生成链路识别 `diagram` 字段，复用同一编译器重算题干、答案与解析，将参数存入 JSONB，并在原有练习详情页渲染 SVG。历史图片及复杂图形的原有生成链路继续兼容；上文的精确数学保证仅适用于受支持的 `diagram` 模板。
+
+生产同源校验以运行时 `APP_BASE_URL` 为准，防止反向代理的内部 HTTP 地址导致退出和提交被误拒绝；CSRF 令牌校验继续生效。
+
 The UI and all diagrams are part of the open feature PR. The schema migration
 `20261016000000_add_practice_diagram` stores a JSONB `diagram` field. Deploy
 this migration before deploying the Next.js application:

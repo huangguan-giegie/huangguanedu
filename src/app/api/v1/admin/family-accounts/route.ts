@@ -11,6 +11,34 @@ import { generateRandomPassword, hashPassword } from "../../../../../lib/passwor
 
 const PHONE_PATTERN = /^1[3-9]\d{9}$/;
 
+export async function GET(request: NextRequest) {
+  const auth = await requireRole(request, prisma, ["ADMIN"]);
+  if ("error" in auth) return auth.error;
+
+  const accounts = await prisma.familyAccount.findMany({
+    include: { user: true, student: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      accounts: accounts.map((account) => ({
+        id: account.id,
+        userId: account.userId,
+        phone: account.user.phone,
+        userName: account.user.name,
+        studentId: account.student?.id ?? null,
+        studentName: account.student?.name ?? null,
+        grade: account.student?.grade ?? null,
+        school: account.student?.school ?? null,
+        isActive: account.user.isActive && !account.user.deletedAt,
+        createdAt: account.createdAt,
+      })),
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request, prisma, ["ADMIN"]);
   if ("error" in auth) return auth.error;
@@ -51,7 +79,11 @@ export async function POST(request: NextRequest) {
       data: { familyAccountId: familyAccount.id, name: studentName, grade, school },
     });
     return { familyAccount, student, user };
+  }).catch((error: unknown) => {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") return null;
+    throw error;
   });
+  if (!account) return jsonError(409, "PHONE_EXISTS", "该手机号已被使用");
 
   await writeAuditLog(prisma, {
     actor: { id: auth.user.id, name: auth.user.name },
