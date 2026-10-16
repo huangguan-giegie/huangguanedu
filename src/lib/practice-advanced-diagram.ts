@@ -9,7 +9,7 @@ export const advancedDiagramOptions = [
   z.object({
     type: z.literal("circle_sector"),
     radius: z.number().int().min(2).max(12),
-    centralAngle: z.union([z.literal(30),z.literal(45),z.literal(60),z.literal(90),z.literal(120),z.literal(180)]),
+    centralAngle: z.union([z.literal(30),z.literal(45),z.literal(60),z.literal(90),z.literal(120)]),
     task: z.enum(["ARC_LENGTH", "SECTOR_AREA"]),
   }),
   z.object({
