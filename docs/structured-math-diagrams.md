@@ -41,12 +41,42 @@ Questions with references such as “如图” but no diagram are also rejected.
 | `quadratic_vertex` | nonzero a, h, k | Vertex and axis from `y=a(x-h)^2+k` |
 | `linear_intersection` | distinct slope pair, integer point P | Both lines pass through P |
 | `quadratic_line_intersection` | two distinct chosen roots and linear equation | Both functions pass through exactly A and B |
+| `triangle_angle_bisector` | a validated triangle side triple | D is on BC and ∠BAD = ∠DAC; BD/DC = AB/AC |
+| `similar_right_triangles` | two right-triangle leg lengths, factor and asked-for leg | Corresponding angles and all three side ratios agree |
+| `two_circles_external_tangent` | large/small radii and center distance | Circles do not overlap; both radii perpendicular to the same tangent; AB² = d² − (R−r)² |
 
 All plotting is SVG produced by trusted TypeScript with numeric coordinates.
 In coordinate graphs, horizontal and vertical units use the **same scale**.
 For triangles, displayed base/altitude pixel ratios follow the given lengths
 rather than a static decorative shape. Points in chord and circle-tangent
 problems are derived from the Pythagorean parameters.
+
+## Constraint verification for multi-figure construction (Phase 4)
+
+The shared pure-TypeScript engine `src/lib/practice-construction-constraints.ts`
+constructs vertices and tangent points from canonical side lengths or radii.
+The same validated coordinates drive both algebraic question compilation and
+SVG point positions, with bounded floating-point tolerance.
+
+- **Angle bisectors:** enforce triangle inequality, exact three side lengths,
+  D collinear and strictly between B and C, the proportional side segments,
+  and equality of two angles computed using vector dot products.
+- **Similarity:** check both right angles, all three corresponding length
+  ratios, and consistent vertex orientation. Render small/large triangles
+  using **the same pixels-per-unit**, not decorative differently scaled art.
+- **Circle common external tangents:** check circle distance, non-overlap,
+  both touch points on their own circle, perpendicular radius/tangent,
+  parallel same-side radial normals, and the common-tangent length identity.
+
+Each constructor calls its independent verification routine and throws if
+any invariant fails. Tests independently perturb point locations and verify
+that the altered constructions are rejected, as well as testing all permitted
+schema variants and SVG appearance. Unknown answers display `?` instead
+of their computed numeric value.
+
+The validation engine is numerical, not a formal theorem prover or a
+general draggable construction editor. Unsupported geometry should still
+fail closed without producing a speculative illustration.
 
 **Quiz answer leakage:** A diagram may show given information but must not
 label an unknown result (e.g., a requested hypotenuse) with its answer,
