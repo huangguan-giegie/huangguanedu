@@ -9,6 +9,8 @@ import type { AdvancedDiagram } from "./practice-advanced-diagram";
 const samples: AdvancedDiagram[] = [
   {type:"circle_sector",radius:8,centralAngle:60,task:"ARC_LENGTH"},
   {type:"circle_inscribed_angle",centralAngle:100},
+  {type:"circle_tangent",triple:"3-4-5"},
+  {type:"circle_chord",triple:"5-12-13"},
   {type:"triangle_altitude",base:12,height:8,foot:"MIDDLE"},
   {type:"triangle_midline",base:14},
   {type:"quadratic_vertex",a:-1,h:2,k:3},
@@ -17,7 +19,7 @@ const samples: AdvancedDiagram[] = [
 ];
 
 describe("图形 SVG 渲染完整性", () => {
-  it("七种高级图形均输出可访问、有限且闭合的 SVG", () => {
+  it("九种高级图形均输出可访问、有限且闭合的 SVG", () => {
     for (const diagram of samples) {
       const html = renderToStaticMarkup(createElement(AdvancedPracticeDiagram,{diagram}));
       expect(html).toContain("<svg");
@@ -40,8 +42,8 @@ describe("图形 SVG 渲染完整性", () => {
   });
 
   it("图形交点不因为同页多张图而复用 SVG clipPath ID", () => {
-    const a = createElement(AdvancedPracticeDiagram,{diagram:samples[5]});
-    const b = createElement(AdvancedPracticeDiagram,{diagram:samples[6]});
+    const a = createElement(AdvancedPracticeDiagram,{diagram:samples[7]});
+    const b = createElement(AdvancedPracticeDiagram,{diagram:samples[8]});
     const html = renderToStaticMarkup(createElement("section",null,a,b));
     const ids = Array.from(html.matchAll(/<clipPath id="([^"]+)"/g),m=>m[1]);
     expect(ids).toHaveLength(2);
