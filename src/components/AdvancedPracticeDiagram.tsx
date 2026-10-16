@@ -172,12 +172,6 @@ export function AdvancedPracticeDiagram({ diagram }: { diagram: AdvancedDiagram 
       <Frame description={`三角形 ABC，M 为 AB 的中点，N 为 AC 的中点，中位线 MN 平行于 BC，BC 为 ${diagram.base} 厘米`} caption="M、N 由边的精确中点计算，MN∥BC">
         <path d={`M ${A.x} ${A.y} L ${B.x} ${B.y} L ${C.x} ${C.y} Z`} stroke={ink} strokeWidth="3" fill="#f6fbff" />
         <line x1={M.x} y1={M.y} x2={N.x} y2={N.y} stroke={orange} strokeWidth="3.5" />
-        <g stroke={teal} strokeWidth="2">
-          <line x1="150" y1="132" x2="163" y2="142" />
-          <line x1="112" y1="182" x2="125" y2="192" />
-          <line x1="314" y1="140" x2="328" y2="130" />
-          <line x1="354" y1="190" x2="368" y2="180" />
-        </g>
         <MarkedPoint {...M} text="M" dx={-24} dy={4}/>
         <MarkedPoint {...N} text="N" dx={12} dy={4}/>
         <g {...label}>
