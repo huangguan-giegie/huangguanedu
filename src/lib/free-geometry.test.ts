@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {
   blankDocument,createPoint,createShape,createIntersections,resolveDocument,
   validateDocument,movePoint,renameObject,hideObject,deleteCascade,
-  parseDocumentJSON,starterDocument,intersections,nextId,type GeometryDocument,
+  parseDocumentJSON,starterDocument,nextId,type GeometryDocument,
 } from "./free-geometry";
 type Setup=ReturnType<typeof setup>;
 function setup(){
@@ -38,7 +38,7 @@ describe("自由作图：数学交点与依赖图",()=>{
   expect(()=>movePoint(doc,result.ids[0],{x:20,y:9})).toThrow("只有自由点");
  });
  it("线-圆两个交点，拖动圆周点后半径与交点全部重算",()=>{
-  let {doc,A,B,C,D}=setup();
+  const {doc:initial,A,B,C,D}=setup();let doc=initial;
   const l=createShape(doc,"line",A,B);doc=l.document;
   // Center C=(0,-4), through D=(0,4): radius 8.
   const c=createShape(doc,"circle",C,D);doc=c.document;
