@@ -109,4 +109,41 @@ describe("数学模拟题 AI", () => {
     ).rejects.toMatchObject({ retryable: true });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+  it("图形题的题干、答案和解析一律由图形参数重算", async () => {
+    stubLiveEnv();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({
+        title: "几何专项",
+        questions: Array.from({ length: 4 }, () => ({
+          question: "如图，边长为99，求面积",
+          answer: "999",
+          explanation: "错误的 AI 解释",
+          diagram: { type: "rectangle", width: 6, height: 4, task: "AREA" },
+        })),
+      }) } }],
+    }), { status: 200 }));
+    const result = await generatePracticeAi(input, fetchMock as unknown as typeof fetch);
+    expect(result.questions[0].question).toContain("6 cm");
+    expect(result.questions[0].answer).toBe("24 cm²");
+    expect(result.questions[0].explanation).not.toContain("错误");
+    expect(result.questions[0].diagram).toEqual({ type: "rectangle", width: 6, height: 4, task: "AREA" });
+  });
+
+  it("没有可验证图形的如图题拒绝存储并重新生成", async () => {
+    stubLiveEnv();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({
+        title: "不完整几何题",
+        questions: Array.from({ length: 4 }, () => ({
+          question: "如图，求阴影部分面积",
+          answer: "9",
+          explanation: "计算可得",
+        })),
+      }) } }],
+    }), { status: 200 }));
+    await expect(generatePracticeAi(input, fetchMock as unknown as typeof fetch))
+      .rejects.toMatchObject({ retryable: true });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
 });
