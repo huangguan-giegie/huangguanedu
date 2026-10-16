@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { advancedDiagramOptions, compileAdvancedDiagramProblem } from "./practice-advanced-diagram";
 
 /**
  * A diagram is generated from the same numerical data that produces the
@@ -21,6 +22,7 @@ export const PracticeDiagramSchema = z.discriminatedUnion("type", [
     slope: z.number().int().min(-3).max(3).refine((v) => v !== 0),
     intercept: z.number().int().min(-4).max(4),
   }),
+  ...advancedDiagramOptions,
 ]);
 
 export type PracticeDiagram = z.infer<typeof PracticeDiagramSchema>;
@@ -59,6 +61,9 @@ export function compileDiagramProblem(diagram: PracticeDiagram): DiagramQuestion
       explanation: `由勾股定理 BC²＝AB²＋AC²＝${a}²＋${b}²＝${c * c}，所以 BC＝${c} cm。`,
       diagram,
     };
+  }
+  if (diagram.type !== "linear_function") {
+    return compileAdvancedDiagramProblem(diagram);
   }
   const { slope, intercept } = diagram;
   const y2 = slope + intercept;
