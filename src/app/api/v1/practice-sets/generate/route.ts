@@ -3,11 +3,14 @@ import { z } from "zod";
 import { requireRole } from "../../../../../lib/auth";
 import { assertStateChangeAllowed } from "../../../../../lib/csrf";
 import { prisma } from "../../../../../lib/db";
-import { jsonError } from "../../../../../lib/http";
+import { getClientIp, jsonError } from "../../../../../lib/http";
 import { allowedPracticeStudents, runPracticeGenerationJob } from "../../../../../lib/practice-set";
+import { generatePracticeSetTx, PracticeSetError } from "../../../../../lib/practice-set-targeted";
+import { PracticeAiError } from "../../../../../lib/practice-ai";
+import { writeAuditLog } from "../../../../../lib/audit";
 
 export const maxDuration = 240;
-const InputSchema = z.object({ studentId: z.string().trim().min(1).optional(), wrongQuestionIds: z.array(z.string().trim().min(1).max(100)).min(1).max(20), difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).optional() });
+const InputSchema = z.object({ studentId: z.string().trim().min(1).optional(), wrongQuestionIds: z.array(z.string().trim().min(1).max(100)).min(1).max(20).optional(), count: z.number().int().min(3).max(5).optional(), adaptive: z.boolean().optional(), difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).optional() });
 
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request, prisma, ["FAMILY", "TEACHER", "ADMIN"]);
@@ -20,6 +23,21 @@ export async function POST(request: NextRequest) {
   const studentId = input.data.studentId ?? (auth.user.role === "FAMILY" ? students[0]?.id : undefined);
   if (!studentId) return jsonError(400, "STUDENT_NOT_FOUND", "请先选择已关联的学生");
   if (!students.some((s) => s.id === studentId)) return jsonError(403, "FORBIDDEN", "只能为自己可见的学生生成模拟题");
+  // 保留 PR #9 的按薄弱知识点/题数生成入口，指定错题的现有页面继续异步生成。
+  if (!input.data.wrongQuestionIds || input.data.count !== undefined || input.data.adaptive) {
+    try {
+      const set = await generatePracticeSetTx(prisma, { ...input.data, studentId, count: input.data.count ?? 5 });
+      await writeAuditLog(prisma, {
+        actor: { id: auth.user.id, name: auth.user.name }, action: "GENERATE_PRACTICE_SET",
+        targetType: "PracticeSet", targetId: set.id, summary: `生成数学模拟题组：${set.title}`, ip: getClientIp(request),
+      });
+      return NextResponse.json({ success: true, data: { ...set, studentName: set.student.name } });
+    } catch (error) {
+      if (error instanceof PracticeSetError) return jsonError(error.status, error.code, error.message);
+      if (error instanceof PracticeAiError) return jsonError(error.retryable ? 503 : 502, "PRACTICE_AI_FAILED", error.message);
+      throw error;
+    }
+  }
   const ids = [...new Set(input.data.wrongQuestionIds)];
   const questions = await prisma.wrongQuestion.findMany({ where: { id: { in: ids }, studentId, deletedAt: null, status: { in: ["PUBLISHED", "REVIEWED"] } }, select: { recognizedQuestion: true, subject: true } });
   if (questions.length !== ids.length || questions.some((q) => !q.recognizedQuestion?.trim())) return jsonError(404, "WRONG_QUESTION_NOT_FOUND", "所选错题尚未完成识别或已失效，请刷新后重试");
