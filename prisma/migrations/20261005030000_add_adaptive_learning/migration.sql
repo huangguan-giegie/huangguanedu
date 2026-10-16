@@ -1,11 +1,7 @@
-ALTER TABLE "PracticeSet"
-  ADD COLUMN "mode" TEXT NOT NULL DEFAULT 'TARGETED';
-
-ALTER TABLE "PracticeQuestion"
-  ADD COLUMN "difficulty" TEXT NOT NULL DEFAULT 'MEDIUM',
-  ADD COLUMN "knowledgePoints" JSONB,
-  ADD COLUMN "sourceWrongQuestionIds" JSONB,
-  ADD COLUMN "gradingMode" TEXT NOT NULL DEFAULT 'AUTO';
+-- 自适应学习：只建两张新表。
+-- PracticeSet.mode 与 PracticeQuestion.difficulty / knowledgePoints /
+-- sourceWrongQuestionIds / gradingMode 以及 AttemptResult 枚举在生产库已存在
+-- （此前分支已上线过这些列），重复 ADD COLUMN 会报错，故此处不再重复添加。
 
 CREATE TABLE "PracticeAttempt" (
   "id" TEXT NOT NULL,

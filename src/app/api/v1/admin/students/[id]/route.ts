@@ -132,6 +132,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       data: { isActive: false, deletedAt: student.familyAccount.user.deletedAt ?? now },
     }),
     prisma.session.deleteMany({ where: { userId: student.familyAccount.userId } }),
+    prisma.teacherStudentAssignment.updateMany({
+      where: { studentId: student.id, endsAt: null },
+      data: { endsAt: now },
+    }),
   ]);
 
   await writeAuditLog(prisma, {

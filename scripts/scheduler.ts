@@ -8,6 +8,7 @@ import { processAnalysisJobs } from "../src/lib/analysis-worker";
 import { runDataCleanup } from "../src/lib/cleanup";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { processDueSummaries } from "../src/lib/summary";
+import { processPracticeGenerationJobs } from "../src/lib/practice-set";
 
 const adapter = new PrismaPg({
   connectionString:
@@ -26,8 +27,11 @@ const MAX_CONSECUTIVE_FAILURES = 5;
 
 let consecutiveFailures = 0;
 let shuttingDown = false;
+const runningTasks = new Set<() => Promise<void>>();
 
 async function runSafely(name: string, task: () => Promise<void>): Promise<void> {
+  if (runningTasks.has(task) || shuttingDown) return;
+  runningTasks.add(task);
   try {
     await task();
     consecutiveFailures = 0;
@@ -38,13 +42,15 @@ async function runSafely(name: string, task: () => Promise<void>): Promise<void>
       console.error("[scheduler] 连续失败过多，退出");
       process.exit(1);
     }
-  }
+  } finally { runningTasks.delete(task); }
 }
 
 async function runAnalysis(): Promise<void> {
   const limit = Number(process.env.ANALYSIS_BATCH_SIZE ?? 10);
   const count = await processAnalysisJobs(prisma, limit);
   console.log(`[scheduler] 分析任务: 处理 ${count} 个`);
+  const practiceCount = await processPracticeGenerationJobs(prisma);
+  console.log(`[scheduler] 模拟题任务: 处理 ${practiceCount} 个`);
 }
 
 async function runDaily(): Promise<void> {

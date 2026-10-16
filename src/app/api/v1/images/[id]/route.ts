@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 
 import { requireUser } from "../../../../../lib/auth";
 import { prisma } from "../../../../../lib/db";
@@ -57,7 +57,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   try {
-    const buffer = await readFile(join(storageRoot, image.filePath));
+    const root = resolve(storageRoot);
+    const path = resolve(/* turbopackIgnore: true */ root, image.filePath);
+    if (!path.startsWith(root + sep)) return jsonError(400, "INVALID_PATH", "非法图片路径");
+    const buffer = await readFile(path);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": image.mimeType,

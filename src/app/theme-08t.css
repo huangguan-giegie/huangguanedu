@@ -1,0 +1,632 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   theme-08t.css · 设计 token 层 + 质感层 + Tailwind 覆盖层
+   ──────────────────────────────────────────────────────────────────────────
+   依据：.workbuddy/ui-redesign/01-visual-direction.md（Phase 1 视觉基线）
+        .workbuddy/ui-redesign/02-ux-spec.md（Phase 2 体验规范）
+
+   为什么只有两个 CSS 文件、不再拆 theme-tokens.css
+   ──────────────────────────────────────────────────────────────────────────
+   CSS 自定义属性的解析遵循「层叠来源顺序」：同名变量在 `:root` 上后出现者胜。
+   globals.css 顶部已有一份旧 `:root`（--background:#f3f0ff 等），因此 token
+   必须放在 globals.css **之后**才能覆盖它。若把 token 抽成独立的
+   theme-tokens.css 并按 01 §10.7 放在最前面，globals.css 的旧 `:root` 会把
+   新 token 全部盖掉——除非把 globals.css 里的旧 `:root` 删干净。
+   既然本文件已经在最后、且已承担「组件质感层 + 覆盖器」的职责，把 token
+   一并放在这里既满足优先级，又不必额外维护一个 import 顺序契约。
+
+   为什么 `:root` 写深色、`:root[data-theme="light"]` 写浅色
+   ──────────────────────────────────────────────────────────────────────────
+   深色是产品默认身份。JS 失效 / localStorage 读不到时，用户看到的仍然是
+   设计过的深色，而不是恰好等于旧皮肤观感的浅色（那会被误判为"没生效"）。
+
+   加载顺序（layout.tsx 固定，不可调换）
+   ──────────────────────────────────────────────────────────────────────────
+     1. globals.css      基础层 / 布局 / 排版 / 新增组件类
+     2. theme-08t.css    ← 本文件：token → 质感 → 覆盖器（三段同文件内再排序）
+
+   回退：删掉 layout.tsx 里 `import "./theme-08t.css"` 即可全站回到原品牌紫。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. 标题字体（子集 272KB，见 scripts/build-wenkai-subset.py）────────── */
+@font-face {
+  font-family: "LXGW WenKai";
+  src: url("/fonts/lxgw-wenkai-title.woff2") format("woff2");
+  font-weight: 400 500 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2. 设计 token
+   ──────────────────────────────────────────────────────────────────────────
+   断点变量 ↔ CSS 字面值对照（CSS 的 @media 不支持 var()，改一处要改两处）：
+     --bp-sm  480px  ↔  @media (max-width: 480px)
+     --bp-md  768px  ↔  @media (max-width: 768px)
+     --bp-lg  900px  ↔  @media (max-width: 900px)
+     --bp-xl  1080px ↔  @media (max-width: 1080px)
+     --bp-2xl 1440px ↔  @media (max-width: 1440px)
+
+   标题层级（全站唯一一份，见 02 §A.2）：
+     L0 --fs-display 44px/700/1.15/-0.01em  欢迎语、登录页大标题
+     L1 --fs-h1      28px/700/1.30/-0.01em  页面标题（全页唯一 h1）
+     L2 --fs-h2      20px/700/1.40/0       分区标题
+     L3 --fs-h3      17px/700/1.50/0       卡片标题
+     L4 --fs-body    16px/400/1.70/0       正文、表格单元、输入框
+     L4'--fs-sm      14px/400/1.65/0       次要正文、表单 label
+     L5 --fs-xs      13px/500/1.55/+0.04em 微标签：面包屑、th、脚注
+   13px 是全站下限。需要"更小"的层级请用「字重 500 + 正字距」，不要缩字号。
+
+   字重只用 400 / 500 / 700。微软雅黑无真 SemiBold，600 在 Windows 落到 700、
+   在 macOS 是真 600，跨平台不一致；550/650/750/850 会落到 400 或 700 的
+   意外档位。统一收敛到三档。
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: dark;
+
+  /* ── 底层与前景 ── */
+  --background: #090c12;
+  --surface: #111623;
+  --surface-soft: #19202f;
+  --surface-sunken: #0b0f18;
+  --foreground: #f2f5fa;
+  --muted: #a6adbd;
+  --faint: #8791a3;
+  --line: rgba(255, 255, 255, .12);
+  --line-strong: rgba(255, 255, 255, .20);
+
+  /* ── 主色：青蓝。必须拆 fill / ink 两个 token ──
+     深色下 #1C6FCE 作文字压 #111623 只有 3.69:1（不达 AA），
+     提亮到 #6EB8ED 后 8.54:1；浅色下反过来。二者不能共用一个值。 */
+  --primary: #1c6fce;
+  --primary-hover: #185eaf;
+  --primary-ink: #6eb8ed;
+  --primary-soft: #16283f;
+  --on-primary: #ffffff;
+  --violet: #1c6fce;          /* 旧名别名 —— @theme inline 与覆盖器依赖 */
+  --violet-hover: #185eaf;
+
+  /* ── 辅助与语义色 ──
+     ⚠️ --accent-warm-ink 是「压在琥珀上的文字色」，其正确值取决于**压在哪**：
+        · 压在 --accent-warm-soft（深色 #3A3115 深底）→ 琥珀 #DABA62 = 6.86:1 ✓
+        · 压在 --accent-warm（亮琥珀底 #DABA62）→ 必须深墨 #121722 = 9.55:1 ✓
+        · 压在白底（浅色主题）→ 深棕 #8A5A0B = 5.36:1 ✓（浅色块见下方 :264）
+        所以深色块给琥珀、浅色块给深棕，两者不可共用一个值。 */
+  --accent-warm: #daba62;
+  --accent-warm-ink: #daba62;   /* 压 --accent-warm-soft 用；压 --accent-warm 请用 --on-accent */
+  --on-accent: #121722;         /* 压 --accent-warm（亮底）必须用它 */
+  --accent-warm-soft: #3a3115;
+  --success-ink: #45c485;
+  --success-soft: #10301f;
+  --warning-ink: #f6ae31;
+  --warning-soft: #3a2a10;
+  --danger-ink: #f07067;      /* 02 §D.2 实测修正（原 #E4584E on danger-soft 仅 4.48:1） */
+  --danger-soft: #3a1512;
+  --info-ink: #3eb4cc;
+  --info-soft: #0e2a33;       /* Phase 2 新增：进行中态淡底 */
+
+  /* 旧名别名（值随上面走，禁止在别处单独覆写） */
+  --acid: #daba62;
+  --coral: #f07067;
+  --plum: #5a6273;
+  --edge-cyan: #3eb4cc;
+
+  /* ── 过渡态 tint（供 CSS Modules 引用，命名对齐「用途」） ── */
+  --ring-violet-weak: rgba(110, 184, 237, .34);
+  --ring-violet: rgba(110, 184, 237, .55);
+  --border-dashed: rgba(255, 255, 255, .22);
+  --scrim: rgba(3, 6, 12, .72);
+
+  /* 旧名别名 */
+  --paper: var(--background);
+  --paper-raised: var(--surface);
+  --paper-sunken: var(--surface-sunken);
+  --paper-line: var(--line);
+
+  /* ── 阴影（3 档 + 1 内高光） ──
+     深色下阴影几乎不可见（黑压黑），层级靠「边框 + 表面明度差 + 顶部内高光」
+     表达，阴影只负责浮起感。所以深色阴影一律纯黑，绝不带品牌色。 */
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, .40), 0 4px 12px rgba(0, 0, 0, .28);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, .50), 0 2px 6px rgba(0, 0, 0, .40);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --shadow-warm: var(--shadow-raised);
+
+  /* ── 焦点环（双层） ──
+     外环用 --foreground（中性墨）而不是 --primary-ink：焦点环要压在所有可
+     交互元素上，包括主色按钮本身。实测 primary-ink on primary 仅 2.31:1，
+     品牌色外环压在品牌色填充上会消失。中性墨在「浅底/深底/主色填充/琥珀
+     填充」四种背景下都 ≥4.5:1。 */
+  --focus-inner: var(--background);
+  --focus-outer: var(--foreground);
+  --focus-ring: 0 0 0 2px var(--focus-inner), 0 0 0 4px var(--focus-outer);
+
+  /* ── 圆角（4 档 + full） ──
+     现状曾有 12 个不同圆角，相邻差 1px 却肉眼不可辨——那是手工感而非系统感。 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+  --radius-card: var(--radius-lg);
+
+  /* ── 间距（4px 基线） ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* ── 版式 ── */
+  --fs-display: 2.5rem;
+  --fs-h1: 1.75rem;
+  --fs-h2: 1.25rem;
+  --fs-h3: 1.0625rem;
+  --fs-body: 1rem;
+  --fs-sm: .875rem;
+  --fs-xs: .8125rem;
+
+  /* 字距：中文是满框字，负字距会让相邻汉字笔画直接贴上。
+     ≥40px 上限 -0.01em；20–28px 用 0；≤20px 禁止任何负字距。 */
+  --ls-display: -0.01em;
+  --ls-title: -0.01em;
+  --ls-heading: 0;
+  --ls-body: 0;
+  --ls-label: .04em;
+
+  /* ── 动效（只动 transform / opacity） ──
+     不动 width/height/top/left/margin，不动 box-shadow 与 background 的过渡
+     （会触发布局/重绘，深色大面积渐变上非常明显）。禁用 linear 与 ease。 */
+  --dur-fast: 120ms;
+  --dur-base: 160ms;
+  --dur-slow: 240ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+
+  /* ── 布局与触控 ── */
+  --content-w: 1120px;
+  --sidebar-w: 244px;
+  --touch-min: 44px;
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 900px;
+  --bp-xl: 1080px;
+  --bp-2xl: 1440px;
+
+  /* ── 安全区（刘海 / Home Indicator） ── */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --tabbar-h: 56px;
+
+  /* ── 底纹网格：单层 32px（= --space-6），与主间距同源 ──
+     原为 28px + 112px 双层，多一层主格反而在空白区形成条带，与卡片边界打架。 */
+  --grid-size: 32px;
+  --grid-line: rgba(143, 166, 196, .028);
+
+  /* ── 字体栈 ── */
+  --font-display: var(--font-geist-sans), "Microsoft YaHei", sans-serif;
+  --font-title: "LXGW WenKai", var(--font-geist-sans), "Microsoft YaHei", sans-serif;
+  /* 数字 / 品牌标记：文楷的等宽感更弱，仍走系统字栈 */
+  --font-numeric: var(--font-geist-sans), "Microsoft YaHei", sans-serif;
+
+  /* ── 噪点（内联 feTurbulence，零请求）。深色下必须比浅色更淡 ── */
+  --noise-opacity: .025;
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+
+  /* ── 假玻璃（backdrop-filter 保持 0） ──
+     深色下渐变两端都要比背景亮（浅色是"中心亮、四边暗"，像纸）。 */
+  --glass: radial-gradient(120% 120% at 50% 0%,
+    rgba(34, 44, 66, .55) 0%, rgba(17, 22, 35, .75) 100%);
+  --glass-hi: var(--shadow-inset), var(--shadow-raised);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   浅色主题
+   ──────────────────────────────────────────────────────────────────────────
+   ⚠️ 本块与 §2 的 :root 逐项对应，改色时两处同改。
+   4 处对比度修正是 Phase 2 实测结论（Phase 1 遗漏），勿改回：
+     --success-ink      #228155 → #1F6B48  （on success-soft 4.22 → 5.62）
+     --warning-ink      #A55C09 → #96530A  （on warning-soft 4.52 → 5.28）
+     --danger-ink 深色  #E4584E → #F07067  （on danger-soft  4.48 → 5.57）
+     --accent-warm-ink  新增 #8A5A0B    （on #FFF 5.92:1）
+   ══════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --background: #f5f7fa;
+  --surface: #ffffff;
+  --surface-soft: #eef1f6;   /* P1-24：与 sunken 区分度 1.096（阈值 1.06） */
+  --surface-sunken: #e2e7f0; /* 修前 #e7ecf4 与 soft 仅 1.047，肉眼不可分 */
+  --foreground: #161b26;
+  --muted: #5a6273;
+  --faint: #5f6779;
+  --line: rgba(11, 14, 20, .12);
+  --line-strong: rgba(11, 14, 20, .20);
+
+  --primary: #1c4cce;
+  --primary-hover: #1840af;
+  --primary-ink: #1c4cce;
+  --primary-soft: #e7edfb;
+  --on-primary: #ffffff;
+  --violet: #1c4cce;
+  --violet-hover: #1840af;
+
+  --accent-warm: #ca9121;
+  --accent-warm-ink: #8a5a0b;
+  --on-accent: #121722;
+  --accent-warm-soft: #fbf3e2;
+  --success-ink: #1f6b48;
+  --success-soft: #e4f3ea;
+  --warning-ink: #96530a;
+  --warning-soft: #fdf0dc;
+  --danger-ink: #b8281e;
+  --danger-soft: #fce9e7;
+  --info-ink: #1f7084;
+  --info-soft: #e4f4f7;
+
+  --acid: #ca9121;
+  --coral: #b8281e;
+  --plum: #161b26;
+  --edge-cyan: #1f7084;
+
+  --ring-violet-weak: rgba(28, 76, 206, .28);
+  --ring-violet: rgba(28, 76, 206, .45);
+  --border-dashed: rgba(11, 14, 20, .20);
+  --scrim: rgba(22, 27, 38, .48);
+
+  --shadow-raised: 0 1px 2px rgba(16, 24, 40, .06), 0 2px 8px rgba(16, 24, 40, .05);
+  --shadow-overlay: 0 12px 32px rgba(16, 24, 40, .12), 0 2px 6px rgba(16, 24, 40, .07);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, .70);
+
+  --focus-inner: var(--surface);
+  --focus-outer: var(--foreground);
+
+  --glass: radial-gradient(120% 120% at 50% 0%,
+    rgba(255, 255, 255, .97) 0%, rgba(247, 249, 252, .90) 100%);
+  --glass-hi: var(--shadow-inset), var(--shadow-raised);
+
+  --grid-line: rgba(28, 76, 204, .030);
+  --noise-opacity: .04;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3. 质感层：底纹 / 微光 / 主视觉面板 / 玻璃卡片
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 3.1 工程网格：单层、极低透明度。background-position:-1px -1px 让线落在
+       整数像素上，避免半线模糊。 */
+body {
+  background-color: var(--background);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  background-position: -1px -1px;
+}
+
+/* 3.2 顶部单侧微光：暗示"光源来自上方"，与卡片顶部内高光同源。
+       取代原 body::before/::after 的左右 2px 边缘光条（纯装饰、信息量为零，
+       且左侧紫条与主色撞色）。color-mix 让微光自动跟随 --primary 换肤。 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: 420px;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(80% 100% at 50% 0%,
+    color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 70%);
+}
+:root[data-theme="light"] body::before {
+  background: radial-gradient(80% 100% at 50% 0%,
+    color-mix(in srgb, var(--primary) 6%, transparent) 0%, transparent 70%);
+}
+
+/* 3.3 侧栏 / 登录卡：假玻璃（97% 实底 + 1px 高光描边 + 阴影，零滤镜） */
+.app-sidebar {
+  background: var(--glass);
+  background-color: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--glass-hi);
+  backdrop-filter: none;   /* 深色下 backdrop-filter 会让背后内容透出，产生脏边 */
+}
+.auth-card {
+  background: var(--glass);
+  background-color: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow-inset), var(--shadow-overlay);
+}
+
+/* 3.4 主视觉面板：主色渐变 + 噪点。噪点只用在主视觉面板上，卡片不加
+       （深色下噪点会显脏）。 */
+/* ⚠️ 不要在这里写 practice 的类名：practice.module.css 是 CSS Module，
+   类名带哈希，本文件的全局选择器匹配不到。practice 主视觉面板的配色在
+   practice.module.css 内用 var(--primary) 自行声明。 */
+.welcome-panel,
+.auth-story {
+  position: relative;
+  background: linear-gradient(155deg,
+    color-mix(in srgb, var(--primary) 92%, #ffffff 8%) 0%,
+    var(--primary) 58%,
+    color-mix(in srgb, var(--primary) 84%, #000000 16%) 100%);
+  box-shadow: var(--shadow-overlay);
+}
+.welcome-panel::after,
+.auth-story::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: var(--noise);
+  opacity: var(--noise-opacity);
+}
+
+/* HUD 角标（纯装饰，卡片 overflow:hidden 会自然裁切） */
+.welcome-panel > .welcome-hud::before,
+.welcome-panel > .welcome-hud::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+.welcome-panel > .welcome-hud::before {
+  top: 16px; left: 16px;
+  border-top: 1px solid rgba(255, 255, 255, .27);
+  border-left: 1px solid rgba(255, 255, 255, .27);
+}
+.welcome-panel > .welcome-hud::after {
+  bottom: 16px; right: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, .20);
+  border-right: 1px solid rgba(255, 255, 255, .20);
+}
+
+/* 3.5 主视觉面板上的文字 —— 白字压主色，4.98:1 ✓ */
+.welcome-panel h1,
+.welcome-panel .welcome-title,
+.auth-story-copy h1,
+.auth-story-copy .welcome-title { color: var(--on-primary); }
+.welcome-panel p:not(.eyebrow),
+.auth-story-copy p { color: color-mix(in srgb, var(--on-primary) 88%, transparent); }
+
+/* 3.6 装饰件的白色描边：深色下 #ffffff40（40% 白）过亮，统一降到 12–27% */
+.welcome-art::before,
+.welcome-art::after {
+  border-color: rgba(255, 255, 255, .12);
+  box-shadow: 0 0 0 17px rgba(255, 255, 255, .05), 0 0 0 35px rgba(255, 255, 255, .05);
+}
+.welcome-art::after { border-color: rgba(255, 255, 255, .27); box-shadow: none; }
+.art-card {
+  border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--on-accent);
+  background: var(--accent-warm);
+  box-shadow: var(--shadow-overlay);
+}
+.art-bar:nth-child(3) { background: color-mix(in srgb, var(--on-primary) 88%, transparent); }
+.art-bar:nth-child(4) { background: var(--accent-warm); }
+.auth-story::before,
+.auth-story::after { border-color: rgba(255, 255, 255, .12); }
+.auth-brand-mark { color: var(--on-accent); background: var(--accent-warm); }
+
+/* 3.7 eyebrow：青色脉冲点。光晕用 color-mix 跟随 --info-ink */
+.eyebrow {
+  position: relative;
+  padding-left: 13px;
+  font-family: var(--font-numeric);
+}
+.eyebrow::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: var(--edge-cyan);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--info-ink) 22%, transparent);
+}
+
+/* 3.8 文楷只上标题 / 品牌 / 徽章（正文保持系统字栈）
+       ⚠️ 这里只声明 font-family。字重与字距由 globals.css 的字阶表统一控制——
+       早期版本在本块写了 font-weight:500 + letter-spacing:-.02em，由于本文件
+       在 globals.css 之后 import，同特异性下会赢掉 globals 的 700 与 0，
+       导致标题层级调整全部失效。绝不要在这里加回字重/字距。 */
+.welcome-panel h1,
+.welcome-panel .welcome-title,
+.auth-story-copy h1,
+.auth-story-copy .welcome-title,
+.auth-card h2,
+.auth-card h1,
+.app-content h1,
+.app-content h2,
+.app-content h3,
+.app-title,
+.section-heading,
+.app-brand,
+.auth-brand,
+.link-card-label {
+  font-family: var(--font-title);
+}
+.app-brand-mark,
+.auth-brand-mark,
+.user-avatar,
+.app-tab__label,
+.stepper__badge,
+.section-heading__index { font-family: var(--font-numeric); }
+
+/* 3.9 按钮：主色填充 + 上边缘内高光。不做 hover 位移（按钮本身小，位移 1px
+       几乎不可见，反而显得"漂移"不稳定）；hover 改用亮度，active 才下压。 */
+.button-primary,
+.welcome-action {
+  background: var(--primary);
+  box-shadow: var(--shadow-inset), 0 2px 8px color-mix(in srgb, var(--primary-ink) 18%, transparent);
+}
+.button-primary:hover,
+.welcome-action:hover { background: var(--primary-hover); }
+:root[data-theme="light"] .button-primary,
+:root[data-theme="light"] .welcome-action {
+  /* 浅色下主按钮焦点环内层需用白色，才能与外层深墨环拉开（见 02 附录 B） */
+  --focus-inner: var(--on-primary);
+}
+
+/* 3.10 链接卡片图标框：统一几何，语义色调用 tone 修饰类而非序号类 */
+.link-card-icon { background: var(--primary-soft); color: var(--primary-ink); }
+.link-card--warm   .link-card-icon { color: var(--accent-warm-ink); background: var(--accent-warm-soft); }
+.link-card--success .link-card-icon { color: var(--success-ink);   background: var(--success-soft); }
+.link-card--info   .link-card-icon { color: var(--info-ink);      background: var(--info-soft); }
+.link-card--warning .link-card-icon { color: var(--warning-ink);   background: var(--warning-soft); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4. Tailwind 硬编码色值覆盖层
+   ──────────────────────────────────────────────────────────────────────────
+   ⚠️ 三条铁律（01 §10.1）：
+   1. 这些选择器永远不能进 CSS Module —— Module 给类名加哈希，
+      `[class*="text-[#302a38]"]` 的属性子串匹配会彻底失效。
+   2. 不要"顺手清理"这些看起来很脏的类名。它们是换肤锚点，清理 = 破坏主题。
+   3. !important 是必需的。Tailwind 工具类的优先级来自 @layer，全局无 layer
+      声明的选择器会输给它。
+
+   匹配说明：[class*="bg-[#xxxxxx]"] 是子串匹配，因此 `bg-[#d7ef67]/30` 会被
+   `bg-[#d7ef67]` 那条命中。透明度层级由 §4.2 的分档规则在同一特异性下按
+   source order 覆盖回来。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 4.1 基线接管 ──────────────────────────────────────────────────────── */
+
+/* 正文墨色 #302a38（47 处）→ 前景色。
+   注意：这是"正文墨"的语义，必须给 --foreground 而不是 --muted；
+   --muted 留给 /60 这类辅助文字的分档（见 4.2）。 */
+.app-content [class*="text-[#302a38]"],
+.app-content [class*="text-[#1e2a3a]"] { color: var(--foreground) !important; }
+
+/* 品牌紫的文字用途必须走 ink，填充用途才走 primary（深色下二者差 6:1） */
+.app-content [class*="text-[#754be6]"] { color: var(--primary-ink) !important; }
+.app-content [class*="bg-[#754be6]"] { background-color: var(--primary) !important; }
+.app-content [class*="border-[#754be6]"] { border-color: var(--ring-violet) !important; }
+
+/* 描边一律走 line 阶梯 */
+.app-content [class*="border-[#302a38]"],
+.app-content [class*="border-[#1e2a3a]"] { border-color: var(--line) !important; }
+
+/* 淡底族 → surface-soft */
+.app-content [class*="bg-[#f3f0ff]"],
+.app-content [class*="bg-[#f7f6fa]"],
+.app-content [class*="bg-[#e9e2ff]"],
+.app-content [class*="bg-[#faf6ee]"] { background-color: var(--surface-soft) !important; }
+
+/* 荧光黄绿 #d7ef67 → 低饱和琥珀（仅填充/装饰，≤5% 面积） */
+.app-content [class*="bg-[#d7ef67]"] { background-color: var(--accent-warm) !important; }
+.app-content [class*="border-[#d7ef67]"] { border-color: var(--ring-violet-weak) !important; }
+
+/* 橙（AI 按钮）→ 琥珀 */
+.app-content [class*="bg-[#e8863a]"] { background-color: var(--accent-warm) !important; }
+.app-content [class*="text-[#e8863a]"] { color: var(--accent-warm-ink) !important; }
+
+/* 深蓝墨 #1e2a3a（22 处，原先无任何覆盖）：文本→前景，填充→surface-soft。
+   TutorPanel 的「发送」按钮是 bg-[#1e2a3a] + text-white —— 在深色下
+   surface-soft #19202F 上压白字 = 15.9:1 ✓，浅色下 #EDF1F7 上压白字 =
+   1.1:1 ✗。所以这条要单独把该按钮拉回主色。 */
+.app-content [class*="bg-[#1e2a3a]"] { background-color: var(--surface-soft) !important; }
+.app-content button[class*="bg-[#1e2a3a]"] {
+  background-color: var(--primary) !important;
+  color: var(--on-primary) !important;
+  min-height: var(--touch-min);
+  border: 0;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.app-content button[class*="bg-[#1e2a3a]"]:hover { background-color: var(--primary-hover) !important; }
+
+/* bg-white（29 处）+ bg-white/70（3 处）= 32 处纯白容器。
+   命名色抓不到十六进制子串匹配，必须单独一层，否则深色下是 32 块刺眼白斑。 */
+.app-content [class*="bg-white"] { background-color: var(--surface) !important; }
+
+/* text-white（17 处）：全部压在主色按钮上，正确做法是让它跟随主色文字色，
+   这样主色换肤时按钮文字不会掉队。 */
+.app-content [class*="text-white"] { color: var(--on-primary) !important; }
+
+/* bg-blue-50（TutorPanel 的 AI 气泡）→ info 淡底 */
+.app-content [class*="bg-blue-50"],
+.app-content [class*="bg-blue-100"] { background-color: var(--info-soft) !important; }
+
+/* 语义命名色：红=危险 / 绿=成功 / 橙黄=警告 */
+.app-content [class*="text-red-"],
+.app-content [class*="text-rose-"] { color: var(--danger-ink) !important; }
+.app-content [class*="bg-red-"],
+.app-content [class*="bg-rose-"] { background-color: var(--danger-soft) !important; }
+.app-content [class*="text-green-"],
+.app-content [class*="text-emerald-"] { color: var(--success-ink) !important; }
+.app-content [class*="bg-green-"],
+.app-content [class*="bg-emerald-"] { background-color: var(--success-soft) !important; }
+.app-content [class*="text-orange-"],
+.app-content [class*="text-amber-"] { color: var(--warning-ink) !important; }
+.app-content [class*="bg-orange-"],
+.app-content [class*="bg-amber-"] { background-color: var(--warning-soft) !important; }
+
+/* Tailwind 卡片统一成 token 玻璃 */
+.app-content [class*="rounded-xl"][class*="border"] {
+  border-radius: var(--radius-lg);
+  border-color: var(--line) !important;
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ── 4.2 透明度分档：把 4.1 抹平的层级找回来 ────────────────────────────
+   4.1 把 color 整体覆盖成了单一值，丢掉了原本 /45 /50 /60 /70 的层次，结果是
+   45 处「本该淡一点的说明文字」全部同色，"哪里都一样、看不出重点"。
+   下面按原透明度语义分档，靠「同特异性 + 后写者胜」赢过 4.1。
+   实测分档：/45–/55 → --faint（AA 5.67–5.68:1）；/60–/70 → --muted（6.12–8.03:1） */
+.app-content [class*="text-[#302a38]/45"],
+.app-content [class*="text-[#302a38]/50"],
+.app-content [class*="text-[#302a38]/55"],
+.app-content [class*="text-[#1e2a3a]/45"],
+.app-content [class*="text-[#1e2a3a]/50"],
+.app-content [class*="text-[#1e2a3a]/55"] { color: var(--faint) !important; }
+
+.app-content [class*="text-[#302a38]/60"],
+.app-content [class*="text-[#302a38]/65"],
+.app-content [class*="text-[#302a38]/70"],
+.app-content [class*="text-[#1e2a3a]/60"] { color: var(--muted) !important; }
+
+/* 描边透明度分档：5%/10% 是"几乎看不见"，15%/20% 是"可见边界" */
+.app-content [class*="border-[#302a38]/5"],
+.app-content [class*="border-[#302a38]/10"],
+.app-content [class*="border-[#302a38]/15"],
+.app-content [class*="border-[#1e2a3a]/10"],
+.app-content [class*="border-[#1e2a3a]/20"],
+.app-content [class*="border-[#754be6]/25"],
+.app-content [class*="border-[#754be6]/30"] { border-color: var(--line) !important; }
+
+.app-content [class*="border-[#754be6]/40"] { border-color: var(--ring-violet) !important; }
+.app-content [class*="hover:border-[#754be6]/40"]:hover,
+.app-content [class*="hover:border-[#754be6]/30"]:hover { border-color: var(--primary) !important; }
+
+/* 琥珀淡底的三档透明度 → 保留"点缀块"的通透感，不压成实心 */
+.app-content [class*="bg-[#d7ef67]/25"],
+.app-content [class*="bg-[#d7ef67]/30"] { background-color: var(--accent-warm-soft) !important; }
+.app-content [class*="bg-[#d7ef67]/50"] { background-color: var(--accent-warm-soft) !important; }
+
+/* bg-white/70：半透明白 meant "轻一点的卡片"。深色下用 surface-soft 表达
+   "次级填充"，浅色下用 background 实底 + 边框，避免白底上白卡无边界。 */
+.app-content [class~="bg-white/70"] { background-color: var(--surface-soft) !important; }
+:root[data-theme="light"] .app-content [class~="bg-white/70"] {
+  background-color: var(--surface) !important;
+  border-color: var(--line);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5. 无 .app-content 前缀的兜底覆盖
+   ──────────────────────────────────────────────────────────────────────────
+   4.1 的选择器只在 <main class="app-content"> 内生效（由 AuthGuard 提供）。
+   登录页 / 改密页没有 .app-content 祖先，AuthGuard 的 .app-loading、
+   移动端「更多」抽屉与底部 Tab 栏也渲染在其外侧。以下三条兜底不带前缀。 */
+.auth-card [class*="bg-white"],
+.auth-page [class*="bg-white"] { background-color: var(--surface) !important; }
+.app-loading { background-color: var(--background); }
+.app-more__panel,
+.app-tabbar { background-color: var(--surface); }

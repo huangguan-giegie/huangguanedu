@@ -138,8 +138,9 @@ model User {
   teacherProfile       TeacherProfile?
   makeupCreditsCreated MakeupCredit[]    @relation("MakeupCreditCreator")
   reviewedSummaries     LearningSummary[] @relation("LearningSummaryReviewer")
-  wrongQuestionFavorites WrongQuestionFavorite[]
   createdAcademicTerms  AcademicTerm[]    @relation("AcademicTermCreator")
+  wrongQuestionFavorites WrongQuestionFavorite[]
+  practiceGenerationJobs PracticeGenerationJob[]
 
   @@index([role])
   @@index([deletedAt])
@@ -216,10 +217,11 @@ model Student {
   makeupCredits      MakeupCredit[]
   wrongQuestions     WrongQuestion[]
   rawQuestionImages  RawQuestionImage[]
-  summaries          LearningSummary[]
-  practiceSets       PracticeSet[]
-  knowledgeMasteries KnowledgeMastery[]
-  practiceAttempts   PracticeAttempt[]
+  summaries         LearningSummary[]
+  practiceSets      PracticeSet[]
+  practiceGenerationJobs PracticeGenerationJob[]
+  knowledgeMasteries     KnowledgeMastery[]
+  practiceAttempts       PracticeAttempt[]
 
   @@index([name])
 }
@@ -492,21 +494,6 @@ model WrongQuestion {
   @@index([isTeacherReviewed])
 }
 
-// 收藏记录：每个登录用户独立维护错题收藏状态。
-model WrongQuestionFavorite {
-  id              String   @id @default(cuid())
-  wrongQuestionId String
-  userId          String
-  createdAt       DateTime @default(now())
-
-  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([wrongQuestionId, userId])
-  @@index([userId, createdAt])
-  @@index([wrongQuestionId])
-}
-
 // 错题再次出错记录(用于统计薄弱知识点)
 model WrongQuestionOccurrence {
   id              String   @id @default(cuid())
@@ -550,6 +537,7 @@ model StudentAnswerAttempt {
 model AnalysisJob {
   id              String            @id @default(cuid())
   wrongQuestionId String
+  modelOverride   String?
   status          AnalysisJobStatus @default(PENDING)
   attempts        Int               @default(0)
   nextRunAt       DateTime          @default(now())
@@ -598,6 +586,21 @@ model LearningSummary {
   @@index([needsRetry])
 }
 
+// 收藏独立归属登录用户，家庭、老师和管理员互不影响。
+model WrongQuestionFavorite {
+  id              String   @id @default(cuid())
+  wrongQuestionId String
+  userId          String
+  createdAt       DateTime @default(now())
+
+  wrongQuestion WrongQuestion @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([wrongQuestionId, userId])
+  @@index([userId, createdAt])
+  @@index([wrongQuestionId])
+}
+
 // 学期(管理员配置开始/结束日期,用于学期总结)
 model AcademicTerm {
   id          String   @id @default(cuid())
@@ -620,12 +623,14 @@ model PracticeSet {
   studentId String
   title     String
   summaryId String?
-  mode      String   @default("TARGETED")
+  // TARGETED（指定错题）/ SELECTED_WRONG_QUESTIONS / ADAPTIVE_REVIEW（按掌握度挑题）
+  mode     String   @default("TARGETED")
   createdAt DateTime @default(now())
 
   student  Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
   summary  LearningSummary?    @relation(fields: [summaryId], references: [id], onDelete: SetNull)
   questions PracticeQuestion[]
+  generationJob PracticeGenerationJob?
 
   @@index([studentId])
   @@index([summaryId])
@@ -633,44 +638,50 @@ model PracticeSet {
 
 // 模拟题
 model PracticeQuestion {
-  id                     String   @id @default(cuid())
-  practiceSetId          String
-  question               String
-  answer                 String
-  explanation            String?
-  difficulty             String   @default("MEDIUM")
-  knowledgePoints        Json?
+  id            String   @id @default(cuid())
+  practiceSetId String
+  question      String
+  answer        String
+  explanation   String?
+  imagePath     String?
+  diagram       Json?
+  knowledgePoints Json?
   sourceWrongQuestionIds Json?
-  diagram                Json? // validated, deterministic geometry/coordinate diagram
-  gradingMode            String   @default("AUTO")
-  createdAt              DateTime @default(now())
+  difficulty     Difficulty @default(MEDIUM)
+  gradingMode    String     @default("AUTO")
+  createdAt     DateTime @default(now())
 
-  practiceSet PracticeSet      @relation(fields: [practiceSetId], references: [id], onDelete: Cascade)
+  practiceSet PracticeSet @relation(fields: [practiceSetId], references: [id], onDelete: Cascade)
   attempts    PracticeAttempt[]
 
   @@index([practiceSetId])
 }
 
-// 学生对生成练习题的真实作答与服务端判题结果
-model PracticeAttempt {
-  id                 String        @id @default(cuid())
-  practiceQuestionId String
-  studentId          String
-  answer             String
-  result             AttemptResult
-  score              Int
-  feedback           String?
-  gradingMethod      String        @default("DETERMINISTIC")
-  attemptedAt        DateTime      @default(now())
+// 异步生成任务持久化，页面刷新或服务重启后仍能查询与恢复。
+model PracticeGenerationJob {
+  id                  String   @id @default(cuid())
+  studentId           String
+  requestedById       String
+  difficulty          String?
+  wrongQuestionIds    Json
+  status              String   @default("PENDING")
+  error               String?
+  resultPracticeSetId String?  @unique
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  practiceQuestion PracticeQuestion @relation(fields: [practiceQuestionId], references: [id], onDelete: Cascade)
-  student          Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  requestedBy  User         @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+  practiceSet  PracticeSet? @relation(fields: [resultPracticeSetId], references: [id], onDelete: SetNull)
 
-  @@index([practiceQuestionId, attemptedAt])
-  @@index([studentId, attemptedAt])
+  @@index([status, createdAt])
+  @@index([studentId])
+  @@index([requestedById, createdAt])
 }
 
-// 轻量间隔复习状态：不运行本地模型，只存少量数值并在作答时更新
+// 自适应学习：知识点掌握度（SM-2 间隔重复）。
+// 由 adaptive learning v2 引入，与错题模拟练习并存——掌握度只决定「挑哪些知识点出题」，
+// 出题与渲染仍走 practice-set.ts 的图形与符号后处理链，两者互不替代。
 model KnowledgeMastery {
   id              String   @id @default(cuid())
   studentId       String
@@ -691,4 +702,23 @@ model KnowledgeMastery {
   @@unique([studentId, subject, knowledgePoint])
   @@index([studentId, nextReviewAt])
   @@index([studentId, masteryScore])
+}
+
+// 学生作答记录：支撑自动判分与「练过几次」的统计。
+model PracticeAttempt {
+  id                 String        @id @default(cuid())
+  practiceQuestionId String
+  studentId          String
+  answer             String
+  result             AttemptResult
+  score              Int
+  feedback           String?
+  gradingMethod      String        @default("DETERMINISTIC")
+  attemptedAt        DateTime      @default(now())
+
+  practiceQuestion PracticeQuestion @relation(fields: [practiceQuestionId], references: [id], onDelete: Cascade)
+  student          Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([practiceQuestionId, attemptedAt])
+  @@index([studentId, attemptedAt])
 }

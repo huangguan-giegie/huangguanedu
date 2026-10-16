@@ -21,6 +21,7 @@
 
 # production
 /build
+.code_deploy/
 
 # misc
 .DS_Store
@@ -91,3 +92,31 @@ pnpm-debug.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# 阿里云部署与验收工具脚本（本地一次性用，不入库）
+.aliyun-*.sh
+.aliyun-*.mjs
+.mcp-*.mjs
+.pkg/
+.pdf-print.mjs
+.codex-continue-safe*.txt
+.aliyun-*.json
+.codex-*.txt
+aliyun-*.json
+.geo-*.py
+.geo-*.py
+.inject-file.sh
+.pkg-*.py
+.verify-*.ts
+.dbg-*.ts
+.extract-codex-history.mjs
+*.genie
+.pg0-probe.txt
+mcp-*.mjs
+deliverables/
+
+# 备份产物：ops/ 下的脚本要入库，但本地 dump 不能进仓库
+.backups/
+*.dump
+*.sha256
+.aliyun-osscheck.py

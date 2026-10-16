@@ -6,25 +6,40 @@ interface MathFieldLike extends HTMLElement {
   value: string;
 }
 
-const MATHLIVE_SRC = "https://cdn.jsdelivr.net/npm/mathlive@0.111.0/+esm";
+const MATHLIVE_BASE = "/vendor/mathlive/0.111.0";
+const MATHLIVE_SRC = `${MATHLIVE_BASE}/mathlive.min.mjs`;
+
+function configureMathLive() {
+  const element = customElements.get("math-field") as
+    | (CustomElementConstructor & { fontsDirectory: string; soundsDirectory: string })
+    | undefined;
+  if (element) {
+    element.fontsDirectory = `${MATHLIVE_BASE}/fonts`;
+    element.soundsDirectory = `${MATHLIVE_BASE}/sounds`;
+  }
+}
 
 function ensureMathLive(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  if (customElements.get("math-field")) return Promise.resolve();
+  if (customElements.get("math-field")) {
+    configureMathLive();
+    return Promise.resolve();
+  }
 
   return new Promise((resolve, reject) => {
+    const loaded = () => { configureMathLive(); resolve(); };
     const existing = document.querySelector<HTMLScriptElement>('script[data-huangguan-mathlive="1"]');
     if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("MathLive load failed")), { once: true });
+      existing.addEventListener("load", loaded, { once: true });
+      existing.addEventListener("error", () => reject(new Error("公式输入组件加载失败")), { once: true });
       return;
     }
     const script = document.createElement("script");
     script.type = "module";
     script.src = MATHLIVE_SRC;
     script.dataset.huangguanMathlive = "1";
-    script.addEventListener("load", () => resolve(), { once: true });
-    script.addEventListener("error", () => reject(new Error("MathLive load failed")), { once: true });
+    script.addEventListener("load", loaded, { once: true });
+    script.addEventListener("error", () => reject(new Error("公式输入组件加载失败")), { once: true });
     document.head.appendChild(script);
   });
 }
@@ -81,14 +96,20 @@ export function MathAnswerInput(props: {
           const target = event.currentTarget as MathFieldLike;
           props.onChange(target.value);
         },
+        // ⚠️ 不能写死 rgba(30,42,58,.2) / white：#1e2a3a 是旧皮肤的深蓝墨，
+        //    white 是纯白。深色主题下 math-field 内部会是一块刺眼白底 + 几乎
+        //    看不见的边框。改读 CSS 变量，跟随主题换肤。
         style: {
           display: "block",
           width: "100%",
+          minWidth: 0,
+          maxWidth: "100%",
           minHeight: "44px",
           padding: "9px 12px",
-          border: "1px solid rgba(30,42,58,.2)",
-          borderRadius: "8px",
-          background: "white",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--surface)",
+          color: "var(--foreground)",
         },
       })}
       <p className="mt-1 text-xs text-[#1e2a3a]/45">支持公式键盘与 LaTeX 输入</p>

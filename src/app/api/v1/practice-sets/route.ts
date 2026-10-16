@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 import { requireRole } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/db";
 import type { Prisma } from "../../../../generated/prisma/client";
+import { serializePracticeSet } from "../../../../lib/practice-set";
 
 export async function GET(request: NextRequest) {
   const auth = await requireRole(request, prisma, ["FAMILY", "TEACHER", "ADMIN"]);
@@ -34,45 +35,20 @@ export async function GET(request: NextRequest) {
   if (studentIds) {
     where.studentId = { in: studentIds };
   }
+  const requestedStudentId = request.nextUrl.searchParams.get("studentId")?.trim();
+  if (requestedStudentId) where.AND = { studentId: requestedStudentId };
 
   const sets = await prisma.practiceSet.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: {
-      student: true,
-      questions: {
-        include: {
-          attempts: {
-            orderBy: { attemptedAt: "desc" },
-            take: 1,
-          },
-        },
-      },
-    },
+    include: { student: true, questions: { orderBy: { createdAt: "asc" } } },
   });
 
   return NextResponse.json({
     success: true,
     data: {
-      items: sets.map((s) => ({
-        id: s.id,
-        studentId: s.studentId,
-        studentName: s.student.name,
-        title: s.title,
-        summaryId: s.summaryId,
-        mode: s.mode,
-        questions: s.questions.map((question) => ({
-          id: question.id,
-          question: question.question,
-          answer: question.answer,
-          explanation: question.explanation,
-          diagram: question.diagram,
-          difficulty: question.difficulty,
-          knowledgePoints: question.knowledgePoints,
-          lastAttempt: question.attempts[0] ?? null,
-        })),
-        createdAt: s.createdAt,
-      })),
+      // 列表页不展示学科，不传 prisma 以省去每份练习集的额外查询
+      items: await Promise.all(sets.map((set) => serializePracticeSet(set))),
     },
   });
 }

@@ -45,8 +45,7 @@ export function getCsrfCookieOptions(value: string): {
 
 /** 校验来源与站点是否同源（Origin 缺失时回退 Referer） */
 function validateSameOrigin(request: NextRequest): boolean {
-  const siteOrigin = new URL(request.url).origin;
-
+  const siteOrigin = new URL(process.env.APP_BASE_URL?.trim() || request.url).origin;
   const origin = request.headers.get("origin");
   if (origin) {
     return origin === siteOrigin;

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         userId: t.userId,
         phone: t.user.phone,
         name: t.user.name,
-        isActive: t.user.isActive,
+        isActive: t.user.isActive && !t.user.deletedAt,
         university: t.university,
         major: t.major,
         degree: t.degree,
@@ -69,24 +69,21 @@ export async function POST(request: NextRequest) {
   }
 
   const tempPassword = generateRandomPassword();
-  const user = await prisma.user.create({
-    data: {
-      phone,
-      passwordHash: await hashPassword(tempPassword),
-      role: "TEACHER",
-      name,
-      mustChangePassword: true,
-    },
+  const passwordHash = await hashPassword(tempPassword);
+  const created = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: { phone, passwordHash, role: "TEACHER", name, mustChangePassword: true },
+    });
+    const teacher = await tx.teacherProfile.create({
+      data: { userId: user.id, university, major, degree },
+    });
+    return { user, teacher };
+  }).catch((error: unknown) => {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") return null;
+    throw error;
   });
-
-  const teacher = await prisma.teacherProfile.create({
-    data: {
-      userId: user.id,
-      university,
-      major,
-      degree,
-    },
-  });
+  if (!created) return jsonError(409, "PHONE_EXISTS", "该手机号已被使用");
+  const { user, teacher } = created;
 
   await writeAuditLog(prisma, {
     actor: { id: auth.user.id, name: auth.user.name },
