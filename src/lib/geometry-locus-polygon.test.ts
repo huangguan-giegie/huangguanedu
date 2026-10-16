@@ -74,7 +74,9 @@ describe("任意多边形及几何轨迹",()=>{
   const circle=createShape(doc,"circle",p.ids[0],p.ids[1]);doc=circle.document;
   const other=createShape(doc,"line",p.ids[2],p.ids[3]);doc=other.document;
   expect(()=>createLocus(doc,p.ids[2],circle.id,p.ids[3])).toThrow("必须依赖驱动点");
-  expect(()=>createLocus(doc,p.ids[2],other.id,p.ids[2])).toThrow("路径不能依赖自身");
+  const meet=createIntersections(doc,other.id,circle.id);
+  expect(meet.ids.length).toBeGreaterThan(0);
+  expect(()=>createLocus(meet.document,p.ids[2],other.id,meet.ids[0])).toThrow("路径不能依赖自身");
   expect(()=>validateDocument({version:1,objects:[
    ...doc.objects,{id:"g100",label:"bad",kind:"locus",driver:circle.id,path:circle.id,target:p.ids[2],samples:96}
   ]})).toThrow();
