@@ -9,6 +9,25 @@ const input = { grade: "初二", difficulty: "MEDIUM" as const, wrongQuestions: 
 
 describe("模拟题迁移", () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
+  it.each([
+    { diagram: { type: "triangle_angle_bisector", sides: "6-9-10" }, answer: "4 cm" },
+    { diagram: { type: "similar_right_triangles", smallLegs: "3-4", factor: 2, task: "LARGE_BASE" }, answer: "6 cm" },
+    { diagram: { type: "two_circles_external_tangent", circles: "7-2-13" }, answer: "12 cm" },
+  ])("异步生成也支持新增几何类型 $diagram.type", async ({ diagram, answer }) => {
+    vi.stubEnv("QWEN_MODE", "live"); vi.stubEnv("DASHSCOPE_API_KEY", "test"); vi.stubEnv("DASHSCOPE_BASE_URL", "https://example.test/v1");
+    const request = vi.fn(async (_url, options) => {
+      expect(String(options?.body)).toContain(diagram.type);
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+        title: "几何构造练习", questions: [{ question: "错误题面", answer: "999", explanation: "错误解析", diagram }],
+      }) } }] }));
+    });
+    const output = await generatePracticeSetAi({ ...input, wrongQuestions: [{ ...input.wrongQuestions[0], subject: "MATH" }] }, request as unknown as typeof fetch);
+    expect(output.questions[0].answer).toBe(answer);
+    const persisted = await persistQuestions(output);
+    expect(persisted.questions[0]).toMatchObject({ answer, diagram, imagePath: null });
+    expect(persisted.diagramFailures).toEqual([]);
+    expect(save).not.toHaveBeenCalled();
+  });
   it("异步出题使用精确图形参数覆盖模型编造的题面与答案", async () => {
     vi.stubEnv("QWEN_MODE", "live"); vi.stubEnv("DASHSCOPE_API_KEY", "test"); vi.stubEnv("DASHSCOPE_BASE_URL", "https://example.test/v1");
     const request = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
