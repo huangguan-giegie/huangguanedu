@@ -12,7 +12,7 @@ function points(doc:GeometryDocument,coords:Point[]){
 }
 describe("任意多边形及几何轨迹",()=>{
  it("凸多边形、凹多边形可以按任意点顺序定义，计算实际周长和面积",()=>{
-  let p=points(blankDocument(),[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:2,y:1},{x:0,y:4}]);
+  const p=points(blankDocument(),[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:2,y:1},{x:0,y:4}]);
   const created=createPolygon(p.doc,p.ids);p.doc=created.document;
   const resolved=resolveDocument(p.doc).find(v=>v.object.id===created.id);
   expect(resolved?.polygon).toHaveLength(5);
@@ -40,7 +40,7 @@ describe("任意多边形及几何轨迹",()=>{
   expect(deleteCascade(document,initial.ids[0]).objects.some(o=>o.id===id)).toBe(false);
  });
  it("驱动点沿圆运动，依赖交点生成可重算的轨迹（非鼠标残影）",()=>{
-  let p=points(blankDocument(),[
+  const p=points(blankDocument(),[
    {x:0,y:0}, // path circle center
    {x:3,y:0}, // path circle through
    {x:1,y:1}, // free driver
