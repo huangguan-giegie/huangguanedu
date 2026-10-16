@@ -10,6 +10,7 @@
   --shadow-overlay:0 24px 64px #02091966; --nav-glass:#101c35ed;
   --coastal-navy:#0b2161; --coastal-lime:#b8ff36; --coastal-ease:cubic-bezier(.2,.75,.2,1);
   --font-display:var(--font-geist-sans),"Microsoft YaHei",sans-serif;
+  --font-title:var(--font-display);
 }
 :root[data-theme="light"] {
   --background:#f3f5f8; --surface:#fff; --surface-soft:#edf2f8; --surface-sunken:#e8edf5;

@@ -12,11 +12,9 @@
   min-height: 190px;
   padding: 30px 34px;
   border-radius: var(--radius-xl);
-  color: var(--on-primary);
-  background: linear-gradient(155deg,
-    color-mix(in srgb, var(--primary) 92%, #ffffff 8%) 0%,
-    var(--primary) 58%,
-    color-mix(in srgb, var(--primary) 84%, #000000 16%) 100%);
+  color: #fff;
+  background: radial-gradient(ellipse at 95% 0%, #408fad60, transparent 60%),
+    linear-gradient(120deg, #0b2161, #163765);
   box-shadow: var(--shadow-overlay);
 }
 /* 主视觉标题：这是 L0 展示标题（营销语），不是页面 h1 —— 页面的 h1 是
@@ -24,7 +22,7 @@
 .heroTitle {
   max-width: 700px;
   margin: 0;
-  color: var(--on-primary);
+  color: #fff;
   font-family: var(--font-title);
   font-size: clamp(28px, 3vw, 40px);
   font-weight: 700;
@@ -33,7 +31,7 @@
 }
 .hero p:not(.eyebrow) {
   margin: 12px 0 0;
-  color: color-mix(in srgb, var(--on-primary) 88%, transparent);
+  color: #c0cee5;
   font-size: var(--fs-body);
   line-height: 1.7;
 }
