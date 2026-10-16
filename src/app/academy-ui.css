@@ -72,6 +72,7 @@
   .academy-mobile-nav .academy-nav-dot {display:none;}
 }
 @media (max-width:700px) {
+  .academy-topbar-label {display:none;}
   .academy-quick-grid {grid-template-columns:1fr;}
   .academy-quick-card {min-height:120px;padding:17px 20px;}
   .academy-hero::after {opacity:.5;}
