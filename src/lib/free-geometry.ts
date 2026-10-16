@@ -71,7 +71,7 @@ function lineCircle(line:{a:Point;b:Point},circle:{center:Point;radius:number}):
   const tol=EPS*Math.max(1,Math.abs(b*b),Math.abs(4*a*c));
   if(discr < -tol)return [];
   const root=Math.sqrt(Math.max(0,discr));
-  const ts=root===0?[-b/(2*a)]:[(-b-root)/(2*a),(-b+root)/(2*a)];
+  const ts=Math.abs(discr)<=tol?[-b/(2*a)]:[(-b-root)/(2*a),(-b+root)/(2*a)];
   return ts.map(t=>add(line.a,v,t)).filter(finite);
 }
 function circleCircle(A:{center:Point;radius:number},B:{center:Point;radius:number}):Point[]{
@@ -85,7 +85,7 @@ function circleCircle(A:{center:Point;radius:number},B:{center:Point;radius:numb
   const h=Math.sqrt(Math.max(0,h2));
   const normal={x:-u.y,y:u.x};
   const first=add(foot,normal,h);
-  return h<EPS?[first]:[first,add(foot,normal,-h)];
+  return h2<=EPS*Math.max(1,r*r)?[first]:[first,add(foot,normal,-h)];
 }
 /** Lines are infinite, segments are clipped to their endpoints. */
 function insideSegment(p:Point,o:Resolved):boolean{
