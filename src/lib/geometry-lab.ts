@@ -25,7 +25,7 @@ export const LAB_DEFAULTS: {
 const bounded = (value: number, min: number, max: number): number =>
   Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value * 100) / 100)) : min;
 export function displayMeasure(value: number): string {
-  return (Math.round(value * 100) / 100).toFixed(2).replace(/\\.00$/, "").replace(/(\\.\\d)0$/, "$1");
+  return String(Number((Math.round(value * 100) / 100).toFixed(2)));
 }
 
 export const SCENE = {
