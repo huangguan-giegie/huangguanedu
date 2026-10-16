@@ -7,6 +7,7 @@ const icons: Record<string, IconName> = {
   "/review": "smart-review",
   "/practice": "practice",
   "/geometry-lab": "sparkle",
+  "/geometry-editor": "edit",
   "/practice-sets": "practice",
   "/bookings": "booking",
   "/reports": "report",

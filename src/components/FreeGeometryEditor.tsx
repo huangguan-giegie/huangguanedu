@@ -1,0 +1,368 @@
+"use client";
+
+import { useCallback,useEffect,useId,useRef,useState,type PointerEvent,type ChangeEvent } from "react";
+import {
+ blankDocument,createPoint,createShape,createIntersections,resolveDocument,
+ movePoint,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
+ starterDocument,type GeometryDocument,type GeometryObject,type Resolved,type Point,
+} from "../lib/free-geometry";
+import styles from "./FreeGeometryEditor.module.css";
+
+type Tool="move"|"point"|"line"|"segment"|"circle"|"intersection";
+type View={scale:number;ox:number;oy:number};
+type ActiveDrag={kind:"point";id:string;pointerId:number}|{kind:"pan";last:Point;pointerId:number};
+const W=960,H=590;
+const TOOLS: {id:Tool;name:string;hint:string}[]=[
+ {id:"move",name:"移动 / 选择",hint:"拖动自由点、移动画布或选择对象"},
+ {id:"point",name:"点",hint:"在空白处点击创建自由点"},
+ {id:"line",name:"直线",hint:"依次选择两个点（也可点击空白处新建点）"},
+ {id:"segment",name:"线段",hint:"依次选择两个点，创建有限线段"},
+ {id:"circle",name:"圆",hint:"先选择圆心，再选择圆周点"},
+ {id:"intersection",name:"交点",hint:"依次选择两条线或圆，自动创建所有有限交点"},
+];
+const isPoint=(o:GeometryObject)=>o.kind==="point"||o.kind==="intersection";
+const isShape=(o:GeometryObject)=>!isPoint(o);
+function saveAs(name:string,mime:string,content:string) {
+ const blob=new Blob([content],{type:mime});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+ window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function docName(o:GeometryObject):string{
+ return o.kind==="point"?"自由点":o.kind==="intersection"?"交点":
+ o.kind==="line"?"直线":o.kind==="segment"?"线段":"圆";
+}
+const safeError=(error:unknown)=>error instanceof Error?error.message:"操作失败";
+
+export function FreeGeometryEditor() {
+ const [doc,setDoc]=useState<GeometryDocument>(()=>starterDocument());
+ const docRef=useRef(doc);
+ const [hydrated,setHydrated]=useState(false);
+ const [tool,setTool]=useState<Tool>("move");
+ const [pending,setPending]=useState<string|null>(null);
+ const [selected,setSelected]=useState<string|null>(null);
+ const [notice,setNotice]=useState("选择工具，开始探索。");
+ const [view,setView]=useState<View>({scale:44,ox:W/2,oy:H/2});
+ const [showGrid,setShowGrid]=useState(true);
+ const [undo,setUndo]=useState<GeometryDocument[]>([]);
+ const [redo,setRedo]=useState<GeometryDocument[]>([]);
+ const drag=useRef<ActiveDrag|null>(null);
+ const svg=useRef<SVGSVGElement|null>(null);
+ const importRef=useRef<HTMLInputElement|null>(null);
+ const gridId=useId(),clipId=useId();
+ const resolved=resolveDocument(doc);
+ const selectedObject=doc.objects.find(o=>o.id===selected);
+ const toScreen=useCallback((p:Point):Point=>({x:view.ox+p.x*view.scale,y:view.oy-p.y*view.scale}),[view]);
+ const toWorld=useCallback((p:Point):Point=>({x:(p.x-view.ox)/view.scale,y:(view.oy-p.y)/view.scale}),[view]);
+ const svgCoordinates=(event:PointerEvent<SVGSVGElement>):Point|null=>{
+  const root=svg.current,ctm=root?.getScreenCTM();
+  if(!ctm)return null;
+  const p=new DOMPoint(event.clientX,event.clientY).matrixTransform(ctm.inverse());
+  return {x:p.x,y:p.y};
+ };
+ const note=(msg:string)=>setNotice(msg);
+ const commit=(next:GeometryDocument,remember=true)=>{
+  validateDocument(next);
+  const previous=docRef.current;
+  if(JSON.stringify(previous)===JSON.stringify(next))return;
+  if(remember)setUndo(items=>[...items.slice(-49),previous]);
+  docRef.current=next;setDoc(next);
+  if(remember)setRedo([]);
+ };
+ const undoAction=()=>{
+  if(!undo.length)return;
+  const previous=undo[undo.length-1];
+  setRedo(items=>[...items.slice(-49),docRef.current]);
+  setUndo(items=>items.slice(0,-1));
+  docRef.current=previous;setDoc(previous);setPending(null);setSelected(null);
+  note("已撤销");
+ };
+ const redoAction=()=>{
+  if(!redo.length)return;
+  const next=redo[redo.length-1];
+  setUndo(items=>[...items.slice(-49),docRef.current]);
+  setRedo(items=>items.slice(0,-1));
+  docRef.current=next;setDoc(next);setPending(null);setSelected(null);
+  note("已重做");
+ };
+ // Read once. No server-side data or account data is stored.
+ useEffect(()=>{
+  // Restore after first paint to keep server/client markup identical.
+  const frame=window.requestAnimationFrame(()=>{
+   try{
+    const value=window.localStorage.getItem("hg-geometry-editor-v1");
+    if(value){
+     const loaded=parseDocumentJSON(value);
+     docRef.current=loaded;setDoc(loaded);
+    }
+   }catch{setNotice("本地画布无法恢复，已加载默认示例。");}
+   setHydrated(true);
+  });
+  return ()=>window.cancelAnimationFrame(frame);
+ },[]);
+ useEffect(()=>{
+  if(!hydrated)return;
+  try{window.localStorage.setItem("hg-geometry-editor-v1",JSON.stringify(doc));}
+  catch{window.queueMicrotask(()=>setNotice("本地空间不足：建议导出 JSON 备份。"));}
+ },[doc,hydrated]);
+ const endDragging=(event:PointerEvent<SVGSVGElement>)=>{
+  if(!drag.current||drag.current.pointerId!==event.pointerId)return;
+  drag.current=null;
+  if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+ };
+ const onPointerMove=(event:PointerEvent<SVGSVGElement>)=>{
+  if(!drag.current||event.pointerId!==drag.current.pointerId)return;
+  const p=svgCoordinates(event);if(!p)return;
+  if(drag.current.kind==="pan"){
+   const delta={x:p.x-drag.current.last.x,y:p.y-drag.current.last.y};
+   drag.current.last=p;
+   setView(v=>({...v,ox:v.ox+delta.x,oy:v.oy+delta.y}));
+  }else{
+   const id=drag.current.id;
+   try{commit(movePoint(docRef.current,id,toWorld(p)),false);}catch(e){note(safeError(e));}
+  }
+ };
+ const selectPoint=(id:string)=>{
+  if(tool==="move"){setSelected(id);return;}
+  if(tool==="point"){setSelected(id);return;}
+  if(tool==="intersection"){note("交点工具需要先后选择两条线或圆");return;}
+  if(!pending){setPending(id);note("请选择第二个点");return;}
+  try{
+   const result=createShape(docRef.current,tool,pending,id);
+   commit(result.document);setSelected(result.id);setPending(null);note("创建成功："+tool);
+  }catch(e){setPending(null);note(safeError(e));}
+ };
+ const selectShape=(id:string)=>{
+  if(tool!=="intersection"){setSelected(id);note("已选中对象");return;}
+  if(!pending){setPending(id);note("请选择第二条线或圆");return;}
+  try{
+   const result=createIntersections(docRef.current,pending,id);
+   if(!result.ids.length)note("这些交点已经存在");
+   else{commit(result.document);setSelected(result.ids[0]);note("已创建 "+result.ids.length+" 个关联交点");}
+  }catch(e){note(safeError(e));}
+  setPending(null);
+ };
+ const beginPoint=(event:PointerEvent<SVGGElement>,item:Resolved)=>{
+  event.stopPropagation();
+  if(tool!=="move"){selectPoint(item.object.id);return;}
+  setSelected(item.object.id);
+  if(item.object.kind!=="point")return;
+  if(event.pointerType==="mouse"&&event.button!==0)return;
+  const root=svg.current;
+  if(!root)return;
+  event.preventDefault();root.setPointerCapture(event.pointerId);
+  drag.current={kind:"point",id:item.object.id,pointerId:event.pointerId};
+  setUndo(items=>[...items.slice(-49),docRef.current]);
+  setRedo([]);
+ };
+ const backgroundPointer=(event:PointerEvent<SVGSVGElement>)=>{
+  if(event.target!==svg.current&&!(event.target instanceof SVGRectElement&&event.target.dataset.canvas==="true"))return;
+  if(event.pointerType==="mouse"&&event.button!==0)return;
+  const p=svgCoordinates(event);if(!p)return;
+  if(tool==="move"){
+   setSelected(null);
+   svg.current?.setPointerCapture(event.pointerId);
+   drag.current={kind:"pan",pointerId:event.pointerId,last:p};
+  }else if(tool!=="intersection"){
+   try{
+    const result=createPoint(docRef.current,toWorld(p));
+    if(tool==="point"){commit(result.document);setSelected(result.id);note("已创建自由点");}
+    else{
+     // Create a point first, then connect it to the pending first point.
+     let next=result.document; const chosen=result.id; let output=chosen;
+     if(pending){
+      const shape=createShape(next,tool,pending,chosen);
+      next=shape.document;output=shape.id;setPending(null);
+     }else{setPending(chosen);}
+     commit(next);setSelected(output);
+     note(pending?"已创建对象":"已创建第一点，请选择第二点");
+    }
+   }catch(e){note(safeError(e));}
+  }
+ };
+ const zoom=(factor:number)=>{
+  setView(v=>{
+   const scale=Math.max(17,Math.min(130,v.scale*factor));
+   const actualFactor=scale/v.scale;
+   return {scale,ox:W/2+(v.ox-W/2)*actualFactor,oy:H/2+(v.oy-H/2)*actualFactor};
+  });
+ };
+ const centered=()=>setView({scale:44,ox:W/2,oy:H/2});
+ const exportJson=()=>saveAs("geometry-construction.json","application/json;charset=utf-8",JSON.stringify(docRef.current,null,2));
+ const exportSvg=()=>{
+  const element=svg.current;if(!element)return;
+  const clone=element.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns","http://www.w3.org/2000/svg");
+  clone.setAttribute("width","960");clone.setAttribute("height","590");
+  clone.querySelectorAll("[data-editor-handle]").forEach(el=>el.remove());
+  saveAs("geometry-drawing.svg","image/svg+xml;charset=utf-8",new XMLSerializer().serializeToString(clone));
+ };
+ const importJson=async(event:ChangeEvent<HTMLInputElement>)=>{
+  const file=event.target.files?.[0];event.target.value="";
+  if(!file)return;
+  try{
+   if(file.size>150000)throw Error("文件过大");
+   const parsed=parseDocumentJSON(await file.text());
+   commit(parsed);setPending(null);setSelected(null);note("已导入并验证 "+parsed.objects.length+" 个对象");
+  }catch(e){note("导入失败："+safeError(e));}
+ };
+ const deleteSelected=()=>{
+  if(!selected)return;
+  const removed=doc.objects.length-deleteCascade(doc,selected).objects.length;
+  if(!window.confirm("删除该对象及依赖它的 "+(removed-1)+" 个子对象？"))return;
+  commit(deleteCascade(docRef.current,selected));setSelected(null);setPending(null);note("已删除 "+removed+" 个对象");
+ };
+ useEffect(()=>{
+  const handler=(e:globalThis.KeyboardEvent)=>{
+   const el=e.target as HTMLElement|null;
+   if(el&&(["INPUT","TEXTAREA","SELECT"].includes(el.tagName)||el.isContentEditable))return;
+   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();if(e.shiftKey)redoAction();else undoAction();}
+   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();redoAction();}
+  };
+  window.addEventListener("keydown",handler);return ()=>window.removeEventListener("keydown",handler);
+ });
+ const minX=Math.ceil(-view.ox/view.scale)-1,maxX=Math.floor((W-view.ox)/view.scale)+1;
+ const minY=Math.ceil((view.oy-H)/view.scale)-1,maxY=Math.floor(view.oy/view.scale)+1;
+ const xs=Array.from({length:Math.min(200,Math.max(0,maxX-minX+1))},(_,i)=>minX+i);
+ const ys=Array.from({length:Math.min(200,Math.max(0,maxY-minY+1))},(_,i)=>minY+i);
+ return <div className={styles.page}>
+  <header className={styles.header}>
+   <div><p className={styles.eyebrow}>GEOMETRY WORKBENCH · 数学动态作图</p>
+    <h1>自由几何编辑器 <span>Geometry Editor</span></h1>
+    <p>创建任意位置的点，构造直线、线段和圆；交点由几何计算自动生成，拖动父对象会同步更新整个图形。</p>
+   </div>
+   <div className={styles.headerActions}>
+    <button onClick={undoAction} disabled={!undo.length}>↶ 撤销</button>
+    <button onClick={redoAction} disabled={!redo.length}>↷ 重做</button>
+    <button onClick={exportJson}>导出 JSON</button>
+    <button onClick={exportSvg}>导出 SVG</button>
+    <button onClick={()=>importRef.current?.click()}>导入</button>
+    <input hidden ref={importRef} accept=".json,application/json" type="file" onChange={e=>void importJson(e)}/>
+   </div>
+  </header>
+  <div className={styles.tools} role="group" aria-label="绘图工具">
+   {TOOLS.map(t=><button key={t.id} type="button" title={t.hint}
+    aria-pressed={tool===t.id} className={tool===t.id?styles.toolActive:styles.tool}
+    onClick={()=>{setTool(t.id);setPending(null);note(t.hint);}}>{t.name}</button>)}
+  </div>
+  <div className={styles.layout}>
+   <section className={styles.canvasBox}>
+    <div className={styles.canvasToolbar}>
+     <span>{TOOLS.find(t=>t.id===tool)?.hint}</span>
+     <div>
+      <label><input type="checkbox" checked={showGrid} onChange={e=>setShowGrid(e.target.checked)}/> 网格</label>
+      <button onClick={()=>zoom(1.2)} aria-label="放大">＋</button>
+      <button onClick={()=>zoom(1/1.2)} aria-label="缩小">－</button>
+      <button onClick={centered}>居中</button>
+     </div>
+    </div>
+    <svg ref={svg} viewBox={"0 0 "+W+" "+H} className={styles.canvas}
+     role="group" aria-label="交互式几何画布"
+     onPointerDown={backgroundPointer} onPointerMove={onPointerMove}
+     onPointerUp={endDragging} onPointerCancel={endDragging}
+     onLostPointerCapture={()=>{drag.current=null;}}>
+     <defs>
+      <clipPath id={clipId}><rect width={W} height={H}/></clipPath>
+      <pattern id={gridId} width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 H 0 V 20" fill="none" stroke="#d8e5ef" strokeWidth=".4"/></pattern>
+     </defs>
+     <rect width={W} height={H} fill="#f9fcff" data-canvas="true"/>
+     <g clipPath={"url(#"+clipId+")"} pointerEvents="none">
+      {showGrid&&<>
+       {xs.map(x=><g key={"gx"+x}><line x1={toScreen({x,y:0}).x} y1={0} x2={toScreen({x,y:0}).x} y2={H}
+        stroke={x===0?"#7893a9":"#e3ebf3"} strokeWidth={x===0?2:1}/>
+        {x!==0&&x%2===0&&<text x={toScreen({x,y:0}).x+3} y={Math.min(H-9,Math.max(18,view.oy+17))} fontSize="12" fill="#74889a">{x}</text>}</g>)}
+       {ys.map(y=><g key={"gy"+y}><line x1={0} y1={toScreen({x:0,y}).y} x2={W} y2={toScreen({x:0,y}).y}
+        stroke={y===0?"#7893a9":"#e3ebf3"} strokeWidth={y===0?2:1}/>
+        {y!==0&&y%2===0&&<text x={Math.min(W-35,Math.max(12,view.ox+7))} y={toScreen({x:0,y}).y-4} fontSize="12" fill="#74889a">{y}</text>}</g>)}
+      </>}
+     </g>
+     <g clipPath={"url(#"+clipId+")"}>
+      {resolved.filter(r=>isShape(r.object)&&!r.object.hidden).map(r=>{
+       const active=r.object.id===selected||r.object.id===pending;
+       const color=active?"#e98647":"#246b9c";
+       if(r.circle){
+        const c=toScreen(r.circle.center),radius=r.circle.radius*view.scale;
+        return <g key={r.object.id} className={styles.shape} onPointerDown={e=>{e.stopPropagation();selectShape(r.object.id);}}>
+         <circle cx={c.x} cy={c.y} r={radius} fill="none" stroke="transparent" strokeWidth="16"/>
+         <circle cx={c.x} cy={c.y} r={radius} fill="none" stroke={color} strokeWidth="2.8" pointerEvents="none"/>
+        </g>;
+       }
+       if(r.line){
+        const a=toScreen(r.line.a),b=toScreen(r.line.b);
+        const vx=b.x-a.x,vy=b.y-a.y,d=Math.hypot(vx,vy);
+        const delta=1200/d;
+        const p=r.object.kind==="segment"?a:{x:a.x-vx*delta,y:a.y-vy*delta};
+        const q=r.object.kind==="segment"?b:{x:a.x+vx*delta,y:a.y+vy*delta};
+        return <g key={r.object.id} className={styles.shape} onPointerDown={e=>{e.stopPropagation();selectShape(r.object.id);}}>
+         <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="transparent" strokeWidth="18"/>
+         <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke={color} strokeWidth="2.7" pointerEvents="none"/>
+        </g>;
+       }
+       return null;
+      })}
+      {resolved.filter(r=>r.point&&!r.object.hidden).map(r=>{
+       const p=toScreen(r.point!);const derived=r.object.kind==="intersection";
+       return <g key={r.object.id} className={styles.point}
+        onPointerDown={e=>beginPoint(e,r)}>
+        <circle cx={p.x} cy={p.y} r="15" fill="transparent"/>
+        <circle cx={p.x} cy={p.y} r="5.8"
+         fill={derived?"#e88b4b":"#207e97"} stroke="white" strokeWidth="2.2" pointerEvents="none"/>
+        {(tool==="move"&&r.object.id===selected)&&<circle cx={p.x} cy={p.y} r="12" stroke="#ef985f" strokeWidth="2" fill="none" pointerEvents="none"/>}
+        <text x={p.x+10} y={p.y-10} fontSize="15" fontWeight="750" fill="#23415e" pointerEvents="none">{r.object.label}</text>
+       </g>;
+      })}
+     </g>
+    </svg>
+    <div role="status" aria-live="polite" className={styles.status}>
+     <span>{pending?"已选第一对象，选择第二对象 · ":""}{notice}</span>
+     <span>{doc.objects.length}/250 对象 · {Math.round(view.scale/44*100)}% 缩放</span>
+    </div>
+   </section>
+   <aside className={styles.sidebar}>
+    <section className={styles.panel}>
+     <div className={styles.panelTitle}><h2>对象列表</h2><span>{doc.objects.length}</span></div>
+     <div className={styles.objectList}>
+      {doc.objects.length===0&&<p className={styles.empty}>暂无对象。选择「点」开始绘制。</p>}
+      {doc.objects.map(o=><div key={o.id} className={o.id===selected?styles.objectSelected:styles.object}>
+       <button title={"选择"+o.label} onClick={()=>{setSelected(o.id);note("已选择 "+o.label)}} className={styles.objectName}>
+        <span className={styles.objectGlyph}>{o.kind==="circle"?"◯":o.kind==="line"?"⟷":o.kind==="segment"?"━":o.kind==="intersection"?"×":"●"}</span>
+        <span><strong>{o.label}</strong><small>{docName(o)}</small></span>
+       </button>
+       <button className={styles.visibility} title={o.hidden?"显示":"隐藏"} aria-label={(o.hidden?"显示":"隐藏")+o.label}
+        onClick={()=>commit(hideObject(docRef.current,o.id,!o.hidden))}>{o.hidden?"◌":"◉"}</button>
+      </div>)}
+     </div>
+    </section>
+    <section className={styles.panel}>
+     <div className={styles.panelTitle}><h2>对象属性</h2></div>
+     {!selectedObject?<p className={styles.empty}>选择画布上的对象，修改名称、自由点坐标或删除关联构造。</p>:
+      <div className={styles.inspector}>
+       <label>名称<input type="text" maxLength={12} value={selectedObject.label} onChange={e=>{
+        try{commit(renameObject(docRef.current,selectedObject.id,e.target.value));}catch{/** allow only nonempty labels */}}}/></label>
+       <p className={styles.meta}>{docName(selectedObject)} · {selectedObject.id}</p>
+       {selectedObject.kind==="point"?<div className={styles.xy}>
+        {(["x","y"] as const).map(axis=><label key={axis}>{axis.toUpperCase()} 坐标
+         <input type="number" step=".25" min="-1000" max="1000" value={selectedObject[axis]}
+          onChange={e=>{
+           const v=Number(e.target.value);
+           if(e.target.value===""||!Number.isFinite(v))return;
+           try{commit(movePoint(docRef.current,selectedObject.id,{x:selectedObject.x,y:selectedObject.y,[axis]:v}));}
+           catch(error){note(safeError(error));}
+          }}/></label>)}
+       </div>:selectedObject.kind==="intersection"?
+        <p className={styles.meta}>关联交点由父对象自动计算，不能直接拖动。</p>:
+        <p className={styles.meta}>拖动此对象依赖的自由点，即可更新形状。</p>}
+       <button className={styles.delete} onClick={deleteSelected}>删除对象及依赖项</button>
+      </div>}
+    </section>
+    <section className={styles.help}>
+     <strong>作图提示</strong>
+     <p>直线无限延长，线段保留端点范围。选择「交点」后依次点击两条线或圆，会计算线线、线圆、圆圆交点；平行线、相离圆不会生成虚假交点。</p>
+     <p>更改自由点时，所有依赖它的交点和后续图形自动更新。支持撤销、重做、JSON 本地保存及 SVG 导出。</p>
+     <button onClick={()=>{if(!window.confirm("清空整个画布？建议先导出备份。"))return;commit(blankDocument());setPending(null);setSelected(null);note("画布已清空");}}>清空画布</button>
+    </section>
+   </aside>
+  </div>
+  <p className={styles.footer}>自由几何编辑器属于浏览器端作图工具；与已生成的正式数学模拟题数据隔离。当前支持平面欧氏点、直线、线段、圆及有限交点，不包含 GeoGebra 的全部符号代数、三维和 CAS 功能。</p>
+ </div>;
+}

@@ -25,6 +25,7 @@ const menus = {
     { href: "/review", label: "今日复习" },
     { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
+    { href: "/geometry-editor", label: "自由几何编辑器" },
     { href: "/bookings", label: "课程预约" },
     { href: "/reports", label: "学习总结" },
     { href: "/account", label: "账户设置" },
@@ -38,6 +39,7 @@ const menus = {
     { href: "/teacher/summaries", label: "学习总结审核" },
     { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
+    { href: "/geometry-editor", label: "自由几何编辑器" },
     { href: "/account", label: "账户设置" },
   ],
   ADMIN: [
@@ -50,6 +52,7 @@ const menus = {
     { href: "/teacher/summaries", label: "学习总结审核" },
     { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
+    { href: "/geometry-editor", label: "自由几何编辑器" },
     { href: "/account", label: "账户设置" },
   ],
 } as const;
