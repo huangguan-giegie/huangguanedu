@@ -28,6 +28,22 @@ describe("模拟题迁移", () => {
     expect(persisted.diagramFailures).toEqual([]);
     expect(save).not.toHaveBeenCalled();
   });
+  it("线上严格模式拒绝所有无法证明角度的AI几何顶点和自由SVG，而改走无图重出",async()=>{
+    const cases=[
+      {diagramDescription:{shapeType:"circle",vertices:[{label:"O"},{label:"A"},{label:"B"},{label:"C"},{label:"D"}],circles:[{center:"O",radiusPoint:"A"}]}},
+      {diagramSvg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="80"/></svg>'},
+    ];
+    for(const candidate of cases){
+      const result=await persistQuestions({
+        title:"原始错误题图",
+        questions:[{question:"如图，AB为直径，∠ADC=125°，求∠BAC",answer:"35°",explanation:"根据圆周角定理",...candidate}],
+      },{verifiedOnly:true});
+      expect(result.diagramFailures).toEqual([1]);
+      expect(result.questions[0].imagePath).toBeNull();
+    }
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("异步出题使用精确图形参数覆盖模型编造的题面与答案", async () => {
     vi.stubEnv("QWEN_MODE", "live"); vi.stubEnv("DASHSCOPE_API_KEY", "test"); vi.stubEnv("DASHSCOPE_BASE_URL", "https://example.test/v1");
     const request = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
