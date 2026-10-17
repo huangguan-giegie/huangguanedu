@@ -645,6 +645,7 @@ model PracticeQuestion {
   explanation   String?
   imagePath     String?
   diagram       Json?
+  geometrySketch Json? // verified reusable student geometry construction
   knowledgePoints Json?
   sourceWrongQuestionIds Json?
   difficulty     Difficulty @default(MEDIUM)

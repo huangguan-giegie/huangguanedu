@@ -22,6 +22,10 @@ export const advancedDiagramOptions = [
     circles: z.enum(["4-1-5","7-2-13","10-2-17"]),
   }),
   z.object({
+    type: z.literal("cyclic_diameter_quadrilateral"),
+    obtuseAngle: z.union([z.literal(110), z.literal(120), z.literal(125), z.literal(130), z.literal(140)]),
+  }),
+  z.object({
     type: z.literal("circle_sector"),
     radius: z.number().int().min(2).max(12),
     centralAngle: z.union([z.literal(30),z.literal(45),z.literal(60),z.literal(90),z.literal(120)]),
@@ -155,6 +159,16 @@ export function compileAdvancedDiagramProblem(diagram: AdvancedDiagram): Advance
         question: `如图，两圆O₁、O₂外离或外切，半径分别为${R} cm和${r} cm，圆心距O₁O₂＝${d} cm。AB是两圆的同侧公切线段，A、B分别是切点，求AB的长度。`,
         answer: `${L} cm`,
         explanation: `连接两圆心及切点，因为O₁A⊥AB、O₂B⊥AB，公切线长度满足AB²＝O₁O₂²－(O₁A－O₂B)²＝${d}²－(${R}－${r})²＝${L*L}，所以AB＝${L} cm。`,
+        diagram,
+      };
+    }
+    case "cyclic_diameter_quadrilateral": {
+      const angle=diagram.obtuseAngle;
+      const answer=angle-90;
+      return {
+        question:`如图，四边形ABCD的四个顶点在同一圆O上，AB为直径，∠ADC＝${angle}°，求∠BAC的度数。`,
+        answer:`${answer}°`,
+        explanation:`圆内接四边形对角互补，所以∠ABC＝180°－${angle}°＝${180-angle}°。AB是直径，∠ACB＝90°，故∠BAC＝180°－90°－${180-angle}°＝${answer}°。`,
         diagram,
       };
     }

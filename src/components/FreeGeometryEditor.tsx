@@ -7,6 +7,8 @@ import {
  starterDocument,type GeometryDocument,type GeometryObject,type Resolved,type Point,
 } from "../lib/free-geometry";
 import {sampleLocus,locusPaths} from "../lib/geometry-locus";
+import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
+import {useRouter} from "next/navigation";
 import styles from "./FreeGeometryEditor.module.css";
 
 type Tool="move"|"point"|"line"|"segment"|"circle"|"intersection"|"polygon"|"locus";
@@ -37,6 +39,7 @@ function docName(o:GeometryObject):string{
 const safeError=(error:unknown)=>error instanceof Error?error.message:"操作失败";
 
 export function FreeGeometryEditor() {
+ const router=useRouter();
  const [doc,setDoc]=useState<GeometryDocument>(()=>starterDocument());
  const docRef=useRef(doc);
  const [hydrated,setHydrated]=useState(false);
@@ -268,6 +271,12 @@ export function FreeGeometryEditor() {
    <div className={styles.headerActions}>
     <button onClick={undoAction} disabled={!undo.length}>↶ 撤销</button>
     <button onClick={redoAction} disabled={!redo.length}>↷ 重做</button>
+    <button onClick={()=>{
+     try{
+      window.localStorage.setItem("hg-geometry-clipboard-v1",JSON.stringify(validateDocument(docRef.current)));
+      note("已将当前作品放入模拟题图形剪贴板。在模拟题详情页选择「插入作品」即可使用。");
+     }catch(e){note("共享失败："+safeError(e));}
+    }}>送到模拟题</button>
     <button onClick={exportJson}>导出 JSON</button>
     <button onClick={exportSvg}>导出 SVG</button>
     <button onClick={()=>importRef.current?.click()}>导入</button>
@@ -406,6 +415,21 @@ export function FreeGeometryEditor() {
        </div>:selectedObject.kind==="intersection"?
         <p className={styles.meta}>关联交点由父对象自动计算，不能直接拖动。</p>:
         <p className={styles.meta}>拖动此对象依赖的自由点，即可更新形状。</p>}
+       {(selectedObject.kind==="line"||selectedObject.kind==="segment")&&(()=>{
+         const g=resolved.find(v=>v.object.id===selectedObject.id)?.line;
+         if(!g)return null;
+         const dx=g.b.x-g.a.x,dy=g.b.y-g.a.y;
+         const sq=dx*dx+dy*dy;
+         return <div className={styles.meta}>
+          <p>长度：{Math.sqrt(sq).toFixed(3)}；距离²：{sq.toFixed(3)}</p>
+          <button type="button" className={styles.visibility} style={{width:"auto",fontWeight:700,textDecoration:"underline"}} onClick={()=>{
+           const fixed=(v:number)=>Number(v.toFixed(4));
+           const expr=`(${fixed(dx)})^2+(${fixed(dy)})^2`;
+           window.localStorage.setItem("hg-cas-input-v1",expr);
+           router.push("/math-studio");
+          }}>发送两点距离²到 CAS 计算</button>
+         </div>;
+       })()}
        <button className={styles.delete} onClick={deleteSelected}>删除对象及依赖项</button>
       </div>}
     </section>
@@ -417,6 +441,7 @@ export function FreeGeometryEditor() {
     </section>
    </aside>
   </div>
+  <GeometryTheoremLibrary />
   <p className={styles.footer}>自由几何编辑器属于浏览器端作图工具；与已生成的正式数学模拟题数据隔离。当前支持平面欧氏点、直线、线段、圆及有限交点，不包含 GeoGebra 的全部符号代数、三维和 CAS 功能。</p>
  </div>;
 }
