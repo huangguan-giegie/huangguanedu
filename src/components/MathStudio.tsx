@@ -1,6 +1,11 @@
 "use client";
 import {useMemo,useRef,useState,type PointerEvent} from "react";
 import {runCAS,type CasAction,type CasResult} from "../lib/polynomial-cas";
+import Link from "next/link";
+import {AttachedGeometryFigure} from "./AttachedGeometryFigure";
+import {geometryDraftImport,GEOMETRY_DRAFT_KEY} from "../lib/practice-drawing";
+import {geometryMeasurements} from "../lib/geometry-cas-bridge";
+import type {GeometryDocument} from "../lib/free-geometry";
 import {
  DEFAULT_CAMERA,SURFACE_LABELS,build3DLines,cameraProject,plotToSvgPath,worldAxes,
  type Camera3D,type SurfaceKind,
@@ -28,6 +33,22 @@ function CasPanel(){
  const [x,setX]=useState("2");
  const [result,setResult]=useState<CasResult|null>(()=>runCAS("x^2-5x+6","factor"));
  const [error,setError]=useState("");
+ const [drawing,setDrawing]=useState<GeometryDocument|null>(null);
+ const measurements=drawing?geometryMeasurements(drawing):[];
+ const importGeometry=()=>{
+  try{
+   const raw=window.localStorage.getItem(GEOMETRY_DRAFT_KEY);
+   if(!raw)throw Error("请先在动态几何实验室或自由编辑器点击「用于模拟题」保存图形");
+   setDrawing(geometryDraftImport(raw));
+   setError("");
+  }catch(e){setError(safeError(e));}
+ };
+ const useMeasure=(value:string)=>{
+  setExpr(value);setAction("simplify");
+  try{setResult(runCAS(value,"simplify"));setError("");}
+  catch(e){setError(safeError(e));}
+ };
+
  const solve=()=>{
   try{setResult(runCAS(expr,action,x));setError("");}
   catch(e){setError(safeError(e));setResult(null);}
@@ -37,6 +58,22 @@ function CasPanel(){
    <h2>符号代数 CAS</h2>
    <p>对一元多项式做精确分数运算，支持括号展开、因式分解、一二次方程、求导和代入求值。无需调用 AI 来猜计算结果。</p>
   </div>
+  <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+    <button onClick={importGeometry} style={{border:"1px solid var(--line)",background:"var(--surface)",borderRadius:10,padding:"10px 15px",fontSize:13,fontWeight:800}}>读取几何实验室 / 编辑器的图形</button>
+    <Link href="/geometry-lab" style={{fontSize:13,textDecoration:"underline"}}>动态几何实验室</Link>
+    <Link href="/geometry-editor" style={{fontSize:13,textDecoration:"underline"}}>自由几何编辑器</Link>
+    <Link href="/practice" style={{fontSize:13,textDecoration:"underline"}}>模拟题</Link>
+  </div>
+  {drawing&&<div style={{padding:14,border:"1px solid var(--line)",borderRadius:15,background:"var(--surface-soft)"}}>
+    <strong>已载入当前图形：点击数值可将长度、面积或周长作为 CAS 输入</strong>
+    <div style={{display:"flex",flexWrap:"wrap",gap:9,margin:"10px 0"}}>
+      {measurements.map(m=><button key={m.id} type="button" onClick={()=>useMeasure(m.expression)}
+        style={{border:"1px solid var(--line)",background:"var(--surface)",borderRadius:9,padding:"8px 10px",fontSize:12}}>
+        {m.label}：{Number(m.value.toFixed(4))} {m.unit}
+      </button>)}
+    </div>
+    <AttachedGeometryFigure document={drawing}/>
+  </div>}
   <div className={styles.quickSamples}>{presets.map(p=><button key={p.label}
    type="button" onClick={()=>{setExpr(p.expr);setAction(p.action);setResult(runCAS(p.expr,p.action));setError("");}}>{p.label}</button>)}</div>
   <div className={styles.casLayout}>
