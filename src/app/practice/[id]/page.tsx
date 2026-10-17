@@ -7,6 +7,9 @@ import { api } from "../../../components/api";
 import { AuthGuard } from "../../../components/AuthGuard";
 import { Icon } from "../../../components/icons";
 import { PracticeDiagram } from "../../../components/PracticeDiagram";
+import { AttachedGeometryFigure } from "../../../components/AttachedGeometryFigure";
+import {GEOMETRY_DRAFT_KEY,geometryDraftImport} from "../../../lib/practice-drawing";
+import type {GeometryDocument} from "../../../lib/free-geometry";
 import { PracticeAnswerBox } from "../../../components/PracticeAnswerBox";
 import { practiceText, type PracticeSetItem } from "../../../components/practice-content";
 import { latexToUnicode } from "../../../lib/latex-to-unicode";
@@ -24,6 +27,10 @@ function PracticeDetail({ id }: { id: string }) {
   // 作答模式默认关闭：这个页面同时承担「阅读/打印练习卷」的职责，
   // 默认展开输入框会干扰打印，也让学生失去先独立思考的空间。
   const [answerMode, setAnswerMode] = useState(false);
+  const [draft,setDraft]=useState<GeometryDocument|null>(null);
+  const [draftVisible,setDraftVisible]=useState<string|null>(null);
+  const [canPublish,setCanPublish]=useState(false);
+  const [acknowledged,setAcknowledged]=useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -39,6 +46,25 @@ function PracticeDetail({ id }: { id: string }) {
     else dialog.current?.close();
   }, [preview]);
 
+  useEffect(()=>{
+    api.get<{user:{role:string}}>("/api/v1/auth/me").then(({user})=>{
+      setCanPublish(user.role==="TEACHER"||user.role==="ADMIN");
+    }).catch(()=>setCanPublish(false));
+    try{
+      const raw=window.localStorage.getItem(GEOMETRY_DRAFT_KEY);
+      if(raw)setDraft(geometryDraftImport(raw));
+    }catch{setDraft(null);}
+  },[]);
+  async function publishDrawing(questionId:string){
+    if(!draft||!set||!acknowledged)return;
+    setMessage("");
+    try{
+      await api.post(`/api/v1/practice-sets/${encodeURIComponent(set.id)}/questions/${encodeURIComponent(questionId)}/drawing`,
+        {drawing:draft,confirmed:true});
+      setMessage("已把经人工确认的作图保存到此题；答案与评分保持不变。");
+      setReload(n=>n+1);
+    }catch(e){setMessage(e instanceof Error?e.message:"保存配图失败");}
+  }
   async function copy() {
     if (!set) return;
     setMessage("");
@@ -76,6 +102,25 @@ function PracticeDetail({ id }: { id: string }) {
           <div className={styles.questionHead}><span className={styles.questionIndex}>第 {String(index + 1).padStart(2, "0")} 题</span><span className={styles.questionHint}>先独立思考，再对照解析</span></div>
           <p className={styles.questionText}>{latexToUnicode(question.question)}</p>
           {question.diagram && <PracticeDiagram diagram={question.diagram} />}
+          {question.attachedDrawing && <AttachedGeometryFigure document={question.attachedDrawing} />}
+          {draft && <div className={styles.noPrint} style={{margin:"12px 0",padding:"12px 16px",border:"1px solid var(--line)",borderRadius:12}}>
+            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+              <button type="button" className={styles.secondaryButton}
+                onClick={()=>setDraftVisible(draftVisible===question.id?null:question.id)}>
+                {draftVisible===question.id?"取消预览":"预览工作台图形"}
+              </button>
+              {canPublish&&<button type="button" className={styles.secondaryButton}
+                disabled={!acknowledged} onClick={()=>void publishDrawing(question.id)}>
+                将当前图形保存到本题
+              </button>}
+              {!canPublish&&<span style={{fontSize:12}}>学生可在本设备预览；由老师核对后才能保存为共享题图。</span>}
+            </div>
+            {canPublish&&<label style={{display:"flex",gap:8,alignItems:"center",marginTop:8,fontSize:12}}>
+              <input type="checkbox" checked={acknowledged} onChange={e=>setAcknowledged(e.target.checked)}/>
+              我已核对自定义图形与本题全部已知条件、角度及答案一致
+            </label>}
+            {draftVisible===question.id&&<AttachedGeometryFigure document={draft}/>}
+          </div>}
           {question.imageUrl && <button type="button" className={styles.diagramButton} onClick={() => setPreview(question.imageUrl!)} aria-label={`放大第 ${index + 1} 题示意图`}>
             {/* 题图使用短期授权地址，直接加载可避免代理缓存过期地址。 */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
