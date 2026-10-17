@@ -8,6 +8,8 @@ import { AuthGuard } from "../../../components/AuthGuard";
 import { Icon } from "../../../components/icons";
 import { PracticeDiagram } from "../../../components/PracticeDiagram";
 import { CyclicDiameterDiagram } from "../../../components/CyclicDiameterDiagram";
+import { GeometrySnapshot } from "../../../components/GeometrySnapshot";
+import {parseDocumentJSON,type GeometryDocument} from "../../../lib/free-geometry";
 import { detectLegacyCyclicDiameterQuestion } from "../../../lib/cyclic-diameter-geometry";
 import { PracticeAnswerBox } from "../../../components/PracticeAnswerBox";
 import { practiceText, type PracticeSetItem } from "../../../components/practice-content";
@@ -26,6 +28,42 @@ function PracticeDetail({ id }: { id: string }) {
   // 作答模式默认关闭：这个页面同时承担「阅读/打印练习卷」的职责，
   // 默认展开输入框会干扰打印，也让学生失去先独立思考的空间。
   const [answerMode, setAnswerMode] = useState(false);
+  const [localSketches,setLocalSketches]=useState<Record<string,GeometryDocument>>({});
+  const [sketchMessage,setSketchMessage]=useState("");
+  useEffect(()=>{
+    const frame=window.requestAnimationFrame(()=>{
+      try{
+        const saved=window.localStorage.getItem("hg-practice-geometry-sketches-v1");
+        if(saved&&saved.length<=600000){
+          const parsed=JSON.parse(saved) as Record<string,unknown>;
+          const valid:Record<string,GeometryDocument>={};
+          for(const [questionId,value] of Object.entries(parsed).slice(0,25)){
+            try{valid[questionId]=parseDocumentJSON(JSON.stringify(value));}catch{/** ignore corrupt saved drawings */}
+          }
+          setLocalSketches(valid);
+        }
+      }catch{/** private browsing or disabled localStorage */}
+    });
+    return ()=>window.cancelAnimationFrame(frame);
+  },[]);
+  function attachSketch(questionId:string){
+    try{
+      const json=window.localStorage.getItem("hg-geometry-clipboard-v1");
+      if(!json)throw Error("剪贴板为空。请先到自由编辑器点击「送到模拟题」。");
+      const document=parseDocumentJSON(json);
+      const next={...localSketches,[questionId]:document};
+      window.localStorage.setItem("hg-practice-geometry-sketches-v1",JSON.stringify(next));
+      setLocalSketches(next);
+      setSketchMessage("已将作品添加到此题的本地附图。题干、标准答案和评分不变。");
+    }catch(e){setSketchMessage(e instanceof Error?e.message:"插入失败");}
+  }
+  function removeSketch(questionId:string){
+    const next={...localSketches};delete next[questionId];
+    try{window.localStorage.setItem("hg-practice-geometry-sketches-v1",JSON.stringify(next));}
+    catch{setSketchMessage("浏览器无法保存改动");}
+    setLocalSketches(next);
+  }
+
   const dialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -72,6 +110,7 @@ function PracticeDetail({ id }: { id: string }) {
       </div>
       <p className={`${styles.printHint} ${styles.noPrint}`}>打印会保留当前显示的答案。需要空白练习卷时，请先隐藏答案。</p>
       {message && <p className={`${styles.task} ${styles.noPrint}`} role="status">{message}</p>}
+      {sketchMessage&&<p role="status" className={styles.noPrint}>{sketchMessage}（仅此浏览器保存；跨设备或正式共享需另行发布。）</p>}
       <div className={styles.questions}>{set.questions.map((question, index) => {
         const answerVisible = showAnswers || revealed.includes(question.id);
         const fixedAngle = detectLegacyCyclicDiameterQuestion(question.question);
@@ -81,6 +120,11 @@ function PracticeDetail({ id }: { id: string }) {
           <p className={styles.questionText}>{latexToUnicode(question.question)}</p>
           {question.diagram && <PracticeDiagram diagram={question.diagram} />}
           {requiresRepair && <CyclicDiameterDiagram obtuseAngle={fixedAngle} />}
+          {localSketches[question.id] && <GeometrySnapshot document={localSketches[question.id]} />}
+          <div className={styles.noPrint} style={{display:"flex",gap:9,margin:"12px 0",flexWrap:"wrap"}}>
+            <button type="button" className={styles.secondaryButton} onClick={()=>attachSketch(question.id)}>插入编辑器作品</button>
+            {localSketches[question.id]&&<button type="button" className={styles.textButton} onClick={()=>removeSketch(question.id)}>移除附图</button>}
+          </div>
           {requiresRepair && <p className={styles.printHint}>原始图片与题设角度不一致，已用经过角度校验的示意图替换。旧题的答案仍需人工复核。</p>}
           {!requiresRepair && question.imageUrl && <button type="button" className={styles.diagramButton} onClick={() => setPreview(question.imageUrl!)} aria-label={`放大第 ${index + 1} 题示意图`}>
             {/* 题图使用短期授权地址，直接加载可避免代理缓存过期地址。 */}
