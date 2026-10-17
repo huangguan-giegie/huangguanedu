@@ -36,6 +36,14 @@ function CasPanel(){
    <h2>符号代数 CAS</h2>
    <p>对一元多项式做精确分数运算，支持括号展开、因式分解、一二次方程、求导和代入求值。无需调用 AI 来猜计算结果。</p>
   </div>
+  <button type="button" style={{textDecoration:"underline",textAlign:"left",color:"var(--foreground)",fontSize:13}} onClick={()=>{
+   try{
+    const imported=window.localStorage.getItem("hg-cas-input-v1");
+    if(!imported)throw Error("没有待计算的几何数据，请先在自由几何编辑器选中直线或线段。");
+    const computed=runCAS(imported,"simplify");
+    setExpr(imported);setAction("simplify");setResult(computed);setError("");
+   }catch(e){setError(safeError(e));setResult(null);}
+  }}>↙ 从自由几何编辑器读取两点距离²表达式</button>
   <div className={styles.quickSamples}>{presets.map(p=><button key={p.label}
    type="button" onClick={()=>{setExpr(p.expr);setAction(p.action);setResult(runCAS(p.expr,p.action));setError("");}}>{p.label}</button>)}</div>
   <div className={styles.casLayout}>
