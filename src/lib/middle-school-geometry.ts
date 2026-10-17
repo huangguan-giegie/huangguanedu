@@ -1,5 +1,6 @@
 import {constructBisector, constructSimilarity, type Point2} from "./practice-construction-constraints";
 import {blankDocument,createPoint,createShape,createPolygon, type GeometryDocument} from "./free-geometry";
+import {bisectorLabGeometry,similarityLabGeometry,tangentLabGeometry,type BisectorLabState,type SimilarityLabState,type TangentLabState} from "./geometry-lab";
 
 /** Actual arc positions: AB is a diameter; on the upper semicircle the
  * order is A -> D -> C -> B, not A -> C -> D -> B.
@@ -59,23 +60,24 @@ function fromPoints(items:Record<string,Point2>,segments:[string,string][],circl
  for(const [center,edge] of circles){document=createShape(document,"circle",ids[center],ids[edge]).document;}
  return document;
 }
-export function geometryLabSnapshot(mode:"bisector"|"similarity"|"tangent"|"diameter"):GeometryDocument{
+export function geometryLabSnapshot(mode:"bisector"|"similarity"|"tangent"|"diameter",state?:{bis?:BisectorLabState;sim?:SimilarityLabState;tan?:TangentLabState}):GeometryDocument{
  if(mode==="diameter"){
   const g=diameterCyclicQuadrilateral(125);
   return fromPoints({A:g.A,B:g.B,C:g.C,D:g.D,O:g.O},[["A","B"],["A","C"],["A","D"],["B","C"],["C","D"]],[["O","A"]]);
  }
  if(mode==="bisector"){
-  const g=constructBisector(6,9,10);
+  const g=state?.bis?bisectorLabGeometry(state.bis):constructBisector(6,9,10);
   return fromPoints({A:g.A,B:g.B,C:g.C,D:g.D},[["A","B"],["A","C"],["B","C"],["A","D"]]);
  }
  if(mode==="similarity"){
-  const g=constructSimilarity(3,4,2);
+  const g=state?.sim?similarityLabGeometry(state.sim):constructSimilarity(3,4,2);
   return fromPoints({A:g.small.A,B:g.small.B,C:g.small.C,
    D:{x:g.large.D.x+10,y:g.large.D.y},E:{x:g.large.E.x+10,y:g.large.E.y},F:{x:g.large.F.x+10,y:g.large.F.y}},
    [["A","B"],["A","C"],["B","C"],["D","E"],["D","F"],["E","F"]]);
  }
- const R=5,r=2,d=12,s=Math.sqrt(1-((R-r)/d)**2),n=(R-r)/d;
- return fromPoints({O:{x:0,y:0},P:{x:d,y:0},A:{x:R*n,y:R*s},B:{x:d+r*n,y:r*s},R:{x:R,y:0},S:{x:d+r,y:0}},
+ const g=state?.tan?tangentLabGeometry(state.tan):tangentLabGeometry({R:5,r:2,d:12});
+ const R=g.largeRadius,r=g.smallRadius,d=g.centerDistance;
+ return fromPoints({O:g.O1,P:g.O2,A:g.A,B:g.B,R:{x:R,y:0},S:{x:d+r,y:0}},
   [["O","A"],["P","B"],["A","B"],["O","P"]],[["O","R"],["P","S"]]);
 }
 export function presetGeometry(key:string):GeometryDocument{
