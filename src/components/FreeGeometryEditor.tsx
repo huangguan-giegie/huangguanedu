@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback,useEffect,useId,useRef,useState,type PointerEvent,type ChangeEvent } from "react";
+import Link from "next/link";
+import {middleSchoolTheorems,presetGeometry} from "../lib/middle-school-geometry";
+import {GEOMETRY_DRAFT_KEY,geometryDraftExport} from "../lib/practice-drawing";
 import {
  blankDocument,createPoint,createShape,createIntersections,createPolygon,createLocus,polygonMeasures,resolveDocument,
  movePoint,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
@@ -240,6 +243,21 @@ export function FreeGeometryEditor() {
   }catch(e){note(safeError(e));}
   setPolygonVertices([]);
  };
+ const loadTheorem=(key:string)=>{
+  try{
+   if(docRef.current.objects.length>0&&!window.confirm("载入定理模板会替换当前画布。是否继续？"))return;
+   const next=presetGeometry(key);
+   commit(next);setPending(null);setPolygonVertices([]);setLocusDraft(null);
+   setSelected(null);note("定理模板已载入，所有几何对象可以继续编辑。");
+  }catch(e){note(safeError(e));}
+ };
+ const stageDrawing=()=>{
+  try{
+   const exported=geometryDraftExport(docRef.current);
+   window.localStorage.setItem(GEOMETRY_DRAFT_KEY,exported);
+   note("已保存工作台作图；打开模拟题后选择某一道题预览或请老师核对发布。");
+  }catch(e){note(safeError(e));}
+ };
  const deleteSelected=()=>{
   if(!selected)return;
   const removed=doc.objects.length-deleteCascade(doc,selected).objects.length;
@@ -279,6 +297,20 @@ export function FreeGeometryEditor() {
     aria-pressed={tool===t.id} className={tool===t.id?styles.toolActive:styles.tool}
     onClick={()=>{setTool(t.id);setPending(null);setPolygonVertices([]);setLocusDraft(null);note(t.hint);}}>{t.name}</button>)}
   </div>
+  <section style={{padding:14,border:"1px solid var(--line)",borderRadius:15,background:"var(--surface)"}}>
+    <h2 style={{fontSize:15,fontWeight:800,marginBottom:10}}>初中几何 · 可编辑定理模板</h2>
+    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+      {middleSchoolTheorems.filter(t=>["diameter","bisector","similar","tangent","pythagoras","midline","isosceles","parallel","polygon"].includes(t.key)).map(t=>
+       <button type="button" title={t.formula} key={t.key} onClick={()=>loadTheorem(t.key)}
+        style={{padding:"8px 12px",borderRadius:9,fontSize:12,fontWeight:700,border:"1px solid var(--line)",background:"var(--surface-soft)"}}>{t.title}</button>)}
+    </div>
+    <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
+      <button type="button" onClick={stageDrawing}
+       style={{background:"#177f91",color:"white",borderRadius:10,padding:"10px 15px",fontSize:13,fontWeight:800}}>将当前作图准备给模拟题使用</button>
+      <Link href="/practice" style={{fontSize:13,textDecoration:"underline",fontWeight:700}}>打开错题模拟题，选择目标题目</Link>
+      <Link href="/geometry-lab" style={{fontSize:13,textDecoration:"underline",fontWeight:700}}>从动态几何实验室导入图形</Link>
+    </div>
+  </section>
   <div className={styles.layout}>
    <section className={styles.canvasBox}>
     <div className={styles.canvasToolbar}>
