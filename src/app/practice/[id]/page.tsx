@@ -50,10 +50,13 @@ function PracticeDetail({ id }: { id: string }) {
     api.get<{user:{role:string}}>("/api/v1/auth/me").then(({user})=>{
       setCanPublish(user.role==="TEACHER"||user.role==="ADMIN");
     }).catch(()=>setCanPublish(false));
-    try{
-      const raw=window.localStorage.getItem(GEOMETRY_DRAFT_KEY);
-      if(raw)setDraft(geometryDraftImport(raw));
-    }catch{setDraft(null);}
+    const frame=window.requestAnimationFrame(()=>{
+      try{
+        const raw=window.localStorage.getItem(GEOMETRY_DRAFT_KEY);
+        if(raw)setDraft(geometryDraftImport(raw));
+      }catch{setDraft(null);}
+    });
+    return ()=>window.cancelAnimationFrame(frame);
   },[]);
   async function publishDrawing(questionId:string){
     if(!draft||!set||!acknowledged)return;
