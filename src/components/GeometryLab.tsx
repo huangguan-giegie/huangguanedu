@@ -10,6 +10,7 @@ import {
 import { distance, type Point2 } from "../lib/practice-construction-constraints";
 import styles from "./GeometryLab.module.css";
 import Link from "next/link";
+import {JuniorTheoremPlayground} from "./JuniorTheoremPlayground";
 import {geometryLabSnapshot,middleSchoolTheorems} from "../lib/middle-school-geometry";
 import {GEOMETRY_DRAFT_KEY,geometryDraftExport} from "../lib/practice-drawing";
 
@@ -338,6 +339,7 @@ export function GeometryLab() {
       </div>
       {savedFigure&&<p role="status" style={{fontSize:13,marginTop:10}}>{savedFigure}</p>}
     </section>
+    <JuniorTheoremPlayground/>
     <section style={{padding:22,border:"1px solid var(--line)",borderRadius:17,background:"var(--surface)"}}>
       <h2 style={{fontSize:19,fontWeight:800}}>初中几何定理库</h2>
       <p style={{fontSize:13,lineHeight:1.8,margin:"8px 0 15px",color:"var(--muted)"}}>覆盖圆、三角形、平行线、四边形和坐标几何。选择具体模板进入编辑器，可以修改顶点与图形后用于练习。</p>
