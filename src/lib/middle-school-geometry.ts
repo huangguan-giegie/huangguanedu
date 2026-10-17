@@ -60,9 +60,9 @@ function fromPoints(items:Record<string,Point2>,segments:[string,string][],circl
  for(const [center,edge] of circles){document=createShape(document,"circle",ids[center],ids[edge]).document;}
  return document;
 }
-export function geometryLabSnapshot(mode:"bisector"|"similarity"|"tangent"|"diameter",state?:{bis?:BisectorLabState;sim?:SimilarityLabState;tan?:TangentLabState}):GeometryDocument{
+export function geometryLabSnapshot(mode:"bisector"|"similarity"|"tangent"|"diameter",state?:{bis?:BisectorLabState;sim?:SimilarityLabState;tan?:TangentLabState;diameterAngle?:number}):GeometryDocument{
  if(mode==="diameter"){
-  const g=diameterCyclicQuadrilateral(125);
+  const g=diameterCyclicQuadrilateral(state?.diameterAngle??125);
   return fromPoints({A:g.A,B:g.B,C:g.C,D:g.D,O:g.O},[["A","B"],["A","C"],["A","D"],["B","C"],["C","D"]],[["O","A"]]);
  }
  if(mode==="bisector"){
