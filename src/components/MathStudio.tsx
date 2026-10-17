@@ -43,7 +43,7 @@ function CasPanel(){
    setError("");
   }catch(e){setError(safeError(e));}
  };
- const useMeasure=(value:string)=>{
+ const applyMeasurement=(value:string)=>{
   setExpr(value);setAction("simplify");
   try{setResult(runCAS(value,"simplify"));setError("");}
   catch(e){setError(safeError(e));}
@@ -67,7 +67,7 @@ function CasPanel(){
   {drawing&&<div style={{padding:14,border:"1px solid var(--line)",borderRadius:15,background:"var(--surface-soft)"}}>
     <strong>已载入当前图形：点击数值可将长度、面积或周长作为 CAS 输入</strong>
     <div style={{display:"flex",flexWrap:"wrap",gap:9,margin:"10px 0"}}>
-      {measurements.map(m=><button key={m.id} type="button" onClick={()=>useMeasure(m.expression)}
+      {measurements.map(m=><button key={m.id} type="button" onClick={()=>applyMeasurement(m.expression)}
         style={{border:"1px solid var(--line)",background:"var(--surface)",borderRadius:9,padding:"8px 10px",fontSize:12}}>
         {m.label}：{Number(m.value.toFixed(4))} {m.unit}
       </button>)}
