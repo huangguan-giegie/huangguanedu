@@ -21,7 +21,7 @@ const W=720,H=440,scale=33;
 const X=(x:number)=>W/2+x*scale,Y=(y:number)=>H/2-y*scale;
 export function sampleFunction(expression:string):{paths:string[];zeroes:number[];yIntercept:number|null;vertex:{x:number;y:number}|null}{
  const evalAt=compileExpression(expression,{maxLength:160}).evaluate;
- let pieces:string[][]=[],piece:string[]=[],lastY:number|null=null;
+ const pieces:string[][]=[];let piece:string[]=[],lastY:number|null=null;
  const flush=()=>{if(piece.length>1)pieces.push(piece);piece=[];lastY=null;};
  const steps=750;
  const zeroes:number[]=[];
@@ -46,10 +46,11 @@ export function sampleFunction(expression:string):{paths:string[];zeroes:number[
  const yIntercept=evalAt(0);
  return {paths:pieces.map(p=>p.join(" ")),zeroes,yIntercept:Number.isFinite(yIntercept)?yIntercept:null,vertex};
 }
-export function FunctionExamExplorer({compact=false}:{compact?:boolean}){
- const [preset,setPreset]=useState("二次函数");
- const [expression,setExpression]=useState("x^2-4x+3");
- const [saved,setSaved]=useState("x^2-4x+3");
+export function FunctionExamExplorer({compact=false,initialPreset="二次函数"}:{compact?:boolean;initialPreset?:string}){
+ const initial=EXAM_FUNCTIONS.find(p=>p.name===initialPreset)??EXAM_FUNCTIONS[1];
+ const [preset,setPreset]=useState(initial.name);
+ const [expression,setExpression]=useState(initial.expression);
+ const [saved,setSaved]=useState(initial.expression);
  const [error,setError]=useState("");
  const graph=useMemo(()=>{
   try{return sampleFunction(saved);}
