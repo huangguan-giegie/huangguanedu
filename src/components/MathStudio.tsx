@@ -18,7 +18,7 @@ const presets:{expr:string;action:CasAction;label:string}[]=[
  {expr:"3x^3-2x+1",action:"differentiate",label:"多项式求导"},
 ];
 const safeError=(e:unknown)=>e instanceof Error?e.message:"计算出错";
-function CasPanel(){
+function CasPanel({onGraph}:{onGraph:(expression:string)=>void}){
  const [expr,setExpr]=useState("x^2-5x+6");
  const [action,setAction]=useState<CasAction>("factor");
  const [x,setX]=useState("2");
@@ -58,6 +58,10 @@ function CasPanel(){
     {action==="evaluate"&&<label className={styles.field}>代入 x 的值<input value={x}
      onChange={e=>setX(e.target.value)} placeholder="如 1/2"/></label>}
     <button className={styles.primary} onClick={solve}>计算并显示步骤 →</button>
+    <button className={styles.reset} onClick={()=>{
+     const candidate=expr.split("=")[0].trim();
+     if(candidate)onGraph(candidate);
+    }}>将当前表达式显示在下方函数图像中 ↓</button>
     <p className={styles.note}>支持隐式乘法（如 2x、(x+1)(x-2)）、整数幂、分数和最多 6 位小数。暂不支持三角函数、对数和一般有理函数；求根限制在二次以内。</p>
    </section>
    <section className={styles.result} aria-live="polite">
@@ -73,6 +77,7 @@ function CasPanel(){
 }
 export function MathStudio(){
  const [tab,setTab]=useState<"cas"|"conic">("cas");
+ const [graphExpression,setGraphExpression]=useState("x^2-4x+3");
  return <div className={styles.page}>
   <div className={styles.hero}><p>MATHEMATICS STUDIO · 高级数学工具</p>
    <h1>中考函数图像与高考圆锥曲线</h1>
@@ -81,7 +86,7 @@ export function MathStudio(){
    <button role="tab" aria-selected={tab==="cas"} onClick={()=>setTab("cas")}>∑ 符号代数 CAS</button>
    <button role="tab" aria-selected={tab==="conic"} onClick={()=>setTab("conic")}>◇ 高考圆锥曲线与直线</button>
   </div>
-  {tab==="cas"?<><CasPanel/><FunctionExamExplorer/></>:<ConicExamExplorer/>}
+  {tab==="cas"?<><CasPanel onGraph={setGraphExpression}/><FunctionExamExplorer key={graphExpression} initialExpression={graphExpression}/></>:<ConicExamExplorer/>}
   <p className={styles.bottom}>本页不修改学生模拟题的标准答案或数据库。它提供一元多项式 CAS、函数曲线和圆锥曲线的确定性数学教学工具，而非完整计算机代数系统。</p>
  </div>;
 }
