@@ -8,7 +8,6 @@ export type V2={x:number;y:number};
 export type ConicModel={kind:ConicKind;a:number;b:number;p:number};
 export type Secant={point:V2;slope:number};
 export type IntersectionResult={points:V2[];status:"secant"|"tangent"|"none"|"single-not-tangent"|"coincident";discriminant:number;chord:number|null;equation:string};
-const close=(a:number,b:number)=>Math.abs(a-b)<1e-9*Math.max(1,Math.abs(a),Math.abs(b));
 export function validateConic(c:ConicModel){
  if(![c.a,c.b,c.p].every(Number.isFinite)||c.a<=0||c.b<=0||c.p<=0||c.a>30||c.b>30||c.p>30)throw Error("圆锥曲线参数必须为0–30间正数");
  if(c.kind==="ellipse"&&c.a<=c.b)throw Error("椭圆必须a>b>0");
