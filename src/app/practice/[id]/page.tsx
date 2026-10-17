@@ -7,6 +7,8 @@ import { api } from "../../../components/api";
 import { AuthGuard } from "../../../components/AuthGuard";
 import { Icon } from "../../../components/icons";
 import { PracticeDiagram } from "../../../components/PracticeDiagram";
+import { CyclicDiameterDiagram } from "../../../components/CyclicDiameterDiagram";
+import { detectLegacyCyclicDiameterQuestion } from "../../../lib/cyclic-diameter-geometry";
 import { PracticeAnswerBox } from "../../../components/PracticeAnswerBox";
 import { practiceText, type PracticeSetItem } from "../../../components/practice-content";
 import { latexToUnicode } from "../../../lib/latex-to-unicode";
@@ -72,11 +74,15 @@ function PracticeDetail({ id }: { id: string }) {
       {message && <p className={`${styles.task} ${styles.noPrint}`} role="status">{message}</p>}
       <div className={styles.questions}>{set.questions.map((question, index) => {
         const answerVisible = showAnswers || revealed.includes(question.id);
+        const fixedAngle = detectLegacyCyclicDiameterQuestion(question.question);
+        const requiresRepair = fixedAngle !== null && !question.diagram;
         return <article className={styles.questionCard} key={question.id}>
           <div className={styles.questionHead}><span className={styles.questionIndex}>第 {String(index + 1).padStart(2, "0")} 题</span><span className={styles.questionHint}>先独立思考，再对照解析</span></div>
           <p className={styles.questionText}>{latexToUnicode(question.question)}</p>
           {question.diagram && <PracticeDiagram diagram={question.diagram} />}
-          {question.imageUrl && <button type="button" className={styles.diagramButton} onClick={() => setPreview(question.imageUrl!)} aria-label={`放大第 ${index + 1} 题示意图`}>
+          {requiresRepair && <CyclicDiameterDiagram obtuseAngle={fixedAngle} />}
+          {requiresRepair && <p className={styles.printHint}>原始图片与题设角度不一致，已用经过角度校验的示意图替换。旧题的答案仍需人工复核。</p>}
+          {!requiresRepair && question.imageUrl && <button type="button" className={styles.diagramButton} onClick={() => setPreview(question.imageUrl!)} aria-label={`放大第 ${index + 1} 题示意图`}>
             {/* 题图使用短期授权地址，直接加载可避免代理缓存过期地址。 */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className={styles.diagram} src={question.imageUrl} alt={`第 ${index + 1} 题示意图`} />
