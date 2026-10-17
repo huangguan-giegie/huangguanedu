@@ -1,4 +1,5 @@
 import { z } from "zod";
+import {diameterCyclicQuadrilateral} from "./middle-school-geometry";
 import { constructBisector, constructSimilarity, constructExternalTangent, distance } from "./practice-construction-constraints";
 
 /**
@@ -7,6 +8,7 @@ import { constructBisector, constructSimilarity, constructExternalTangent, dista
  * All given measures, labels and answers are compiled by trusted code.
  */
 export const advancedDiagramOptions = [
+  z.object({type:z.literal("circle_diameter_quadrilateral"), angleADC:z.union([z.literal(110),z.literal(120),z.literal(125),z.literal(130),z.literal(140)])}),
   z.object({
     type: z.literal("triangle_angle_bisector"),
     sides: z.enum(["6-8-7","6-9-10","8-12-10","9-12-7","10-15-15"]),
@@ -120,6 +122,15 @@ export interface AdvancedProblem {
 /** Mathematics, not the model, is the source of truth. */
 export function compileAdvancedDiagramProblem(diagram: AdvancedDiagram): AdvancedProblem {
   switch (diagram.type) {
+    case "circle_diameter_quadrilateral": {
+      const g=diameterCyclicQuadrilateral(diagram.angleADC);
+      return {
+        question:`如图，四边形 A–D–C–B 内接于圆 O，AB 是圆 O 的直径，∠ADC＝${diagram.angleADC}°，求∠BAC 的度数。`,
+        answer:`${g.angleBAC}°`,
+        explanation:`∠ADC＝${diagram.angleADC}° 截得不含 D 的优弧 AC 为 ${2*diagram.angleADC}°，所以劣弧 AC＝${360-2*diagram.angleADC}°。AB 是直径，上半圆弧 AB 为180°，故劣弧 BC＝180°－${360-2*diagram.angleADC}°＝${2*g.angleBAC}°；∠BAC＝${2*g.angleBAC}°÷2＝${g.angleBAC}°。也可利用 ∠ACB＝90° 和圆内接四边形。`,
+        diagram,
+      };
+    }
     case "triangle_angle_bisector": {
       const [AB, AC, BC] = diagram.sides.split("-").map(Number);
       const g = constructBisector(AB, AC, BC);
