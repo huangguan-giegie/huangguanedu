@@ -16,6 +16,7 @@ import { asStringArray } from "./mastery";
 import { getStorage } from "./storage";
 import { PRACTICE_DIAGRAM_HINT } from "./practice-ai";
 import { compileDiagramProblem, PracticeDiagramSchema, type PracticeDiagram } from "./practice-diagram";
+import {unpackPracticeDrawing} from "./practice-drawing";
 
 export const PracticeQuestionSchema = z.object({
   question: z.string().min(1).max(12000),
@@ -393,7 +394,9 @@ export async function serializePracticeSet(set: { id: string; studentId: string;
   }
 
   return { id: set.id, studentId: set.studentId, studentName: set.student.name, title: set.title, summaryId: set.summaryId, createdAt: set.createdAt, subject,
-    questions: await Promise.all(set.questions.map(async (q) => ({ id: q.id, question: q.question, answer: q.answer, explanation: q.explanation, diagram: q.diagram ?? null,
+    questions: await Promise.all(set.questions.map(async (q) => ({ id: q.id, question: q.question, answer: q.answer, explanation: q.explanation,
+      diagram: unpackPracticeDrawing(q.diagram).original,
+      attachedDrawing: unpackPracticeDrawing(q.diagram).drawing,
       imageUrl: q.imagePath ? (await getStorage().getReadUrl(q.imagePath, 600)) ?? `/api/v1/practice-sets/images/${q.id}` : null }))),
   };
 }
