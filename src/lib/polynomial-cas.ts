@@ -4,7 +4,7 @@
  */
 export type Rational={n:number;d:number};
 export type Polynomial=Rational[];
-export type CasAction="simplify"|"differentiate"|"integrate"|"factor"|"solve"|"evaluate";
+export type CasAction="simplify"|"differentiate"|"factor"|"solve"|"evaluate";
 export interface CasResult{input:string;action:CasAction;result:string;steps:string[]}
 const MAX_DEGREE=8,MAX_MAG=1e11,MAX_TEXT=150;
 const gcd=(a:number,b:number):number=>{a=Math.abs(a);b=Math.abs(b);while(b){const t=a%b;a=b;b=t;}return a||1;};
@@ -144,10 +144,6 @@ export function polynomialText(p:Polynomial):string{
 export function derivative(p:Polynomial):Polynomial{
  return normalize(p.slice(1).map((c,i)=>rmul(c,rat(i+1))));
 }
-export function integrate(p:Polynomial):Polynomial{
- if(p.length>MAX_DEGREE)throw Error("积分结果次数超过 8");
- return normalize([zero(),...p.map((c,i)=>rdiv(c,rat(i+1)))]);
-}
 export function evaluatePolynomial(p:Polynomial,x:Rational):Rational{
  return p.reduceRight((result,coefficient)=>radd(rmul(result,x),coefficient),zero());
 }
@@ -197,7 +193,6 @@ export function runCAS(expression:string,action:CasAction,atX="2"):CasResult{
  const p=parsePolynomial(input),canonical=polynomialText(p);
  if(action==="simplify")return {input,action,result:canonical,steps:["按多项式规则展开并合并同类项。",canonical]};
  if(action==="differentiate")return {input,action,result:polynomialText(derivative(p)),steps:["先展开："+canonical,"逐项使用 (cx^n)' = cnx^(n−1)。"]};
- if(action==="integrate")return {input,action,result:polynomialText(integrate(p))+" + C",steps:["先展开："+canonical,"逐项使用 ∫cx^n dx = cx^(n+1)/(n+1) + C。"]};
  if(action==="evaluate"){
   const x=parsePolynomial(atX);
   if(x.length!==1)throw Error("代入值必须是常数");

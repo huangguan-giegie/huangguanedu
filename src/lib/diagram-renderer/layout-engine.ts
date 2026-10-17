@@ -477,3 +477,48 @@ function layoutIntersectingLines(desc: DiagramDescription): VertexMap {
   }
   return result;
 }
+
+/** Checks *given* numeric angles in a model-written question against the
+ * actual constructed vertices. A generic topological circle layout cannot
+ * honor an arbitrary 125° constraint. Reject it instead of drawing a lie.
+ */
+export function diagramAngleClaimViolations(question:string,map:VertexMap):string[]{
+ const issues:string[]=[];
+ const pattern=/∠\s*([A-Z])\s*([A-Z])\s*([A-Z])\s*[=＝]\s*(\d+(?:\.\d+)?)\s*(?:°|度)/g;
+ for(const match of question.matchAll(pattern)){
+  const [,a,b,c,requested]=match;
+  const A=map.get(a),B=map.get(b),C=map.get(c);
+  if(!A||!B||!C){issues.push(`∠${a}${b}${c} 缺少顶点坐标`);continue;}
+  const u={x:A.x-B.x,y:A.y-B.y},v={x:C.x-B.x,y:C.y-B.y};
+  const denom=Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y);
+  if(denom<1e-8){issues.push(`∠${a}${b}${c} 退化`);continue;}
+  const cosine=Math.max(-1,Math.min(1,(u.x*v.x+u.y*v.y)/denom));
+  const measured=Math.acos(cosine)*180/Math.PI;
+  if(Math.abs(measured-Number(requested))>1.5){
+   issues.push(`∠${a}${b}${c} 声明 ${requested}°，实际绘制约 ${measured.toFixed(1)}°`);
+  }
+ }
+ return issues;
+}
+
+/** A diameter claim also needs verification: a circle declaration on its
+ * own does not guarantee the named endpoints are opposite around its centre.
+ */
+export function diameterClaimViolations(question:string,desc:DiagramDescription,map:VertexMap):string[]{
+ const issues:string[]=[];
+ if(desc.shapeType!=="circle")return issues;
+ const centerLabel=desc.circles?.[0]?.center;
+ const O=centerLabel?map.get(centerLabel):undefined;
+ const cleaned=question.replace(/\s+/g,"");
+ const pattern=/([A-Z])([A-Z])(?:是|为|作为|\s|[⊙圆O]|的){0,16}直径/g;
+ for(const m of cleaned.matchAll(pattern)){
+  const A=map.get(m[1]),B=map.get(m[2]);
+  if(!A||!B||!O){issues.push(`${m[1]}${m[2]} 声明为直径，但圆心或端点缺失`);continue;}
+  const r1=Math.hypot(A.x-O.x,A.y-O.y),r2=Math.hypot(B.x-O.x,B.y-O.y);
+  const midpoint=Math.hypot((A.x+B.x)/2-O.x,(A.y+B.y)/2-O.y);
+  if(r1<1e-8||Math.abs(r1-r2)>r1*1e-5||midpoint>r1*1e-5){
+   issues.push(`${m[1]}${m[2]} 声明为直径，但实测没有经过圆心形成对径点`);
+  }
+ }
+ return issues;
+}

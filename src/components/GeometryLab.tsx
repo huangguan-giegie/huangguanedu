@@ -9,6 +9,10 @@ import {
 } from "../lib/geometry-lab";
 import { distance, type Point2 } from "../lib/practice-construction-constraints";
 import styles from "./GeometryLab.module.css";
+import Link from "next/link";
+import {JuniorTheoremPlayground} from "./JuniorTheoremPlayground";
+import {geometryLabSnapshot,middleSchoolTheorems} from "../lib/middle-school-geometry";
+import {GEOMETRY_DRAFT_KEY,geometryDraftExport} from "../lib/practice-drawing";
 
 const catalog: { mode: LabMode; icon: string; title: string; subtitle: string }[] = [
   { mode:"bisector", icon:"△", title:"角平分线", subtitle:"拖动 A 点，观察分点 D" },
@@ -89,6 +93,15 @@ export function GeometryLab() {
   const similar=similarityLabGeometry(sim);
   const tangent=tangentLabGeometry(tan);
 
+  const [savedFigure,setSavedFigure]=useState("");
+  function stageDrawing(){
+    try{
+      const doc=geometryLabSnapshot(mode,{bis,sim,tan});
+      window.localStorage.setItem(GEOMETRY_DRAFT_KEY,geometryDraftExport(doc));
+      window.localStorage.setItem("hg-geometry-editor-v1",JSON.stringify(doc));
+      setSavedFigure("已将当前状态保存为可复用图形。可在编辑器继续修改，或去模拟题选择具体题目附加。");
+    }catch(e){setSavedFigure(e instanceof Error?e.message:"保存作图失败");}
+  }
   function reset() {
     if(mode==="bisector") setBis({...LAB_DEFAULTS.bisector});
     if(mode==="similarity") setSim({...LAB_DEFAULTS.similarity});
@@ -316,6 +329,28 @@ export function GeometryLab() {
         </TeachingNote>
       </aside>
     </div>
+    <section style={{padding:22,border:"1px solid var(--line)",borderRadius:17,background:"var(--surface)"}}>
+      <h2 style={{fontSize:19,fontWeight:800,marginBottom:12}}>将当前几何构造用于模拟题</h2>
+      <p style={{fontSize:13,lineHeight:1.9,color:"var(--muted)",marginBottom:14}}>保存的是此刻拖动后的真实几何尺寸和辅助线，而非默认示例。转入自由编辑器后，可继续增添线、圆或交点；调整顶点后的新图需要重新核对数学条件。</p>
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+        <button type="button" onClick={stageDrawing} style={{padding:"11px 17px",background:"#167f90",borderRadius:10,color:"white",fontWeight:750}}>保存当前图形并共享给模拟题</button>
+        <Link href="/geometry-editor" style={{fontWeight:700,textDecoration:"underline"}}>去自由几何编辑器</Link>
+        <Link href="/practice" style={{fontWeight:700,textDecoration:"underline"}}>去模拟题</Link>
+      </div>
+      {savedFigure&&<p role="status" style={{fontSize:13,marginTop:10}}>{savedFigure}</p>}
+    </section>
+    <JuniorTheoremPlayground/>
+    <section style={{padding:22,border:"1px solid var(--line)",borderRadius:17,background:"var(--surface)"}}>
+      <h2 style={{fontSize:19,fontWeight:800}}>初中几何定理库</h2>
+      <p style={{fontSize:13,lineHeight:1.8,margin:"8px 0 15px",color:"var(--muted)"}}>覆盖圆、三角形、平行线、四边形和坐标几何。选择具体模板进入编辑器，可以修改顶点与图形后用于练习。</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(215px,1fr))",gap:10}}>
+       {middleSchoolTheorems.map(t=><div key={t.key} style={{padding:13,border:"1px solid var(--line)",borderRadius:12,background:"var(--surface-soft)"}}>
+          <span style={{fontSize:11,color:"var(--muted)"}}>{t.group}</span>
+          <strong style={{display:"block",fontSize:14,margin:"6px 0"}}>{t.title}</strong>
+          <span style={{display:"block",fontSize:12,lineHeight:1.7}}>{t.formula}</span>
+        </div>)}
+      </div>
+    </section>
     <p className={styles.disclaimer}>教学探索模式：这里的尺寸可自由调整，但不会修改正式模拟题的题干、配图、标准答案或数据库记录。</p>
   </div>;
 }

@@ -1,4 +1,5 @@
 import type { PracticeDiagram } from "../lib/practice-diagram";
+import type {GeometryDocument} from "../lib/free-geometry";
 import { latexToUnicode } from "../lib/latex-to-unicode";
 
 export interface PracticeQuestion {
@@ -8,6 +9,7 @@ export interface PracticeQuestion {
   explanation: string | null;
   imageUrl?: string | null;
   diagram?: PracticeDiagram | null;
+  attachedDrawing?: GeometryDocument | null;
 }
 
 export interface PracticeSetItem {

@@ -3,6 +3,7 @@
 import { useId, type ReactNode } from "react";
 import type { AdvancedDiagram } from "../lib/practice-advanced-diagram";
 import { ConstructionPracticeDiagram } from "./ConstructionPracticeDiagram";
+import { DiameterCyclicPracticeDiagram } from "./DiameterCyclicPracticeDiagram";
 
 type Point = { x: number; y: number };
 const ink = "#23405b";
@@ -107,6 +108,7 @@ function Graph({ curves, points, axisX, description, caption }: {
 }
 
 export function AdvancedPracticeDiagram({ diagram }: { diagram: AdvancedDiagram }) {
+  if (diagram.type==="circle_diameter_quadrilateral") return <DiameterCyclicPracticeDiagram angleADC={diagram.angleADC}/>;
   if (diagram.type === "triangle_angle_bisector" || diagram.type === "similar_right_triangles" || diagram.type === "two_circles_external_tangent") {
     return <ConstructionPracticeDiagram diagram={diagram} />;
   }

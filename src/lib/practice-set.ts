@@ -9,13 +9,14 @@ import type { SafeUser } from "./auth";
 import { loadConfig } from "./config";
 import { normalizeDiagramDescription } from "./diagram-description";
 import { computeLayout } from "./diagram-renderer/layout-engine";
-import { diagramPremiseViolations } from "./diagram-renderer/layout-engine";
+import { diagramPremiseViolations,diagramAngleClaimViolations,diameterClaimViolations } from "./diagram-renderer/layout-engine";
 import { renderDiagramFromDescription } from "./diagram-renderer";
 import { latexToUnicode, normalizeGeometryText, tidyPunctuation, unconvertedCommands } from "./latex-to-unicode";
 import { asStringArray } from "./mastery";
 import { getStorage } from "./storage";
 import { PRACTICE_DIAGRAM_HINT } from "./practice-ai";
 import { compileDiagramProblem, PracticeDiagramSchema, type PracticeDiagram } from "./practice-diagram";
+import {unpackPracticeDrawing} from "./practice-drawing";
 
 export const PracticeQuestionSchema = z.object({
   question: z.string().min(1).max(12000),
@@ -92,7 +93,7 @@ const DIAGRAM_REQUIRED_HINT =
   "先观察原图的三角形、四边形、圆与共线关系，再输出变式题和图形描述。" +
   DIAGRAM_FORMAT_HINT +
   '函数图必须用 shapeType="function-graph"、vertices=[]，functions:[{"expr":"y=2x^2-3x+1","domain":[-5,5]}]，keyPoints:[{"x":1,"y":0,"label":"A"}]。支持一次、二次、反比例、三角函数、根式、指数对数等一元函数，expr只使用数字、x、括号、+-*/^、sin/cos/tan/sqrt/abs/ln/log/exp/pi，不可使用代码。' +
-  "若几何拓扑无法用上述结构完整表达，可输出仅基本SVG元素的 diagramSvg（svg,g,line,polyline,polygon,path,circle,ellipse,rect,text），不得使用图片、外链、脚本、样式表。配图背景白色，线条和文字使用暖灰#39323f，多条曲线可用紫色#7F77DD、绿色#1D9E75，不使用深蓝色。" +
+  "如题干包含明确角度（例如 ∠ADC＝125°），必须使用精确结构化 diagram 模板；不得让 SVG 或默认布局自己猜角度。无法保证角度时，改为不依赖图的完整纯文字题。不得用自由SVG绕过角度校验。" +
   "纯文字计算和英语题 diagramDescription 和 diagramSvg 为 null；函数图必须给有效表达式，不能 null。";
 
 /** 无图模式（图形渲染不可用时的兜底）：题干必须自足，不再依赖任何图 */
@@ -288,8 +289,8 @@ function renderQuestionDiagram(question: { diagramSvg?: string | null }, diagram
     if (!description) throw new Error("图形结构不完整");
     return renderDiagramFromDescription(description);
   } catch (error) {
-    // 复杂几何保留 SVG 兜底，同样经过资源隔离校验。
-    if (question.diagramSvg?.trim()) return question.diagramSvg;
+    // 不允许 AI SVG 作为几何一致性校验的兜底。
+    // SVG 消毒仅验证资源安全，无法验证标注的角度/长度正确。
     console.warn(`[practice-set] 示意图渲染失败，该题降级为纯文字：${error instanceof Error ? error.message : "unknown"}`);
     return null;
   }
@@ -322,12 +323,7 @@ export async function persistQuestions(output: PracticeSetAiOutput, options: { d
         }
         if (!imagePath) diagramFailures.push(index + 1);
       } else if (diagrams && question.diagramSvg?.trim()) {
-        try {
-          imagePath = await saveDiagramImage(question.diagramSvg);
-        } catch (error) {
-          console.warn(`[practice-set] 兜底 SVG 保存失败，该题降级为纯文字：${error instanceof Error ? error.message : "unknown"}`);
-          diagramFailures.push(index + 1);
-        }
+        diagramFailures.push(index + 1);
       } else if (FIGURE_REFERENCE.test(question.question)) {
         diagramFailures.push(index + 1);
       }
@@ -336,7 +332,12 @@ export async function persistQuestions(output: PracticeSetAiOutput, options: { d
         // 落在延长线说明变式改数据时破坏了几何前提（如交换了邻边），题设与图矛盾。
         const desc = normalizeDiagramDescription(diagramDescription);
         if (desc) {
-          const violations = diagramPremiseViolations(desc, computeLayout(desc));
+          const map=computeLayout(desc);
+          const violations = [
+            ...diagramPremiseViolations(desc,map),
+            ...diagramAngleClaimViolations(normalizeGeometryText(latexToUnicode(question.question)),map),
+            ...diameterClaimViolations(normalizeGeometryText(latexToUnicode(question.question)),desc,map),
+          ];
           if (violations.length) {
             console.warn(`[practice-set] 第 ${index + 1} 题出题前提不成立：${violations.join("；")}`);
             premiseViolations.push(index + 1);
@@ -394,7 +395,9 @@ export async function serializePracticeSet(set: { id: string; studentId: string;
   }
 
   return { id: set.id, studentId: set.studentId, studentName: set.student.name, title: set.title, summaryId: set.summaryId, createdAt: set.createdAt, subject,
-    questions: await Promise.all(set.questions.map(async (q) => ({ id: q.id, question: q.question, answer: q.answer, explanation: q.explanation, diagram: q.diagram ?? null,
+    questions: await Promise.all(set.questions.map(async (q) => ({ id: q.id, question: q.question, answer: q.answer, explanation: q.explanation,
+      diagram: unpackPracticeDrawing(q.diagram).original,
+      attachedDrawing: unpackPracticeDrawing(q.diagram).drawing,
       imageUrl: q.imagePath ? (await getStorage().getReadUrl(q.imagePath, 600)) ?? `/api/v1/practice-sets/images/${q.id}` : null }))),
   };
 }
@@ -440,7 +443,13 @@ export async function runPracticeGenerationJob(prisma: PrismaClient, jobId: stri
       persisted = await persistQuestions(output);
       savedImages = savedImagePaths(persisted);
       if (persisted.premiseViolations.length) {
-        console.error(`[practice-set] 重出后第 ${persisted.premiseViolations.join("、")} 题前提仍不成立，已按现值落库 job=${jobId}`);
+        // Fail closed: wrong angles and impossible constructions must never
+        // reach students even after an unsuccessful second attempt.
+        await Promise.allSettled(savedImages.map(path=>getStorage().delete(path)));
+        savedImages=[];
+        console.error(`[practice-set] 重出仍存在几何矛盾；切换为无图题 job=${jobId}`);
+        output=await generatePracticeSetAi(input,fetch,90000,{diagrams:false});
+        persisted=await persistQuestions(output,{diagrams:false});
       }
     }
 
