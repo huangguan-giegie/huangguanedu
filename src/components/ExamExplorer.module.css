@@ -1,0 +1,21 @@
+.explorer{display:grid;gap:16px;padding:18px;border:1px solid var(--line,#d8e4ed);border-radius:18px;background:var(--surface,#fff);min-width:0}
+.heading{display:flex;justify-content:space-between;gap:12px}.heading strong{font-size:19px;font-weight:800}.heading p{font-size:14px;line-height:1.6;color:var(--muted,#70849a);margin-top:6px}
+.presets{display:flex;flex-wrap:wrap;gap:8px}.presets button{min-height:40px;padding:8px 12px;border:1px solid var(--line,#dce9ef);border-radius:10px;background:var(--surface-soft,#f0f6f9);font-size:13px;font-weight:700;color:var(--foreground,#294661)}
+.presets button[aria-pressed=true]{color:white;background:#177f94;border-color:#177f94}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(265px,1fr);gap:18px}
+.plot{border:1px solid var(--line,#d8e5eb);border-radius:15px;overflow:hidden;min-width:0;background:#f9fcff}
+.plot svg{display:block;width:100%;height:auto;aspect-ratio:720/440}.plot small{display:block;padding:12px 15px;font-size:12px;line-height:1.7;color:#567388;background:#f0f6f9}
+.controls{display:grid;gap:14px;align-content:start}
+.controls label{font-weight:750;font-size:14px;display:grid;gap:8px}
+.controls input{min-height:46px;padding:11px 12px;border:1px solid var(--line,#bdcfdb);background:var(--surface-soft,#f8fbfd);color:var(--foreground,#233c51);border-radius:9px;width:100%;font-size:15px}
+.controls input[type=range]{accent-color:#18899f;padding:0;min-height:25px}
+.controls select{min-height:44px;padding:9px;border:1px solid var(--line,#bdcfdb);border-radius:9px;background:var(--surface-soft,#f8fbfd);color:var(--foreground,#233c51);font-size:14px}
+.controls output{font-variant-numeric:tabular-nums;font-size:14px;color:var(--foreground)}
+.primary{min-height:44px;padding:10px 15px;background:#157c92;color:white;border-radius:10px;font-weight:800;font-size:14px}
+.error{color:#be583b;font-size:13px;line-height:1.6}
+.facts{display:grid;gap:10px;padding:16px;background:var(--surface-soft,#eef6f9);border-radius:13px;line-height:1.7;color:var(--foreground,#365771);font-size:13px}
+.facts h3{font-size:16px;font-weight:800}
+.tip{line-height:1.8;font-size:13px;color:var(--muted,#687e90)}
+.formula{font-family:var(--font-geist-mono,monospace);font-size:17px;word-break:break-word;font-weight:750}
+@media(max-width:1030px){.layout{grid-template-columns:1fr}}
+@media(max-width:600px){.explorer{padding:12px}.presets button{flex:1 1 110px;font-size:12px}}

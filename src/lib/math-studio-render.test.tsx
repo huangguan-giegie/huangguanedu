@@ -41,7 +41,9 @@ describe("三维几何投影与符号工作室",()=>{
  it("CAS与自由作图编辑器均可 SSR，包含完整功能入口",()=>{
   const cas=renderToStaticMarkup(createElement(MathStudio));
   expect(cas).toContain("符号代数 CAS");
-  expect(cas).toContain("三维曲面作图");
+  expect(cas).toContain("高考圆锥曲线与直线");
+  expect(cas).toContain("函数图像 · 中高考考点");
+  expect(cas).toContain("绘制函数图像");
   expect(cas).toContain("因式分解");
   expect(cas).not.toContain("<script");
   const editor=renderToStaticMarkup(createElement(FreeGeometryEditor));

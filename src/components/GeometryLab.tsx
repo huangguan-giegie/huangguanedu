@@ -12,6 +12,9 @@ import {cyclicDiameterGeometry} from "../lib/cyclic-diameter-geometry";
 import {exportGeometryLabModel} from "../lib/geometry-lab-export";
 import {useRouter} from "next/navigation";
 import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
+import {FreeGeometryEditor} from "./FreeGeometryEditor";
+import {ConicExamExplorer} from "./ConicExamExplorer";
+import {FunctionExamExplorer} from "./FunctionExamExplorer";
 import styles from "./GeometryLab.module.css";
 
 const catalog: { mode: LabMode; icon: string; title: string; subtitle: string }[] = [
@@ -89,6 +92,7 @@ export function GeometryLab() {
   const [sim,setSim]=useState(LAB_DEFAULTS.similarity);
   const [tan,setTan]=useState(LAB_DEFAULTS.tangent);
   const [showGuides,setShowGuides]=useState(true);
+  const [workshop,setWorkshop]=useState<"theorems"|"editor"|"conics"|"trig"|"explog">("theorems");
   const activePointer=useRef<{handle:LabHandle;pointerId:number}|null>(null);
   const gridId=useId();
 
@@ -158,13 +162,31 @@ export function GeometryLab() {
   const BD=distance(bisector.B,bisector.D),DC=distance(bisector.D,bisector.C);
   const format=displayMeasure;
 
+  const workshopNav=<div className={styles.modeTabs} role="group" aria-label="实验室教学模式">
+    {([
+     ["theorems","初中几何定理"],["editor","自由作图工作台"],["conics","高考圆锥曲线"],
+     ["trig","高考三角函数"],["explog","高考指对数函数"],
+    ] as const).map(([id,name])=><button type="button" key={id} aria-pressed={workshop===id}
+     className={workshop===id?styles.modeActive:styles.mode} onClick={()=>setWorkshop(id)}>
+      <span><strong>{name}</strong><small>{id==="editor"?"支持线段及圆半径数值编辑":"更改参数，观察函数和定理"}</small></span>
+    </button>)}
+   </div>;
+  if(workshop!=="theorems")return <div className={styles.page}>
+   {workshopNav}
+   {workshop==="editor"?<FreeGeometryEditor/>:
+    workshop==="conics"?<ConicExamExplorer compact/>:
+    workshop==="trig"?<FunctionExamExplorer compact initialPreset="正弦函数"/>:
+    <FunctionExamExplorer compact initialPreset="指数函数"/>}
+  </div>;
+
   return <div className={styles.page}>
+    {workshopNav}
     <div className={styles.hero}>
       <div className={styles.eyebrow}>GEOMETRY STUDIO / 动态几何实验室</div>
       <h1>拖动图形，<span>看见定理如何成立。</span></h1>
       <p>不只是让 AI 画一张图：每一次拖动都会重新计算顶点、辅助线与对应数值。验证始终依据几何公式，而不是模型猜测。</p>
       <div className={styles.heroFacts}>
-        <span>3 个交互模型</span><span>实时数值验证</span><span>手机触控 / 键盘可用</span>
+        <span>4 个交互模型</span><span>实时数值验证</span><span>手机触控 / 键盘可用</span>
       </div>
     </div>
 
