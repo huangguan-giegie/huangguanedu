@@ -372,7 +372,7 @@ export async function allowedPracticeStudents(prisma: PrismaClient, user: Pick<S
   });
 }
 
-export async function serializePracticeSet(set: { id: string; studentId: string; title: string; summaryId: string | null; createdAt: Date; student: { name: string }; questions: { id: string; question: string; answer: string; explanation: string | null; imagePath: string | null; diagram?: unknown; sourceWrongQuestionIds?: unknown }[] }, prisma?: PrismaClient) {
+export async function serializePracticeSet(set: { id: string; studentId: string; title: string; summaryId: string | null; createdAt: Date; student: { name: string }; questions: { id: string; question: string; answer: string; explanation: string | null; imagePath: string | null; diagram?: unknown; geometrySketch?: unknown; sourceWrongQuestionIds?: unknown }[] }, prisma?: PrismaClient) {
   // 学科不在练习题上，只能经sourceWrongQuestionIds 从来源错题反查。
   // 取不到时默认 MATH：公式键盘对英语题也能用，不算错配。
   const sourceIds = [
@@ -394,7 +394,7 @@ export async function serializePracticeSet(set: { id: string; studentId: string;
   }
 
   return { id: set.id, studentId: set.studentId, studentName: set.student.name, title: set.title, summaryId: set.summaryId, createdAt: set.createdAt, subject,
-    questions: await Promise.all(set.questions.map(async (q) => ({ id: q.id, question: q.question, answer: q.answer, explanation: q.explanation, diagram: q.diagram ?? null,
+    questions: await Promise.all(set.questions.map(async (q) => ({ id: q.id, question: q.question, answer: q.answer, explanation: q.explanation, diagram: q.diagram ?? null, geometrySketch: q.geometrySketch ?? null,
       imageUrl: q.imagePath ? (await getStorage().getReadUrl(q.imagePath, 600)) ?? `/api/v1/practice-sets/images/${q.id}` : null }))),
   };
 }
