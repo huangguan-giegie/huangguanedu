@@ -84,6 +84,18 @@ export function ConicExamExplorer({compact=false}:{compact?:boolean}){
      {facts.map((fact,i)=><p key={i}>{fact}</p>)}
      <p>{kind==="ellipse"?"焦距满足 c²=a²−b²，0<e<1。":kind==="hyperbola"?"焦距满足 c²=a²+b²，渐近线 y=±(b/a)x。":"焦点 F(p,0)，准线 x=−p，离心率为1。"}</p>
     </section>
+    <section className={styles.facts} aria-label="高考解析几何典型例题">
+     <h3>高考常考题型 · 点击展开解答</h3>
+     {[
+      {question:"题型一：根据参数，求标准方程、焦点与离心率。",answer:`${formula}；${facts[1]}；${facts[2]}`},
+      {question:`题型二：直线经过 P(${px}, ${py})，斜率为 ${m.toFixed(2)}，写出直线方程。`,answer:throughPointLine(line).equation},
+      {question:"题型三：判断直线与圆锥曲线有几个交点，是否相切。",answer:`${statusText[result.status]}；代入判别式 Δ = ${result.discriminant.toFixed(5)}。`},
+      {question:"题型四：求该直线在曲线上截出的弦长。",answer:result.chord===null?"当前直线不存在两个不同的有限交点，无法组成弦。":`由两点距离公式，弦长 = ${result.chord.toFixed(4)}。`},
+     ].map((q,i)=><details key={i} style={{padding:"9px 0",borderBottom:"1px solid var(--line)"}}>
+      <summary style={{cursor:"pointer",fontWeight:750}}>{q.question}</summary>
+      <p style={{padding:"10px 0",lineHeight:1.8}}>解答：{q.answer}</p>
+     </details>)}
+    </section>
     {!compact&&<p className={styles.tip}>高考常见题型：求标准方程及焦点、离心率、已知点是否在曲线上、过指定点的直线与曲线的交点个数、相切条件、弦长和韦达定理。这里的斜率控制不能表示竖直线 x=x₀。</p>}
    </div>
   </div>
