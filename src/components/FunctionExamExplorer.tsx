@@ -46,11 +46,11 @@ export function sampleFunction(expression:string):{paths:string[];zeroes:number[
  const yIntercept=evalAt(0);
  return {paths:pieces.map(p=>p.join(" ")),zeroes,yIntercept:Number.isFinite(yIntercept)?yIntercept:null,vertex};
 }
-export function FunctionExamExplorer({compact=false,initialPreset="二次函数"}:{compact?:boolean;initialPreset?:string}){
+export function FunctionExamExplorer({compact=false,initialPreset="二次函数",initialExpression}:{compact?:boolean;initialPreset?:string;initialExpression?:string}){
  const initial=EXAM_FUNCTIONS.find(p=>p.name===initialPreset)??EXAM_FUNCTIONS[1];
- const [preset,setPreset]=useState(initial.name);
- const [expression,setExpression]=useState(initial.expression);
- const [saved,setSaved]=useState(initial.expression);
+ const [preset,setPreset]=useState(initialExpression?"自定义":initial.name);
+ const [expression,setExpression]=useState(initialExpression??initial.expression);
+ const [saved,setSaved]=useState(initialExpression??initial.expression);
  const [error,setError]=useState("");
  const graph=useMemo(()=>{
   try{return sampleFunction(saved);}
