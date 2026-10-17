@@ -1,11 +1,11 @@
 import { NextResponse,type NextRequest } from "next/server";
-import type {Prisma} from "../../../../../../../generated/prisma/client";
-import {requireRole} from "../../../../../../../lib/auth";
-import {prisma} from "../../../../../../../lib/db";
-import {jsonError} from "../../../../../../../lib/http";
-import {allowedPracticeStudents} from "../../../../../../../lib/practice-set";
-import {packPracticeDrawing} from "../../../../../../../lib/practice-drawing";
-import {validateDocument} from "../../../../../../../lib/free-geometry";
+import type {Prisma} from "../../../../../../../../generated/prisma/client";
+import {requireRole} from "../../../../../../../../lib/auth";
+import {prisma} from "../../../../../../../../lib/db";
+import {jsonError} from "../../../../../../../../lib/http";
+import {allowedPracticeStudents} from "../../../../../../../../lib/practice-set";
+import {packPracticeDrawing} from "../../../../../../../../lib/practice-drawing";
+import {validateDocument} from "../../../../../../../../lib/free-geometry";
 
 /** Teacher-reviewed reusable construction. This does not change the question,
  * answer, grading mode or source images. Students can preview locally only. */
