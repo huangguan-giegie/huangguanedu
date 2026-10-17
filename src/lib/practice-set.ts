@@ -343,7 +343,7 @@ export async function persistQuestions(output: PracticeSetAiOutput, options: { d
           }
         }
       }
-      if (imagePath && !premiseViolations.includes(index+1)) savedPaths.push(imagePath);
+      if (imagePath) savedPaths.push(imagePath);
       // 出题文本同样要过几何符号修复——出题模型与识别模型犯一样的错
       // （第二轮线上实例：解析里「∠B + ADC」「∠F = ACB」丢 ∠）。
       const questionText = sanitizeGeneratedText(normalizeGeometryText(latexToUnicode(question.question)));
