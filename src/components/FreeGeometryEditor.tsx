@@ -44,7 +44,7 @@ function MeasureControl({object,resolved,onApply}:{
  const found=resolved.find(r=>r.object.id===object.id);
  const isCircle=object.kind==="circle";
  const start=isCircle?found?.circle?.center:found?.line?.a;
- const end=isCircle&&found?.circle?{x:found.circle.center.x+found.circle.radius,y:found.circle.center.y}:found?.line?.b;
+ const end=object.kind==="circle"?resolved.find(r=>r.object.id===object.through)?.point:found?.line?.b;
  const length=start&&end?Math.hypot(end.x-start.x,end.y-start.y):null;
  const [draft,setDraft]=useState(length===null?"":String(Number(length.toFixed(3))));
  if(length===null)return <p className={styles.meta}>当前测量依赖交点尚不存在，请先调整上游图形。</p>;
