@@ -49,12 +49,15 @@ function MeasureControl({object,resolved,onApply}:{
  const measuredValue=length===null?"":String(Number(length.toFixed(3)));
  const [draft,setDraft]=useState(measuredValue);
  const [editing,setEditing]=useState(false);
- useEffect(()=>{
-  if(!editing)setDraft(measuredValue);
- },[measuredValue,editing]);
+ const value=editing?draft:measuredValue;
  if(length===null)return <p className={styles.meta}>当前测量依赖交点尚不存在，请先调整上游图形。</p>;
  const label=isCircle?"圆的半径 r":"定位端点之间的长度 L";
- return <form style={{display:"grid",gap:9,padding:"12px 0"}} onSubmit={e=>{
+ return <form style={{display:"grid",gap:9,padding:"12px 0"}}
+  onBlurCapture={e=>{
+   const next=e.relatedTarget;
+   if(!(next instanceof Node&&e.currentTarget.contains(next)))setEditing(false);
+  }}
+  onSubmit={e=>{
   e.preventDefault();
   const target=Number(draft);
   if(!draft.trim()||!Number.isFinite(target))return;
@@ -62,12 +65,8 @@ function MeasureControl({object,resolved,onApply}:{
   setEditing(false);
  }}>
   <label>{label}
-   <input type="number" aria-label={label} step="0.1" min=".1" max="500" value={draft}
-    onFocus={()=>setEditing(true)} onBlur={e=>{
-     const next=e.relatedTarget;
-     if(next instanceof Node&&e.currentTarget.form?.contains(next))return;
-     setEditing(false);
-    }}
+   <input type="number" aria-label={label} step="0.1" min=".1" max="500" value={value}
+    onFocus={()=>setEditing(true)}
     onChange={e=>setDraft(e.target.value)}/></label>
   <button type="submit" className={styles.delete} style={{borderColor:"#84bdc6",color:"var(--foreground)"}}>应用长度 / 半径并重绘</button>
   <p className={styles.meta}>
