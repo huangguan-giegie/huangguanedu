@@ -1,14 +1,16 @@
+import {useId} from "react";
 import {validateDocument,resolveDocument,type GeometryDocument,type Point} from "../lib/free-geometry";
 import {sampleLocus,locusPaths} from "../lib/geometry-locus";
 
 /** Pure read-only rendering of a validated construction. No SVG strings, remote URLs or scripts. */
 export function GeometrySnapshot({document}:{document:GeometryDocument}){
  const validated=validateDocument(document);
+ const clipId=useId();
  const resolved=resolveDocument(validated);
  const points=resolved.flatMap(r=>[
   ...(r.point?[r.point]:[]),
   ...(r.line?[r.line.a,r.line.b]:[]),
-  ...(r.circle?[r.circle.center,{x:r.circle.center.x+r.circle.radius,y:r.circle.center.y}]:[]),
+  ...(r.circle?[r.circle.center,{x:r.circle.center.x+r.circle.radius,y:r.circle.center.y},{x:r.circle.center.x-r.circle.radius,y:r.circle.center.y},{x:r.circle.center.x,y:r.circle.center.y+r.circle.radius},{x:r.circle.center.x,y:r.circle.center.y-r.circle.radius}]:[]),
   ...(r.polygon??[]),
  ]).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
  const minX=Math.min(-1,...points.map(p=>p.x)),maxX=Math.max(1,...points.map(p=>p.x));
@@ -22,8 +24,8 @@ export function GeometrySnapshot({document}:{document:GeometryDocument}){
   <svg viewBox="0 0 480 300" className="w-full max-w-[480px]" role="img"
    aria-label={`用户创建的动态几何作品静态快照，包含${validated.objects.length}个几何对象`}>
    <rect width="480" height="300" fill="#f9fcff"/>
-   <defs><clipPath id="geometry-snapshot-viewport"><rect width="480" height="300"/></clipPath></defs>
-   <g clipPath="url(#geometry-snapshot-viewport)" strokeLinecap="round" strokeLinejoin="round">
+   <defs><clipPath id={clipId}><rect width="480" height="300"/></clipPath></defs>
+   <g clipPath={`url(#${clipId})`} strokeLinecap="round" strokeLinejoin="round">
     {resolved.filter(r=>!r.object.hidden).map(r=>{
      const o=r.object;
      if(r.circle){const p=project(r.circle.center);return <circle key={o.id} cx={p.x} cy={p.y} r={r.circle.radius*scale} fill="none" stroke="#2a708e" strokeWidth="2.4"/>;}
