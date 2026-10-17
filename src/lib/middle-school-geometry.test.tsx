@@ -19,7 +19,7 @@ describe("截图中圆内接四边形的严格数学关系",()=>{
   expect(g.arcOrder).toEqual(["A","D","C","B"]);
   const projected=new Map(Object.entries({A:g.A,B:g.B,C:g.C,D:g.D,O:g.O}));
   expect(diagramAngleClaimViolations(`∠ADC＝${adc}°`,projected)).toEqual([]);
-  const q=compileDiagramProblem({type:"circle_diameter_quadrilateral",angleADC:adc});
+  const q=compileDiagramProblem({type:"circle_diameter_quadrilateral",angleADC:adc as 110|120|125|130|140});
   expect(q.answer).toBe(`${adc-90}°`);
   expect(q.question).toContain(`∠ADC＝${adc}°`);
  });
