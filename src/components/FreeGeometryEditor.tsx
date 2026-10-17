@@ -269,6 +269,12 @@ export function FreeGeometryEditor() {
    <div className={styles.headerActions}>
     <button onClick={undoAction} disabled={!undo.length}>↶ 撤销</button>
     <button onClick={redoAction} disabled={!redo.length}>↷ 重做</button>
+    <button onClick={()=>{
+     try{
+      window.localStorage.setItem("hg-geometry-clipboard-v1",JSON.stringify(validateDocument(docRef.current)));
+      note("已将当前作品放入模拟题图形剪贴板。在模拟题详情页选择「插入作品」即可使用。");
+     }catch(e){note("共享失败："+safeError(e));}
+    }}>送到模拟题</button>
     <button onClick={exportJson}>导出 JSON</button>
     <button onClick={exportSvg}>导出 SVG</button>
     <button onClick={()=>importRef.current?.click()}>导入</button>
