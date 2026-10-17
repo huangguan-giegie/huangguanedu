@@ -7,6 +7,7 @@ import {
  starterDocument,type GeometryDocument,type GeometryObject,type Resolved,type Point,
 } from "../lib/free-geometry";
 import {sampleLocus,locusPaths} from "../lib/geometry-locus";
+import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
 import styles from "./FreeGeometryEditor.module.css";
 
 type Tool="move"|"point"|"line"|"segment"|"circle"|"intersection"|"polygon"|"locus";
@@ -417,6 +418,7 @@ export function FreeGeometryEditor() {
     </section>
    </aside>
   </div>
+  <GeometryTheoremLibrary />
   <p className={styles.footer}>自由几何编辑器属于浏览器端作图工具；与已生成的正式数学模拟题数据隔离。当前支持平面欧氏点、直线、线段、圆及有限交点，不包含 GeoGebra 的全部符号代数、三维和 CAS 功能。</p>
  </div>;
 }
