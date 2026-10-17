@@ -500,3 +500,25 @@ export function diagramAngleClaimViolations(question:string,map:VertexMap):strin
  }
  return issues;
 }
+
+/** A diameter claim also needs verification: a circle declaration on its
+ * own does not guarantee the named endpoints are opposite around its centre.
+ */
+export function diameterClaimViolations(question:string,desc:DiagramDescription,map:VertexMap):string[]{
+ const issues:string[]=[];
+ if(desc.shapeType!=="circle")return issues;
+ const centerLabel=desc.circles?.[0]?.center;
+ const O=centerLabel?map.get(centerLabel):undefined;
+ const cleaned=question.replace(/\s+/g,"");
+ const pattern=/([A-Z])([A-Z])(?:是|为|作为|\s|[⊙圆O]|的){0,16}直径/g;
+ for(const m of cleaned.matchAll(pattern)){
+  const A=map.get(m[1]),B=map.get(m[2]);
+  if(!A||!B||!O){issues.push(`${m[1]}${m[2]} 声明为直径，但圆心或端点缺失`);continue;}
+  const r1=Math.hypot(A.x-O.x,A.y-O.y),r2=Math.hypot(B.x-O.x,B.y-O.y);
+  const midpoint=Math.hypot((A.x+B.x)/2-O.x,(A.y+B.y)/2-O.y);
+  if(r1<1e-8||Math.abs(r1-r2)>r1*1e-5||midpoint>r1*1e-5){
+   issues.push(`${m[1]}${m[2]} 声明为直径，但实测没有经过圆心形成对径点`);
+  }
+ }
+ return issues;
+}
