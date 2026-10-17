@@ -3,7 +3,7 @@
 import { useCallback,useEffect,useId,useRef,useState,type PointerEvent,type ChangeEvent } from "react";
 import {
  blankDocument,createPoint,createShape,createIntersections,createPolygon,createLocus,polygonMeasures,resolveDocument,
- movePoint,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
+ movePoint,resizeMeasuredObject,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
  starterDocument,type GeometryDocument,type GeometryObject,type Resolved,type Point,
 } from "../lib/free-geometry";
 import {sampleLocus,locusPaths} from "../lib/geometry-locus";
@@ -38,6 +38,35 @@ function docName(o:GeometryObject):string{
 }
 const safeError=(error:unknown)=>error instanceof Error?error.message:"操作失败";
 
+function MeasureControl({object,resolved,onApply}:{
+ object:GeometryObject;resolved:Resolved[];onApply:(next:number)=>void;
+}){
+ const found=resolved.find(r=>r.object.id===object.id);
+ const isCircle=object.kind==="circle";
+ const start=isCircle?found?.circle?.center:found?.line?.a;
+ const end=isCircle&&found?.circle?{x:found.circle.center.x+found.circle.radius,y:found.circle.center.y}:found?.line?.b;
+ const length=start&&end?Math.hypot(end.x-start.x,end.y-start.y):null;
+ const [draft,setDraft]=useState(length===null?"":String(Number(length.toFixed(3))));
+ if(length===null)return <p className={styles.meta}>当前测量依赖交点尚不存在，请先调整上游图形。</p>;
+ const label=isCircle?"圆的半径 r":"定位端点之间的长度 L";
+ return <form style={{display:"grid",gap:9,padding:"12px 0"}} onSubmit={e=>{
+  e.preventDefault();
+  const target=Number(draft);
+  if(!draft.trim()||!Number.isFinite(target))return;
+  onApply(target);
+ }}>
+  <label>{label}
+   <input type="number" aria-label={label} step="0.1" min=".1" max="500" value={draft}
+    onChange={e=>setDraft(e.target.value)}/></label>
+  <button type="submit" className={styles.delete} style={{borderColor:"#84bdc6",color:"var(--foreground)"}}>应用长度 / 半径并重绘</button>
+  <p className={styles.meta}>
+   {isCircle
+    ?`半径：r=√[(${end!.x.toFixed(2)}−${start!.x.toFixed(2)})²+(${end!.y.toFixed(2)}−${start!.y.toFixed(2)})²]=${length.toFixed(3)}。`
+    :`两点距离：L=√[(x₂−x₁)²+(y₂−y₁)²]=${length.toFixed(3)}。两点距离不是无限直线的总长度。`}
+   修改时沿当前方向移动第二个自由定位点，所有依赖构造会自动重算；若第二点是关联交点，请先编辑其上游自由点。
+  </p>
+ </form>;
+}
 export function FreeGeometryEditor() {
  const router=useRouter();
  const [doc,setDoc]=useState<GeometryDocument>(()=>starterDocument());
@@ -430,6 +459,12 @@ export function FreeGeometryEditor() {
           }}>发送两点距离²到 CAS 计算</button>
          </div>;
        })()}
+       {(selectedObject.kind==="segment"||selectedObject.kind==="line"||selectedObject.kind==="circle")&&
+         <MeasureControl key={selectedObject.id} object={selectedObject} resolved={resolved}
+          onApply={target=>{
+           try{commit(resizeMeasuredObject(docRef.current,selectedObject.id,target));note("已修改定位尺寸，相关交点和图形重新计算");}
+           catch(e){note(safeError(e));}
+          }}/>}
        <button className={styles.delete} onClick={deleteSelected}>删除对象及依赖项</button>
       </div>}
     </section>
