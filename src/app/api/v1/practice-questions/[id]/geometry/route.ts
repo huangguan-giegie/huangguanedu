@@ -1,4 +1,5 @@
 import {NextResponse,type NextRequest} from "next/server";
+import {Prisma} from "../../../../../../generated/prisma/client";
 import {requireRole} from "../../../../../../lib/auth";
 import {assertStateChangeAllowed} from "../../../../../../lib/csrf";
 import {prisma} from "../../../../../../lib/db";
@@ -34,10 +35,9 @@ export async function PATCH(request:NextRequest,context:Context){
   const value=(parsed as {geometrySketch:unknown}).geometrySketch;
   if(value!==null)sketch=validateDocument(value);
  }catch{return jsonError(400,"INVALID_SKETCH","作图数据不是有效的有向无环几何构造");}
- await prisma.practiceQuestion.update({where:{id},data:{geometrySketch:sketch===null?undefined:sketch}});
- // Prisma JSON null must be explicitly represented to clear the optional JSONB field.
- if(sketch===null){
-  await prisma.practiceQuestion.update({where:{id},data:{geometrySketch:undefined}});
- }
+ await prisma.practiceQuestion.update({
+  where:{id},
+  data:{geometrySketch:sketch===null?Prisma.DbNull:JSON.parse(JSON.stringify(sketch)) as Prisma.InputJsonValue},
+ });
  return NextResponse.json({success:true,data:{id,geometrySketch:sketch}});
 }
