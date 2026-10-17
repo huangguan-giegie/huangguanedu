@@ -59,10 +59,15 @@ function MeasureControl({object,resolved,onApply}:{
   const target=Number(draft);
   if(!draft.trim()||!Number.isFinite(target))return;
   onApply(target);
+  setEditing(false);
  }}>
   <label>{label}
    <input type="number" aria-label={label} step="0.1" min=".1" max="500" value={draft}
-    onFocus={()=>setEditing(true)} onBlur={()=>setEditing(false)}
+    onFocus={()=>setEditing(true)} onBlur={e=>{
+     const next=e.relatedTarget;
+     if(next instanceof Node&&e.currentTarget.form?.contains(next))return;
+     setEditing(false);
+    }}
     onChange={e=>setDraft(e.target.value)}/></label>
   <button type="submit" className={styles.delete} style={{borderColor:"#84bdc6",color:"var(--foreground)"}}>应用长度 / 半径并重绘</button>
   <p className={styles.meta}>
