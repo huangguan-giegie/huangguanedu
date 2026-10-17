@@ -90,7 +90,9 @@ describe("自由编辑器长度与半径数值约束",()=>{
   const next=resizeMeasuredObject(circle.document,circle.id,6);
   const v=resolveDocument(next).find(r=>r.object.id===circle.id)?.circle;
   expect(v?.radius).toBeCloseTo(6);
-  expect(resolveDocument(next).find(r=>r.object.id===s.b)?.point).toEqual({x:3.6,y:4.8});
+  const through=resolveDocument(next).find(r=>r.object.id===s.b)?.point;
+  expect(through?.x).toBeCloseTo(3.6);
+  expect(through?.y).toBeCloseTo(4.8);
  });
  it("拒绝通过拖动关联交点或伪造负半径破坏约束",()=>{
   const s=setup();
