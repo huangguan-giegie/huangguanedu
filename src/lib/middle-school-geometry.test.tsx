@@ -2,7 +2,8 @@ import {describe,expect,it} from "vitest";
 import {createElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
 import {diameterCyclicQuadrilateral,geometryLabSnapshot,middleSchoolTheorems,presetGeometry} from "./middle-school-geometry";
-import {diagramAngleClaimViolations} from "./diagram-renderer/layout-engine";
+import {diagramAngleClaimViolations,diameterClaimViolations} from "./diagram-renderer/layout-engine";
+import {matchingLegacyDiameterProblem} from "./legacy-circle-repair";
 import {compileDiagramProblem} from "./practice-diagram";
 import {packPracticeDrawing,unpackPracticeDrawing,geometryDraftExport,geometryDraftImport} from "./practice-drawing";
 import {geometryMeasurements} from "./geometry-cas-bridge";
@@ -28,6 +29,23 @@ describe("截图中圆内接四边形的严格数学关系",()=>{
   const issues=diagramAngleClaimViolations("AB是直径，∠ADC＝125°，求∠BAC",wrongMap);
   expect(issues.length).toBeGreaterThan(0);
   expect(issues[0]).toContain("实际绘制");
+ });
+ it("旧版截图题干严格匹配，能识别且不会误修其他几何题",()=>{
+  const q="如图，四边形 ABCD 内接于 ⊙O，AB 是 ⊙O 的直径，∠ADC = 125°。求∠BAC 的度数。";
+  const canonical=matchingLegacyDiameterProblem(q);
+  expect(canonical?.answer).toBe("35°");
+  expect(canonical?.diagram.type).toBe("circle_diameter_quadrilateral");
+  expect(matchingLegacyDiameterProblem("△ABC中 AB 为直径，∠ADC = 125° 求∠BAC")).toBeNull();
+  expect(matchingLegacyDiameterProblem("四边形ABCD内接于圆O，AB是直径，∠ADC=73° 求∠BAC")).toBeNull();
+ });
+ it("声称 AB 是直径但两端非对径，应在模型渲染前拒绝",()=>{
+  const vertices=new Map(Object.entries({
+   A:{x:-5,y:0},B:{x:4,y:-1},O:{x:0,y:0}
+  }));
+  const desc={shapeType:"circle" as const,vertices:[{label:"A"},{label:"B"},{label:"O"}],circles:[{center:"O",radiusPoint:"A"}]};
+  expect(diameterClaimViolations("AB是⊙O的直径",desc,vertices).length).toBe(1);
+  vertices.set("B",{x:5,y:0});
+  expect(diameterClaimViolations("AB是⊙O的直径",desc,vertices)).toEqual([]);
  });
  it("数学校验拒绝退化和非法角，服务器生成的图可安全 SSR",()=>{
   expect(()=>diameterCyclicQuadrilateral(90)).toThrow();
