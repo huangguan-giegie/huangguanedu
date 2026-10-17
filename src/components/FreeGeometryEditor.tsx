@@ -46,7 +46,12 @@ function MeasureControl({object,resolved,onApply}:{
  const start=isCircle?found?.circle?.center:found?.line?.a;
  const end=object.kind==="circle"?resolved.find(r=>r.object.id===object.through)?.point:found?.line?.b;
  const length=start&&end?Math.hypot(end.x-start.x,end.y-start.y):null;
- const [draft,setDraft]=useState(length===null?"":String(Number(length.toFixed(3))));
+ const measuredValue=length===null?"":String(Number(length.toFixed(3)));
+ const [draft,setDraft]=useState(measuredValue);
+ const [editing,setEditing]=useState(false);
+ useEffect(()=>{
+  if(!editing)setDraft(measuredValue);
+ },[measuredValue,editing]);
  if(length===null)return <p className={styles.meta}>当前测量依赖交点尚不存在，请先调整上游图形。</p>;
  const label=isCircle?"圆的半径 r":"定位端点之间的长度 L";
  return <form style={{display:"grid",gap:9,padding:"12px 0"}} onSubmit={e=>{
@@ -57,6 +62,7 @@ function MeasureControl({object,resolved,onApply}:{
  }}>
   <label>{label}
    <input type="number" aria-label={label} step="0.1" min=".1" max="500" value={draft}
+    onFocus={()=>setEditing(true)} onBlur={()=>setEditing(false)}
     onChange={e=>setDraft(e.target.value)}/></label>
   <button type="submit" className={styles.delete} style={{borderColor:"#84bdc6",color:"var(--foreground)"}}>应用长度 / 半径并重绘</button>
   <p className={styles.meta}>
