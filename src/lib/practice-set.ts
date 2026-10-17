@@ -9,7 +9,7 @@ import type { SafeUser } from "./auth";
 import { loadConfig } from "./config";
 import { normalizeDiagramDescription } from "./diagram-description";
 import { computeLayout } from "./diagram-renderer/layout-engine";
-import { diagramPremiseViolations,diagramAngleClaimViolations } from "./diagram-renderer/layout-engine";
+import { diagramPremiseViolations,diagramAngleClaimViolations,diameterClaimViolations } from "./diagram-renderer/layout-engine";
 import { renderDiagramFromDescription } from "./diagram-renderer";
 import { latexToUnicode, normalizeGeometryText, tidyPunctuation, unconvertedCommands } from "./latex-to-unicode";
 import { asStringArray } from "./mastery";
@@ -336,6 +336,7 @@ export async function persistQuestions(output: PracticeSetAiOutput, options: { d
           const violations = [
             ...diagramPremiseViolations(desc,map),
             ...diagramAngleClaimViolations(normalizeGeometryText(latexToUnicode(question.question)),map),
+            ...diameterClaimViolations(normalizeGeometryText(latexToUnicode(question.question)),desc,map),
           ];
           if (violations.length) {
             console.warn(`[practice-set] 第 ${index + 1} 题出题前提不成立：${violations.join("；")}`);
