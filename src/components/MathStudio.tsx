@@ -11,7 +11,6 @@ const commands:{action:CasAction;label:string}[]=[
  {action:"factor",label:"因式分解"},
  {action:"solve",label:"解方程"},
  {action:"differentiate",label:"求导"},
- {action:"integrate",label:"不定积分"},
  {action:"evaluate",label:"代入求值"},
 ];
 const presets:{expr:string;action:CasAction;label:string}[]=[
@@ -19,7 +18,6 @@ const presets:{expr:string;action:CasAction;label:string}[]=[
  {expr:"x^2-5x+6",action:"factor",label:"分解二次式"},
  {expr:"2x^2-8=0",action:"solve",label:"解二次方程"},
  {expr:"3x^3-2x+1",action:"differentiate",label:"多项式求导"},
- {expr:"6x^2+4x",action:"integrate",label:"多项式积分"},
 ];
 const surfaces:SurfaceKind[]=["plane","paraboloid","saddle","sphere","torus","helix"];
 const safeError=(e:unknown)=>e instanceof Error?e.message:"计算出错";
@@ -36,7 +34,7 @@ function CasPanel(){
  return <div className={styles.section}>
   <div className={styles.sectionIntro}>
    <h2>符号代数 CAS</h2>
-   <p>对一元多项式做精确分数运算，支持括号展开、因式分解、一二次方程、求导、不定积分和代入求值。无需调用 AI 来猜计算结果。</p>
+   <p>对一元多项式做精确分数运算，支持括号展开、因式分解、一二次方程、求导和代入求值。无需调用 AI 来猜计算结果。</p>
   </div>
   <div className={styles.quickSamples}>{presets.map(p=><button key={p.label}
    type="button" onClick={()=>{setExpr(p.expr);setAction(p.action);setResult(runCAS(p.expr,p.action));setError("");}}>{p.label}</button>)}</div>
