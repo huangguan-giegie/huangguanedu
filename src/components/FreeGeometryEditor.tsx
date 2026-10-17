@@ -66,7 +66,7 @@ function MeasureControl({object,resolved,onApply}:{
  }}>
   <label>{label}
    <input type="number" aria-label={label} step="0.1" min=".1" max="500" value={value}
-    onFocus={()=>setEditing(true)}
+    onFocus={()=>{setDraft(measuredValue);setEditing(true);}}
     onChange={e=>setDraft(e.target.value)}/></label>
   <button type="submit" className={styles.delete} style={{borderColor:"#84bdc6",color:"var(--foreground)"}}>应用长度 / 半径并重绘</button>
   <p className={styles.meta}>
