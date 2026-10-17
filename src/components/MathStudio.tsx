@@ -23,7 +23,6 @@ const presets:{expr:string;action:CasAction;label:string}[]=[
  {expr:"x^2-5x+6",action:"factor",label:"分解二次式"},
  {expr:"2x^2-8=0",action:"solve",label:"解二次方程"},
  {expr:"3x^3-2x+1",action:"differentiate",label:"多项式求导"},
- {expr:"6x^2+4x",action:"integrate",label:"多项式积分"},
 ];
 const surfaces:SurfaceKind[]=["plane","paraboloid","saddle","sphere","torus","helix"];
 const safeError=(e:unknown)=>e instanceof Error?e.message:"计算出错";
