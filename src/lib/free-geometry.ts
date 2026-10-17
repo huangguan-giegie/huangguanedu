@@ -231,6 +231,30 @@ export function movePoint(doc:GeometryDocument,id:string,p:Point):GeometryDocume
   if(!found||found.kind!=="point")throw Error("只有自由点可以移动");
   return validateDocument({...doc,objects:doc.objects.map(o=>o.id===id?{...o,x:p.x,y:p.y}:o)});
 }
+/** Edit a defining distance by changing an independent FREE through/endpoint
+ * without severing a dependency graph. If the endpoint is constrained, reject
+ * instead of pretending a change succeeded. */
+export function resizeMeasuredObject(doc:GeometryDocument,id:string,length:number):GeometryDocument{
+ if(!Number.isFinite(length)||length<=0||length>500)throw Error("长度或半径需大于0且不超过500");
+ const object=doc.objects.find(o=>o.id===id);
+ if(!object||!(object.kind==="circle"||object.kind==="segment"||object.kind==="line"))
+  throw Error("请选择直线、线段或圆来编辑度量");
+ const rendered=resolveDocument(doc);
+ const current=rendered.find(o=>o.object.id===id);
+ if(!current)throw Error("无法解析选定对象");
+ const base=object.kind==="circle"?current.circle?.center:current.line?.a;
+ const endpoint=object.kind==="circle"
+   ?doc.objects.find(o=>o.id===object.through)
+   :doc.objects.find(o=>o.id===object.b);
+ const point=endpoint && rendered.find(o=>o.object.id===endpoint.id)?.point;
+ if(!base||!point||!endpoint)throw Error("对象尚无有效的两个定位点");
+ if(endpoint.kind!=="point")throw Error("定位末端是关联交点，不能直接改写；请先调整上游自由点");
+ const currentLength=Math.hypot(point.x-base.x,point.y-base.y);
+ if(currentLength<=EPS)throw Error("两定位点重合，无法确定方向");
+ const ratio=length/currentLength;
+ const updated={x:base.x+(point.x-base.x)*ratio,y:base.y+(point.y-base.y)*ratio};
+ return movePoint(doc,endpoint.id,updated);
+}
 export function renameObject(doc:GeometryDocument,id:string,label:string):GeometryDocument {
   const value=label.trim();
   if(!value||value.length>12)throw Error("标签长度限制为 1–12");
