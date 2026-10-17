@@ -26,7 +26,7 @@ const menus = {
     { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/geometry-editor", label: "自由几何编辑器" },
-    { href: "/math-studio", label: "代数 CAS / 三维作图" },
+    { href: "/math-studio", label: "代数 CAS / 函数与圆锥曲线" },
     { href: "/bookings", label: "课程预约" },
     { href: "/reports", label: "学习总结" },
     { href: "/account", label: "账户设置" },
@@ -41,7 +41,7 @@ const menus = {
     { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/geometry-editor", label: "自由几何编辑器" },
-    { href: "/math-studio", label: "代数 CAS / 三维作图" },
+    { href: "/math-studio", label: "代数 CAS / 函数与圆锥曲线" },
     { href: "/account", label: "账户设置" },
   ],
   ADMIN: [
@@ -55,7 +55,7 @@ const menus = {
     { href: "/practice", label: "错题模拟题" },
     { href: "/geometry-lab", label: "动态几何实验室" },
     { href: "/geometry-editor", label: "自由几何编辑器" },
-    { href: "/math-studio", label: "代数 CAS / 三维作图" },
+    { href: "/math-studio", label: "代数 CAS / 函数与圆锥曲线" },
     { href: "/account", label: "账户设置" },
   ],
 } as const;
@@ -83,6 +83,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const [workspaceScale,setWorkspaceScale]=useState(100);
+  useEffect(()=>{
+    const frame=window.requestAnimationFrame(()=>{
+      try{
+        const saved=Number(window.localStorage.getItem("hg-academy-font-scale"));
+        if([90,100,110,125,140].includes(saved))setWorkspaceScale(saved);
+      }catch{/** private browsing */}
+    });
+    return ()=>window.cancelAnimationFrame(frame);
+  },[]);
+  const changeScale=(next:number)=>{
+    setWorkspaceScale(next);
+    try{window.localStorage.setItem("hg-academy-font-scale",String(next));}catch{/** ephemeral */}
+  };
+
   const menuRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => { menuRef.current?.close(); }, [pathname]);
@@ -157,12 +172,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             <span className="academy-topbar-label">黄冠 AI Academy <span className="academy-breadcrumb-divider">/</span> {currentPage}</span>
           </div>
           <div className="flex items-center gap-3">
+            <div role="group" aria-label="内容字号和画布缩放" className="flex items-center gap-1" style={{border:"1px solid var(--line)",borderRadius:10,padding:3}}>
+              <button type="button" aria-label="减小内容字号" title="内容缩小一级" disabled={workspaceScale===90}
+               onClick={()=>changeScale(([90,100,110,125,140].filter(v=>v<workspaceScale).at(-1)??90))}
+               style={{padding:"4px 7px",fontSize:13,fontWeight:800}}>A−</button>
+              <span aria-live="polite" style={{fontSize:12,minWidth:37,textAlign:"center",fontVariantNumeric:"tabular-nums"}}>{workspaceScale}%</span>
+              <button type="button" aria-label="增大内容字号" title="内容放大一级" disabled={workspaceScale===140}
+               onClick={()=>changeScale(([90,100,110,125,140].find(v=>v>workspaceScale)??140))}
+               style={{padding:"4px 7px",fontSize:16,fontWeight:800}}>A＋</button>
+            </div>
             <ThemeToggle />
             <span className="academy-topbar-user">{user.name} · {user.role === "FAMILY" ? "家庭" : user.role === "TEACHER" ? "老师" : "管理员"}</span>
             <Link className="academy-account-link" href="/account" aria-label="账户设置"><Icon name="account" size={21} /></Link>
           </div>
         </header>
-        <main key={pathname} className={`academy-workspace app-content${pathname === "/" ? " academy-home-workspace" : ""}`} id="main-content" tabIndex={-1}>{children}</main>
+        <main key={pathname} className={`academy-workspace app-content${pathname === "/" ? " academy-home-workspace" : ""}`} id="main-content" tabIndex={-1} style={{zoom:workspaceScale/100}}>{children}</main>
         <footer className="academy-footer"><span>每天进步一点，都值得被看见。</span><span>黄冠 AI Academy</span></footer>
       </div>
       <nav className="academy-bottom-nav" aria-label="移动端主导航">
