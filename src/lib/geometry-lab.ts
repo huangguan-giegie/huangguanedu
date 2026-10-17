@@ -8,7 +8,7 @@ import {
  * These are local exploratory controls, never quiz or persistence fields.
  * Drags are projected onto a valid parameter domain before we construct.
  */
-export type LabMode = "bisector" | "similarity" | "tangent";
+export type LabMode = "bisector" | "similarity" | "tangent" | "cyclic";
 export type LabHandle = "A" | "B" | "C" | "E" | "O2" | "R" | "r";
 export interface BisectorLabState { x: number; y: number }
 export interface SimilarityLabState { base: number; height: number; factor: number }
