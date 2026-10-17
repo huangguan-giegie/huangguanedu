@@ -92,6 +92,30 @@ describe("模拟题迁移", () => {
     const broken = await persistQuestions({ title: "题组", questions: [{ question: "求值", answer: "1", explanation: "步骤", diagramDescription: { shapeType: "function-graph", vertices: [], functions: [{ expr: "globalThis.process.exit()" }] } }] });
     expect(broken.diagramFailures).toEqual([1]);
   });
+  it("对截图 125° 的圆形描述做实际角度校验：默认点布局不满足则拒绝落库",async()=>{
+    const diagramDescription={
+      shapeType:"circle",vertices:[{label:"A"},{label:"O"},{label:"B"},{label:"C"},{label:"D"}],
+      circles:[{center:"O",radiusPoint:"A"}],
+      collinear:[{points:["A","O","B"]}],
+      polygons:[{vertices:["A","D","C","B"]}],
+      segments:[{from:"A",to:"D"},{from:"D",to:"C"},{from:"A",to:"C"}],
+    };
+    const result=await persistQuestions({title:"圆",questions:[{
+      question:"如图，四边形 ABCD 内接于⊙O，AB是⊙O的直径，∠ADC＝125°，求∠BAC。",
+      answer:"35°",explanation:"圆周角定理",diagramDescription,
+    }]});
+    expect(result.premiseViolations).toEqual([1]);
+    expect(result.diagramFailures).toEqual([]);
+  });
+  it("模型生成的自由 SVG 即使语法安全也不能绕过角度数学一致性校验",async()=>{
+    const output=await persistQuestions({title:"圆",questions:[{
+      question:"如图 ∠ADC＝125°，求∠BAC。",
+      answer:"35°",explanation:"计算",
+      diagramSvg:'<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 L 20 20"/></svg>',
+    }]});
+    expect(output.diagramFailures).toEqual([1]);
+    expect(output.questions[0].imagePath).toBeNull();
+  });
   it("无图模式忽略模型仍带回的图形结构，只校验题干是否自足", async () => {
     const selfContained = await persistQuestions({ title: "题组", questions: [{ question: "在△ABC中，AB=3，BC=4，AC=5，求△ABC的面积。", answer: "6", explanation: "步骤", diagramDescription: { shapeType: "single-triangle", vertices: [{ label: "A" }, { label: "B" }, { label: "C" }] } }] }, { diagrams: false });
     expect(selfContained.diagramFailures).toEqual([]);
