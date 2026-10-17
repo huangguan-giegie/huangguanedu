@@ -282,21 +282,22 @@ export interface PersistQuestionsResult {
  * 单题出图：结构可用就用自研渲染器确定性出图；渲染不了则退回模型给的 SVG；
  * 再不行返回 null，由调用方决定降级策略 —— 绝不因为一张图毁掉整套练习。
  */
-function renderQuestionDiagram(question: { diagramSvg?: string | null }, diagramDescription: unknown): string | null {
+function renderQuestionDiagram(question: { diagramSvg?: string | null }, diagramDescription: unknown, verifiedOnly = false): string | null {
   const description = normalizeDiagramDescription(diagramDescription);
   try {
     if (!description) throw new Error("图形结构不完整");
     return renderDiagramFromDescription(description);
   } catch (error) {
     // 复杂几何保留 SVG 兜底，同样经过资源隔离校验。
-    if (question.diagramSvg?.trim()) return question.diagramSvg;
+    if (!verifiedOnly && question.diagramSvg?.trim()) return question.diagramSvg;
     console.warn(`[practice-set] 示意图渲染失败，该题降级为纯文字：${error instanceof Error ? error.message : "unknown"}`);
     return null;
   }
 }
 
-export async function persistQuestions(output: PracticeSetAiOutput, options: { diagrams?: boolean } = {}): Promise<PersistQuestionsResult> {
+export async function persistQuestions(output: PracticeSetAiOutput, options: { diagrams?: boolean; verifiedOnly?: boolean } = {}): Promise<PersistQuestionsResult> {
   const diagrams = options.diagrams !== false;
+  const verifiedOnly = options.verifiedOnly === true;
   const questions: PersistedPracticeQuestion[] = [];
   const savedPaths: string[] = [];
   const diagramFailures: number[] = [];
@@ -310,9 +311,18 @@ export async function persistQuestions(output: PracticeSetAiOutput, options: { d
       }
       let imagePath: string | null = null;
       // 无图模式（图形渲染反复失败的兜底）下不再尝试出图，只校验题干是否真的自足。
-      const diagramDescription = diagrams ? question.diagramDescription ?? inferFunctionDiagramDescription(question.question) : null;
-      if (diagramDescription != null) {
-        const svg = renderQuestionDiagram(question, diagramDescription);
+      const candidateDescription = diagrams ? question.diagramDescription ?? inferFunctionDiagramDescription(question.question) : null;
+      const checkedDescription = candidateDescription === null ? null : normalizeDiagramDescription(candidateDescription);
+      const isUnverifiedGeometry = verifiedOnly && diagrams &&
+        (Boolean(question.diagramSvg?.trim()) ||
+          (candidateDescription !== null && checkedDescription?.shapeType !== "function-graph"));
+      const diagramDescription = isUnverifiedGeometry ? null : candidateDescription;
+      if (isUnverifiedGeometry) {
+        // Student-facing production generation must never treat AI-drawn
+        // geometry as proof that text angles, lengths, and vertex order hold.
+        diagramFailures.push(index + 1);
+      } else if (diagramDescription != null) {
+        const svg = renderQuestionDiagram(question, diagramDescription, verifiedOnly);
         if (svg) {
           try {
             imagePath = await saveDiagramImage(svg);
@@ -321,7 +331,7 @@ export async function persistQuestions(output: PracticeSetAiOutput, options: { d
           }
         }
         if (!imagePath) diagramFailures.push(index + 1);
-      } else if (diagrams && question.diagramSvg?.trim()) {
+      } else if (!verifiedOnly && diagrams && question.diagramSvg?.trim()) {
         try {
           imagePath = await saveDiagramImage(question.diagramSvg);
         } catch (error) {
@@ -427,7 +437,7 @@ export async function runPracticeGenerationJob(prisma: PrismaClient, jobId: stri
 
     // 第一级：正常出题，题目带图形。图形渲染失败不会中断整套练习。
     let output = await generateWithRetry(input);
-    let persisted = await persistQuestions(output);
+    let persisted = await persistQuestions(output, { verifiedOnly: true });
     savedImages = savedImagePaths(persisted);
 
     // 第二级：变式破坏了几何前提（交点/垂足脱离线段），换一组数据整组重出；
@@ -437,10 +447,13 @@ export async function runPracticeGenerationJob(prisma: PrismaClient, jobId: stri
       await Promise.allSettled(savedImages.map((path) => getStorage().delete(path)));
       savedImages = [];
       output = await generateWithRetry(input);
-      persisted = await persistQuestions(output);
+      persisted = await persistQuestions(output, { verifiedOnly: true });
       savedImages = savedImagePaths(persisted);
       if (persisted.premiseViolations.length) {
-        console.error(`[practice-set] 重出后第 ${persisted.premiseViolations.join("、")} 题前提仍不成立，已按现值落库 job=${jobId}`);
+        // Fail closed: the old flow deliberately persisted contradictory
+        // geometry after a retry. Trigger no-diagram regeneration instead.
+        console.error(`[practice-set] 重出后第 ${persisted.premiseViolations.join("、")} 题仍然矛盾，改为无图重出 job=${jobId}`);
+        persisted.diagramFailures.push(...persisted.premiseViolations);
       }
     }
 
