@@ -8,6 +8,9 @@ import {
   type LabHandle, type LabMode,
 } from "../lib/geometry-lab";
 import { distance, type Point2 } from "../lib/practice-construction-constraints";
+import {cyclicDiameterGeometry} from "../lib/cyclic-diameter-geometry";
+import {exportGeometryLabModel} from "../lib/geometry-lab-export";
+import {useRouter} from "next/navigation";
 import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
 import styles from "./GeometryLab.module.css";
 
@@ -15,6 +18,7 @@ const catalog: { mode: LabMode; icon: string; title: string; subtitle: string }[
   { mode:"bisector", icon:"△", title:"角平分线", subtitle:"拖动 A 点，观察分点 D" },
   { mode:"similarity", icon:"∠", title:"相似三角形", subtitle:"拖动 B、C、E 改变边与比例" },
   { mode:"tangent", icon:"◎", title:"两圆公切线", subtitle:"拖动圆心或半径控制点" },
+  { mode:"cyclic", icon:"◉", title:"圆内接四边形", subtitle:"改变钝角，验证对角互补及直径性质" },
 ];
 
 const ocean="#2b9aaf", coral="#ee9463", deep="#284769";
@@ -79,6 +83,8 @@ function TeachingNote({title,children}: {title:string;children:ReactNode}) {
 /** Dragging is deliberately isolated from persisted quiz diagrams and answers. */
 export function GeometryLab() {
   const [mode,setMode]=useState<LabMode>("bisector");
+  const [cyclicAngle,setCyclicAngle]=useState(125);
+  const router=useRouter();
   const [bis,setBis]=useState(LAB_DEFAULTS.bisector);
   const [sim,setSim]=useState(LAB_DEFAULTS.similarity);
   const [tan,setTan]=useState(LAB_DEFAULTS.tangent);
@@ -94,11 +100,12 @@ export function GeometryLab() {
     if(mode==="bisector") setBis({...LAB_DEFAULTS.bisector});
     if(mode==="similarity") setSim({...LAB_DEFAULTS.similarity});
     if(mode==="tangent") setTan({...LAB_DEFAULTS.tangent});
+    if(mode==="cyclic")setCyclicAngle(125);
   }
   function moveHandle(handle:LabHandle,screen:Point2) {
     if(mode==="bisector")setBis(current=>dragBisector(current,handle,screen));
     else if(mode==="similarity")setSim(current=>dragSimilarity(current,handle,screen));
-    else setTan(current=>dragTangent(current,handle,screen));
+    else if(mode==="tangent")setTan(current=>dragTangent(current,handle,screen));
   }
   function beginDrag(event:PointerEvent<SVGGElement>,handle:LabHandle) {
     if(event.pointerType==="mouse" && event.button!==0)return;
@@ -146,6 +153,8 @@ export function GeometryLab() {
   const tR=projectTangent({x:0,y:tan.R});
   const tr=projectTangent({x:tan.d,y:tan.r});
   const tangentLength=distance(tangent.A,tangent.B);
+  const cyclic=cyclicDiameterGeometry(cyclicAngle,132);
+  const cyclicScreen=(p:Point2)=>({x:360+p.x,y:218-p.y});
   const BD=distance(bisector.B,bisector.D),DC=distance(bisector.D,bisector.C);
   const format=displayMeasure;
 
@@ -176,6 +185,13 @@ export function GeometryLab() {
             <label className={styles.switch}><input type="checkbox" checked={showGuides}
               onChange={e=>setShowGuides(e.target.checked)}/> 显示辅助线</label>
             <button type="button" onClick={reset}>重置</button>
+            <button type="button" onClick={()=>{
+              const model=mode==="bisector"?{mode,state:bis} as const:mode==="similarity"?{mode,state:sim} as const:mode==="tangent"?{mode,state:tan} as const:{mode:"cyclic",angle:cyclicAngle} as const;
+              const geometry=exportGeometryLabModel(model);
+              if(!window.confirm("在自由编辑器打开本构造？会替换编辑器当前本地画布，建议先导出原作品。"))return;
+              window.localStorage.setItem("hg-geometry-editor-v1",JSON.stringify(geometry));
+              router.push("/geometry-editor");
+            }}>送到自由编辑器</button>
           </div>
         </div>
         <svg className={styles.canvas} viewBox={`0 0 ${SCENE.width} ${SCENE.height}`}
@@ -229,6 +245,16 @@ export function GeometryLab() {
             <DragHandle p={sE} handle="E" aria="拖动 E 调整两个三角形的相似比"
               onStart={beginDrag} onKeyboard={keyboardHandle} color={coral}/>
           </>}
+          {mode==="cyclic"&&<>
+            <circle cx="360" cy="218" r="132" fill="#eff7ff" stroke={deep} strokeWidth="3"/>
+            {([["A","B"],["A","C"],["B","C"],["A","D"],["C","D"],["B","D"]] as const).map(([a,b])=>{
+             const p=cyclicScreen(cyclic[a]),q=cyclicScreen(cyclic[b]);
+             return <Segment key={a+b} a={p} b={q} color={a==="A"&&b==="B"?coral:deep} width={2.5}/>;
+            })}
+            {(["A","B","C","D"] as const).map(k=><PointLabel key={k} p={cyclicScreen(cyclic[k])} label={k} dx={k==="A"?-22:k==="B"?11:7} dy={k==="A"||k==="B"?19:-14}/>)}
+            <PointLabel p={cyclicScreen(cyclic.O)} label="O"/>
+            <text x={cyclicScreen(cyclic.D).x-18} y={cyclicScreen(cyclic.D).y+30} fontSize="19" fontWeight="700" fill={coral}>{cyclicAngle}°</text>
+          </>}
           {mode==="tangent" && <>
             <circle cx={tO1.x} cy={tO1.y} r={tan.R*SCENE.tangent.unit}
               stroke={deep} strokeWidth="3" fill="#dae9f8" fillOpacity=".68"/>
@@ -276,6 +302,7 @@ export function GeometryLab() {
             <Control id="lab-factor" label="相似放大倍数" value={sim.factor} min={1.2} max={2.4}
               unit="×" onChange={factor=>setSim(v=>normalizeSimilarity({...v,factor}))}/>
           </>}
+          {mode==="cyclic"&&<Control id="lab-cyclic-angle" label="圆周角 ∠ADC" value={cyclicAngle} min={110} max={140} step={1} unit="°" onChange={v=>setCyclicAngle(v)}/>}
           {mode==="tangent" && <>
             <Control id="lab-R" label="大圆半径 R" value={tan.R} min={3} max={7}
               onChange={R=>setTan(v=>normalizeTangent({...v,R}))}/>
@@ -300,6 +327,12 @@ export function GeometryLab() {
               <Statistic label="EF / BC" value={format(similar.factor)}/>
               <Statistic label="对应角" value="∠A = ∠D = 90°"/>
             </>}
+            {mode==="cyclic"&&<>
+              <Statistic label="∠ADC" value={`${cyclicAngle}°`}/>
+              <Statistic label="∠ABC" value={`${180-cyclicAngle}°`}/>
+              <Statistic label="∠ACB" value="90°"/>
+              <Statistic label="∠BAC" value={`${cyclicAngle-90}°`}/>
+            </>}
             {mode==="tangent" && <>
               <Statistic label="AB / 公切线" value={`${format(tangentLength)} cm`}/>
               <Statistic label="圆心距 d" value={`${format(tan.d)} cm`}/>
@@ -308,11 +341,12 @@ export function GeometryLab() {
             </>}
           </div>
         </section>
-        <TeachingNote title={mode==="bisector"?"角平分线定理":mode==="similarity"?"相似三角形对应边成比例":"两圆公切线长度"}>
+        <TeachingNote title={mode==="bisector"?"角平分线定理":mode==="similarity"?"相似三角形对应边成比例":mode==="cyclic"?"圆内接四边形与直径性质":"两圆公切线长度"}>
           {mode==="bisector"
             ?"AD 平分 ∠A，且 D 在 BC 上，所以 BD/DC = AB/AC。改变 A 时，D 会沿 BC 自动移动。"
             :mode==="similarity"
               ?"∠A = ∠D = 90°，三个对应边比值始终相同。拖动 E 可以观察等比例缩放。"
+              :mode==="cyclic"?"∠ADC＋∠ABC＝180°；AB是直径，则∠ACB＝90°，因此∠BAC＝∠ADC－90°。移动角度滑块时顶点自动重算。"
               :"AB² = d² − (R − r)²。移动 O₂ 或改变半径时，切点 A、B 按垂直关系同步重算。"}
         </TeachingNote>
       </aside>
