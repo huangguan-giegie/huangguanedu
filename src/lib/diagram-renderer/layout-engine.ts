@@ -477,3 +477,26 @@ function layoutIntersectingLines(desc: DiagramDescription): VertexMap {
   }
   return result;
 }
+
+/** Checks *given* numeric angles in a model-written question against the
+ * actual constructed vertices. A generic topological circle layout cannot
+ * honor an arbitrary 125° constraint. Reject it instead of drawing a lie.
+ */
+export function diagramAngleClaimViolations(question:string,map:VertexMap):string[]{
+ const issues:string[]=[];
+ const pattern=/∠\s*([A-Z])\s*([A-Z])\s*([A-Z])\s*[=＝]\s*(\d+(?:\.\d+)?)\s*(?:°|度)/g;
+ for(const match of question.matchAll(pattern)){
+  const [,,a,b,c,requested]=match;
+  const A=map.get(a),B=map.get(b),C=map.get(c);
+  if(!A||!B||!C){issues.push(`∠${a}${b}${c} 缺少顶点坐标`);continue;}
+  const u={x:A.x-B.x,y:A.y-B.y},v={x:C.x-B.x,y:C.y-B.y};
+  const denom=Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y);
+  if(denom<1e-8){issues.push(`∠${a}${b}${c} 退化`);continue;}
+  const cosine=Math.max(-1,Math.min(1,(u.x*v.x+u.y*v.y)/denom));
+  const measured=Math.acos(cosine)*180/Math.PI;
+  if(Math.abs(measured-Number(requested))>1.5){
+   issues.push(`∠${a}${b}${c} 声明 ${requested}°，实际绘制约 ${measured.toFixed(1)}°`);
+  }
+ }
+ return issues;
+}
