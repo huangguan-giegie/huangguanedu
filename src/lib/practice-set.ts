@@ -66,34 +66,14 @@ async function originalImageUrl(key: string): Promise<string> {
 
 type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string; max_pixels: number } };
 
-/** diagramDescription 的格式说明（含辅助点 on/ratio 与辅助线 segments） */
-const DIAGRAM_FORMAT_HINT =
-  'diagramDescription 格式：{"shapeType":"single-triangle|collinear-triangles|parallelogram|rectangle|circle|intersecting-lines|function-graph",' +
-  '"vertices":[{"label":"A"},{"label":"D","on":["A","B"],"ratio":0.4},{"label":"C′","reflect":{"of":"C","axis":["B","D"]}}],' +
-  '"collinear":[{"points":["A","B","C"]}],"polygons":[{"vertices":["A","B","C"]}],' +
-  '"circles":[{"center":"O","radiusPoint":"A"}],"sides":{"AB":8,"BC":12},' +
-  '"segments":[{"from":"C","to":"D","dashed":false}],' +
-  '"marks":[{"type":"equal-tick","between":["A","B"],"count":1}|{"type":"right-angle","at":"A"}]}' +
-  "每个引用点都须在 vertices 中。主图形顶点数固定：single-triangle 三个、parallelogram 与 rectangle 四个；circle 仅一个圆。" +
-  "**题目里的辅助点（垂足、交点、中点、折叠像点等）必须一并写进 vertices**，并用 on:[\"起点\",\"终点\"] 声明它落在哪条线段上、ratio 给出位置比例（0=起点，0.5=中点，1=终点），程序会据此算出坐标，你不需要给像素坐标。" +
-  "题目需要的辅助线（如作垂线 CD、对角线 BD、折痕）写进 segments。例：△ABC 中 D 是 AB 上的垂足、CD⊥AB，则 vertices=[{label:\"A\"},{label:\"B\"},{label:\"C\"},{label:\"D\",on:[\"A\",\"B\"]}]，segments=[{from:\"C\",to:\"D\"}]，marks=[{type:\"right-angle\",at:\"D\"}]。" +
-  "**矩形（含正方形）必须用 shapeType=\"rectangle\"**，不要用 parallelogram——parallelogram 会画成斜的，矩形必须保持直角。" +
-  "**折叠/对称产生的像点必须用 reflect 声明**（{\"of\":\"C\",\"axis\":[\"B\",\"D\"]} 表示 C 关于直线 BD 的对称点），不要用 on+ratio 去猜位置，那会把像点放到错误的角落。" +
-  "**两条线的交点必须用 intersect 声明**（[\"B\",\"C′\",\"A\",\"D\"] 表示直线 BC′ 与 AD 的交点），同样不要用 on+ratio 猜。" +
-  "若题面给出了矩形的两条邻边长，写进 sides（如 {\"AB\":8,\"BC\":12}），图形会按真实比例绘制。" +
-  "**若题目说某条线段是圆的直径（如「AB 是 ⊙O 的直径」），必须写 collinear:[{\"points\":[\"A\",\"O\",\"B\"]}]**，让 A、O、B 共线且 O 在中间，程序才会把 AB 画成过圆心的直径；只写 circles 会把 AB 画成普通弦。" +
-  "**两个三角形（全等/相似）用 shapeType=\"collinear-triangles\"**：共线底边写进 collinear，两个三角形各写一个 polygons（如 {\"vertices\":[\"A\",\"B\",\"C\"]} 与 {\"vertices\":[\"D\",\"E\",\"F\"]}）；圆内接多边形用 shapeType=\"circle\" + polygons 声明，圆心必须出现在 vertices 里。";
-
-/** 有图模式：要求配示意图 */
+/** Verified diagram templates only: never ask the model to sketch geometric
+ * angles and distances as unproven free-form vertices or SVG. */
 const DIAGRAM_REQUIRED_HINT =
-  "支持的几何和函数题优先使用 diagram，服务器会从相同参数精确重算题干、答案与解析；使用 diagram 时不得另附 diagramDescription 或 diagramSvg。" +
+  "所有有图几何题必须使用受支持的 diagram JSON 结构，服务器会精确计算题干、答案、解析与配图，模型不得提供自绘SVG或自由坐标。" +
   PRACTICE_DIAGRAM_HINT +
-  "几何题必须在题干完整说明条件，附 diagramDescription，示意图不按比例，答案不能依赖图的像素尺寸。" +
-  "先观察原图的三角形、四边形、圆与共线关系，再输出变式题和图形描述。" +
-  DIAGRAM_FORMAT_HINT +
-  '函数图必须用 shapeType="function-graph"、vertices=[]，functions:[{"expr":"y=2x^2-3x+1","domain":[-5,5]}]，keyPoints:[{"x":1,"y":0,"label":"A"}]。支持一次、二次、反比例、三角函数、根式、指数对数等一元函数，expr只使用数字、x、括号、+-*/^、sin/cos/tan/sqrt/abs/ln/log/exp/pi，不可使用代码。' +
-  "若几何拓扑无法用上述结构完整表达，可输出仅基本SVG元素的 diagramSvg（svg,g,line,polyline,polygon,path,circle,ellipse,rect,text），不得使用图片、外链、脚本、样式表。配图背景白色，线条和文字使用暖灰#39323f，多条曲线可用紫色#7F77DD、绿色#1D9E75，不使用深蓝色。" +
-  "纯文字计算和英语题 diagramDescription 和 diagramSvg 为 null；函数图必须给有效表达式，不能 null。";
+  "如果没有适用的受支持diagram类型，请生成不依赖任何图的文字题：必须把全部几何条件写入题干，不得出现如图、图中、见图等措辞。" +
+  "diagramDescription和diagramSvg必须为null；不得输出自绘图、图片URL或任何无法通过坐标公式反向验证的示意图。" +
+  "题目必须在不看图片时依然有充足条件，所有公式和数值可计算且答案唯一。";
 
 /** 无图模式（图形渲染不可用时的兜底）：题干必须自足，不再依赖任何图 */
 const DIAGRAM_FORBIDDEN_HINT =
