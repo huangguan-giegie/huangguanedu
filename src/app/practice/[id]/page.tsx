@@ -9,6 +9,7 @@ import { Icon } from "../../../components/icons";
 import { PracticeDiagram } from "../../../components/PracticeDiagram";
 import { AttachedGeometryFigure } from "../../../components/AttachedGeometryFigure";
 import {GEOMETRY_DRAFT_KEY,geometryDraftImport} from "../../../lib/practice-drawing";
+import {matchingLegacyDiameterProblem} from "../../../lib/legacy-circle-repair";
 import type {GeometryDocument} from "../../../lib/free-geometry";
 import { PracticeAnswerBox } from "../../../components/PracticeAnswerBox";
 import { practiceText, type PracticeSetItem } from "../../../components/practice-content";
@@ -58,6 +59,15 @@ function PracticeDetail({ id }: { id: string }) {
     });
     return ()=>window.cancelAnimationFrame(frame);
   },[]);
+  async function repairLegacyQuestion(questionId:string){
+    if(!set||!canPublish)return;
+    if(!window.confirm("这会将当前题图和标准答案替换为数学重新计算的版本，确认执行？"))return;
+    try{
+      await api.post(`/api/v1/practice-sets/${encodeURIComponent(set.id)}/questions/${encodeURIComponent(questionId)}/repair`,{});
+      setMessage("旧题已按圆周角定理修复并保存。");
+      setReload(n=>n+1);
+    }catch(e){setMessage(e instanceof Error?e.message:"修复失败");}
+  }
   async function publishDrawing(questionId:string){
     if(!draft||!set||!acknowledged)return;
     setMessage("");
@@ -101,10 +111,18 @@ function PracticeDetail({ id }: { id: string }) {
       {message && <p className={`${styles.task} ${styles.noPrint}`} role="status">{message}</p>}
       <div className={styles.questions}>{set.questions.map((question, index) => {
         const answerVisible = showAnswers || revealed.includes(question.id);
+        const legacy=question.imageUrl&&!question.diagram?matchingLegacyDiameterProblem(question.question):null;
         return <article className={styles.questionCard} key={question.id}>
           <div className={styles.questionHead}><span className={styles.questionIndex}>第 {String(index + 1).padStart(2, "0")} 题</span><span className={styles.questionHint}>先独立思考，再对照解析</span></div>
           <p className={styles.questionText}>{latexToUnicode(question.question)}</p>
           {question.diagram && <PracticeDiagram diagram={question.diagram} />}
+          {legacy&&<div style={{border:"1px solid #e6b77b",padding:13,borderRadius:12,margin:"12px 0",background:"#fff8e8",color:"#643b1e"}}>
+            <strong>检测到旧版题图的角度可能不一致，已隐藏原 AI 图片</strong>
+            <p style={{fontSize:13,lineHeight:1.8,marginTop:7}}>按该题已知条件，∠BAC 应为 {legacy.answer}。下图是经过圆周角计算的新图。旧数据库答案仍需要老师复核，修复前建议不要在线提交此题。</p>
+            <PracticeDiagram diagram={legacy.diagram}/>
+            {canPublish&&<button type="button" className={styles.secondaryButton}
+              onClick={()=>void repairLegacyQuestion(question.id)}>核对后修复此题图片及标准答案</button>}
+          </div>}
           {question.attachedDrawing && <AttachedGeometryFigure document={question.attachedDrawing} />}
           {draft && <div className={styles.noPrint} style={{margin:"12px 0",padding:"12px 16px",border:"1px solid var(--line)",borderRadius:12}}>
             <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
@@ -124,14 +142,14 @@ function PracticeDetail({ id }: { id: string }) {
             </label>}
             {draftVisible===question.id&&<AttachedGeometryFigure document={draft}/>}
           </div>}
-          {question.imageUrl && <button type="button" className={styles.diagramButton} onClick={() => setPreview(question.imageUrl!)} aria-label={`放大第 ${index + 1} 题示意图`}>
+          {question.imageUrl && !legacy && <button type="button" className={styles.diagramButton} onClick={() => setPreview(question.imageUrl!)} aria-label={`放大第 ${index + 1} 题示意图`}>
             {/* 题图使用短期授权地址，直接加载可避免代理缓存过期地址。 */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className={styles.diagram} src={question.imageUrl} alt={`第 ${index + 1} 题示意图`} />
           </button>}
           <button type="button" className={`${styles.answerToggle} ${styles.noPrint}`} aria-expanded={answerVisible} onClick={() => { if (showAnswers) { setShowAnswers(false); setRevealed(set.questions.filter((item) => item.id !== question.id).map((item) => item.id)); } else { setRevealed((ids) => ids.includes(question.id) ? ids.filter((value) => value !== question.id) : [...ids, question.id]); } }}>{answerVisible ? "收起答案与解析" : "查看答案与解析"}<Icon name="chevron-right" size={16} style={{ transform: answerVisible ? "rotate(-90deg)" : "rotate(90deg)" }} /></button>
           {answerVisible && <div className={styles.answer}><h2>参考答案</h2><p>{latexToUnicode(question.answer)}</p>{question.explanation && <><h2>解题思路</h2><p>{latexToUnicode(question.explanation)}</p></>}</div>}
-          {answerMode && (
+          {answerMode && !legacy && (
             <div className={styles.noPrint}>
               <PracticeAnswerBox practiceQuestionId={question.id} subject={set.subject ?? "MATH"} />
             </div>
