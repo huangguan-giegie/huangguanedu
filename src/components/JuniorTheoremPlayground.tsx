@@ -27,10 +27,10 @@ export function JuniorTheoremPlayground(){
  });
  const standard={maxWidth:"100%",width:"100%",height:"auto",background:"#f6fbfd",borderRadius:15} as const;
  const storeCircle=()=>{
-  const doc=geometryLabSnapshot("diameter");
+  const doc=geometryLabSnapshot("diameter",{diameterAngle:adc});
   window.localStorage.setItem(GEOMETRY_DRAFT_KEY,geometryDraftExport(doc));
   window.localStorage.setItem("hg-geometry-editor-v1",JSON.stringify(doc));
-  setStatus("已生成可修改的直径圆周角模板。注意：当前模板定格为125°，其他角度请先在自由编辑器中核对并修改。");
+  setStatus("已生成可修改的直径圆周角模板。注意：模板保留当前选择的圆周角；编辑后仍需重新核对角度关系。");
  };
  const result=topic==="circle"?`∠BAC = ${fmt(adc-90)}°；∠ACB = 90°；∠ADC = ${adc}°`:
   topic==="triangle"?`斜边 c = √(${a}² + ${b}²) = ${fmt(Math.hypot(a,b))}`:
