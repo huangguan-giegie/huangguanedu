@@ -8,6 +8,7 @@ import {
   type LabHandle, type LabMode,
 } from "../lib/geometry-lab";
 import { distance, type Point2 } from "../lib/practice-construction-constraints";
+import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
 import styles from "./GeometryLab.module.css";
 
 const catalog: { mode: LabMode; icon: string; title: string; subtitle: string }[] = [
@@ -316,6 +317,7 @@ export function GeometryLab() {
         </TeachingNote>
       </aside>
     </div>
+    <GeometryTheoremLibrary />
     <p className={styles.disclaimer}>教学探索模式：这里的尺寸可自由调整，但不会修改正式模拟题的题干、配图、标准答案或数据库记录。</p>
   </div>;
 }
