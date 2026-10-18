@@ -1,10 +1,8 @@
 "use client";
-import {useMemo,useRef,useState,type PointerEvent} from "react";
+import {useState} from "react";
 import {runCAS,type CasAction,type CasResult} from "../lib/polynomial-cas";
-import {
- DEFAULT_CAMERA,SURFACE_LABELS,build3DLines,cameraProject,plotToSvgPath,worldAxes,
- type Camera3D,type SurfaceKind,
-} from "../lib/geometry-3d";
+import {FunctionExamExplorer} from "./FunctionExamExplorer";
+import {ConicExamExplorer} from "./ConicExamExplorer";
 import styles from "./MathStudio.module.css";
 const commands:{action:CasAction;label:string}[]=[
  {action:"simplify",label:"展开 / 化简"},
@@ -19,9 +17,8 @@ const presets:{expr:string;action:CasAction;label:string}[]=[
  {expr:"2x^2-8=0",action:"solve",label:"解二次方程"},
  {expr:"3x^3-2x+1",action:"differentiate",label:"多项式求导"},
 ];
-const surfaces:SurfaceKind[]=["plane","paraboloid","saddle","sphere","torus","helix"];
 const safeError=(e:unknown)=>e instanceof Error?e.message:"计算出错";
-function CasPanel(){
+function CasPanel({onGraph}:{onGraph:(expression:string)=>void}){
  const [expr,setExpr]=useState("x^2-5x+6");
  const [action,setAction]=useState<CasAction>("factor");
  const [x,setX]=useState("2");
@@ -61,6 +58,10 @@ function CasPanel(){
     {action==="evaluate"&&<label className={styles.field}>代入 x 的值<input value={x}
      onChange={e=>setX(e.target.value)} placeholder="如 1/2"/></label>}
     <button className={styles.primary} onClick={solve}>计算并显示步骤 →</button>
+    <button className={styles.reset} onClick={()=>{
+     const candidate=expr.split("=")[0].trim();
+     if(candidate)onGraph(candidate);
+    }}>将当前表达式显示在下方函数图像中 ↓</button>
     <p className={styles.note}>支持隐式乘法（如 2x、(x+1)(x-2)）、整数幂、分数和最多 6 位小数。暂不支持三角函数、对数和一般有理函数；求根限制在二次以内。</p>
    </section>
    <section className={styles.result} aria-live="polite">
@@ -74,90 +75,18 @@ function CasPanel(){
   </div>
  </div>;
 }
-function ThreeDPanel(){
- const [kind,setKind]=useState<SurfaceKind>("paraboloid");
- const [amplitude,setAmplitude]=useState(1);
- const [camera,setCamera]=useState<Camera3D>(DEFAULT_CAMERA);
- const drag=useRef<{pointerId:number;x:number;y:number}|null>(null);
- const svg=useRef<SVGSVGElement|null>(null);
- const lines=useMemo(()=>build3DLines({kind,amplitude}),[kind,amplitude]);
- const cameraSafe=(change:Partial<Camera3D>)=>setCamera(v=>({...v,...change}));
- const start=(e:PointerEvent<SVGSVGElement>)=>{
-  if(e.pointerType==="mouse"&&e.button!==0)return;
-  e.currentTarget.setPointerCapture(e.pointerId);
-  drag.current={pointerId:e.pointerId,x:e.clientX,y:e.clientY};
- };
- const move=(e:PointerEvent<SVGSVGElement>)=>{
-  const d=drag.current;if(!d||e.pointerId!==d.pointerId)return;
-  const dx=e.clientX-d.x,dy=e.clientY-d.y;
-  drag.current={...d,x:e.clientX,y:e.clientY};
-  setCamera(c=>({...c,azimuth:(c.azimuth+dx*.7+360)%360,elevation:Math.max(-80,Math.min(80,c.elevation-dy*.6))}));
- };
- const end=(e:PointerEvent<SVGSVGElement>)=>{
-  if(drag.current?.pointerId!==e.pointerId)return;
-  drag.current=null;
-  if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
- };
- const exportSvg=()=>{
-  if(!svg.current)return;
-  const clone=svg.current.cloneNode(true) as SVGSVGElement;
-  clone.setAttribute("xmlns","http://www.w3.org/2000/svg");
-  clone.setAttribute("width","700");clone.setAttribute("height","490");
-  const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],{type:"image/svg+xml"}));
-  const link=document.createElement("a");link.href=url;link.download="math-surface-3d.svg";
-  document.body.appendChild(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
- };
- return <div className={styles.section}>
-  <div className={styles.sectionIntro}><h2>三维函数与曲面作图</h2>
-   <p>用受约束的参数方程生成真实三维坐标，再映射到可拖动旋转的二维视图。支持球面、环面、抛物面、马鞍面、平面和螺旋线。</p>
-  </div>
-  <div className={styles.threeDLayout}>
-   <section className={styles.viewport}>
-    <div className={styles.viewportHead}><strong>{SURFACE_LABELS[kind]}</strong><button onClick={exportSvg}>导出 SVG</button></div>
-    <svg ref={svg} viewBox="0 0 700 490" role="img" aria-label={SURFACE_LABELS[kind]+" 的三维线框图，可用鼠标或触屏旋转"}
-     className={styles.threeDCanvas} onPointerDown={start} onPointerMove={move} onPointerUp={end}
-     onPointerCancel={end} onLostPointerCapture={()=>{drag.current=null;}}>
-     <rect width="700" height="490" fill="#f8fbff"/>
-     <g stroke="#7896b1" strokeWidth="1.8">
-      {worldAxes().map(axis=>{
-       const a=cameraProject(axis.from,camera),b=cameraProject(axis.to,camera);
-       return <g key={axis.name}><line x1={a.x} y1={a.y} x2={b.x} y2={b.y}/>
-        <text x={b.x+6} y={b.y-7} fontSize="15" fontWeight="bold" stroke="none" fill="#31516b">{axis.name}</text></g>;
-      })}
-     </g>
-     <g fill="none" stroke="#277f9e" strokeWidth="1.55" strokeOpacity=".8">
-      {lines.map((line,i)=><path key={i} d={plotToSvgPath(line,camera)}/>)}
-     </g>
-    </svg>
-    <div className={styles.viewportFoot}>按住画布拖动以旋转视角 · 数学模型在浏览器本地计算</div>
-   </section>
-   <section className={styles.panel}>
-    <label className={styles.field}>三维对象
-     <select value={kind} onChange={e=>setKind(e.target.value as SurfaceKind)}>
-      {surfaces.map(k=><option value={k} key={k}>{SURFACE_LABELS[k]}</option>)}
-     </select>
-    </label>
-    <label className={styles.slider}>系数 a <strong>{amplitude.toFixed(1)}</strong><input type="range" min="-2" max="2" step=".1" value={amplitude} onChange={e=>setAmplitude(Number(e.target.value))}/></label>
-    <label className={styles.slider}>水平旋转 <strong>{Math.round(camera.azimuth)}°</strong><input type="range" min="0" max="360" value={camera.azimuth} onChange={e=>cameraSafe({azimuth:Number(e.target.value)})}/></label>
-    <label className={styles.slider}>俯仰角 <strong>{Math.round(camera.elevation)}°</strong><input type="range" min="-80" max="80" value={camera.elevation} onChange={e=>cameraSafe({elevation:Number(e.target.value)})}/></label>
-    <label className={styles.slider}>缩放 <strong>{Math.round(camera.scale)}</strong><input type="range" min="14" max="85" value={camera.scale} onChange={e=>cameraSafe({scale:Number(e.target.value)})}/></label>
-    <button className={styles.reset} onClick={()=>setCamera(DEFAULT_CAMERA)}>重置视角</button>
-    <p className={styles.note}>这是数学精确参数模型驱动的三维线框绘图，不是 WebGL 实体渲染；暂不支持任意用户输入的三元表达式或 CAS 三维求解。</p>
-   </section>
-  </div>
- </div>;
-}
 export function MathStudio(){
- const [tab,setTab]=useState<"cas"|"3d">("cas");
+ const [tab,setTab]=useState<"cas"|"conic">("cas");
+ const [graphExpression,setGraphExpression]=useState("x^2-4x+3");
  return <div className={styles.page}>
   <div className={styles.hero}><p>MATHEMATICS STUDIO · 高级数学工具</p>
-   <h1>从代数推导到三维可视化</h1>
+   <h1>中考函数图像与高考圆锥曲线</h1>
    <span>计算和绘制都使用可验证的数学定义，而不是生成式模型猜测。</span></div>
   <div className={styles.tabs} role="tablist" aria-label="数学工具切换">
    <button role="tab" aria-selected={tab==="cas"} onClick={()=>setTab("cas")}>∑ 符号代数 CAS</button>
-   <button role="tab" aria-selected={tab==="3d"} onClick={()=>setTab("3d")}>◇ 三维曲面作图</button>
+   <button role="tab" aria-selected={tab==="conic"} onClick={()=>setTab("conic")}>◇ 高考圆锥曲线与直线</button>
   </div>
-  {tab==="cas"?<CasPanel/>:<ThreeDPanel/>}
-  <p className={styles.bottom}>本页不修改学生模拟题的标准答案或数据库。它提供一元多项式 CAS 和常用三维参数曲面的教学工具，而非完整计算机代数系统。</p>
+  {tab==="cas"?<><CasPanel onGraph={setGraphExpression}/><FunctionExamExplorer key={graphExpression} initialExpression={graphExpression}/></>:<ConicExamExplorer/>}
+  <p className={styles.bottom}>本页不修改学生模拟题的标准答案或数据库。它提供一元多项式 CAS、函数曲线和圆锥曲线的确定性数学教学工具，而非完整计算机代数系统。</p>
  </div>;
 }
