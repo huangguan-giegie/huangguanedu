@@ -61,7 +61,7 @@ export function FunctionExamExplorer({compact=false,initialPreset="二次函数"
  // 中高考常见图像变换 y=A·f(ω(x−h))+k，全部使用同一绘图表达式。
  const applyTransform=(A:number,omega:number,h:number,k:number)=>{
   const base=selected?.expression??expression;
-  const shifted=base.replace(/\\bx\\b/g,`(${omega}*(x-(${h})))`);
+  const shifted=base.replace(/\bx\b/g,`(${omega}*(x-(${h})))`);
   const combined=`(${A})*(${shifted})+(${k})`;
   try{compileExpression(combined,{maxLength:160});setExpression(combined);setSaved(combined);setError("");}
   catch(e){setError(e instanceof Error?e.message:"参数组合超出绘图范围");}
