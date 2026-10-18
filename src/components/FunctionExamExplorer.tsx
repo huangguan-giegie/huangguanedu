@@ -51,12 +51,21 @@ export function FunctionExamExplorer({compact=false,initialPreset="二次函数"
  const [preset,setPreset]=useState(initialExpression?"自定义":initial.name);
  const [expression,setExpression]=useState(initialExpression??initial.expression);
  const [saved,setSaved]=useState(initialExpression??initial.expression);
+ const [amplitude,setAmplitude]=useState(1),[frequency,setFrequency]=useState(1),[horizontal,setHorizontal]=useState(0),[vertical,setVertical]=useState(0);
  const [error,setError]=useState("");
  const graph=useMemo(()=>{
   try{return sampleFunction(saved);}
   catch{return null;}
  },[saved]);
  const selected=EXAM_FUNCTIONS.find(x=>x.name===preset);
+ // 中高考常见图像变换 y=A·f(ω(x−h))+k，全部使用同一绘图表达式。
+ const applyTransform=(A:number,omega:number,h:number,k:number)=>{
+  const base=selected?.expression??expression;
+  const shifted=base.replace(/\\bx\\b/g,`(${omega}*(x-(${h})))`);
+  const combined=`(${A})*(${shifted})+(${k})`;
+  try{compileExpression(combined,{maxLength:160});setExpression(combined);setSaved(combined);setError("");}
+  catch(e){setError(e instanceof Error?e.message:"参数组合超出绘图范围");}
+ };
  const submit=()=>{
   try{compileExpression(expression,{maxLength:160});setSaved(expression);setError("");}
   catch(e){setError(e instanceof Error?e.message:"函数表达式不合法");}
@@ -64,7 +73,7 @@ export function FunctionExamExplorer({compact=false,initialPreset="二次函数"
  return <div className={styles.explorer}>
   <header className={styles.heading}><div><strong>函数图像 · 中高考考点</strong><p>精确表达式解析 · 函数定义域 · 截距 / 顶点 · 单调性和周期</p></div></header>
   <div className={styles.presets}>{EXAM_FUNCTIONS.map(m=><button type="button" key={m.name} aria-pressed={preset===m.name} onClick={()=>{
-   setPreset(m.name);setExpression(m.expression);setSaved(m.expression);setError("");
+   setPreset(m.name);setExpression(m.expression);setSaved(m.expression);setAmplitude(1);setFrequency(1);setHorizontal(0);setVertical(0);setError("");
   }}>{m.name}</button>)}</div>
   <div className={styles.layout}>
    <div className={styles.plot}>
@@ -85,6 +94,23 @@ export function FunctionExamExplorer({compact=false,initialPreset="二次函数"
     <small>横轴与纵轴等比例；三角函数默认弧度；遇到间断点不连接跨越渐近线的线段。</small>
    </div>
    <div className={styles.controls}>
+    <section className={styles.facts} aria-label="中高考函数图像参数变换">
+     <h3>函数图像变换 · y=A·f(ω(x−h))+k</h3>
+     <p>结合中考二次函数平移、压轴题动点与高考三角函数的振幅、周期、相位。先选择一个标准函数，再调节参数。</p>
+     {([
+      {name:"纵向伸缩 A",value:amplitude,set:setAmplitude,min:-3,max:3,step:.25},
+      {name:"横向频率 ω",value:frequency,set:setFrequency,min:.25,max:4,step:.25},
+      {name:"水平平移 h",value:horizontal,set:setHorizontal,min:-4,max:4,step:.25},
+      {name:"垂直平移 k",value:vertical,set:setVertical,min:-4,max:4,step:.25},
+     ] as const).map(item=><label key={item.name}>{item.name} = {item.value.toFixed(2)}
+      <input type="range" min={item.min} max={item.max} step={item.step} value={item.value}
+       onChange={e=>{const value=Number(e.target.value);item.set(value);applyTransform(
+        item.name==="纵向伸缩 A"?value:amplitude,
+        item.name==="横向频率 ω"?value:frequency,
+        item.name==="水平平移 h"?value:horizontal,
+        item.name==="垂直平移 k"?value:vertical);}}/>
+     </label>)}
+    </section>
     <label>输入 y = f(x)
      <input aria-label="函数表达式" value={expression} maxLength={160} onChange={e=>setExpression(e.target.value)}
       onKeyDown={e=>{if(e.key==="Enter")submit();}}/>
