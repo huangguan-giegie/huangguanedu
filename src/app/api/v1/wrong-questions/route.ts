@@ -1,5 +1,5 @@
 // 上传一道错题（英语长文可多图）以及按角色查看、筛选错题。
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { requireRole } from "../../../../lib/auth";
 import { assertStateChangeAllowed } from "../../../../lib/csrf";
 import { prisma } from "../../../../lib/db";
@@ -7,9 +7,11 @@ import { jsonError } from "../../../../lib/http";
 import { ImageError, isAllowedMime, MAX_IMAGE_BYTES, normalizeImage } from "../../../../lib/image";
 import { getStorage } from "../../../../lib/storage";
 import { loadConfig } from "../../../../lib/config";
+import { processAnalysisJobs } from "../../../../lib/analysis-worker";
 import { WrongQuestionError } from "../../../../lib/wrong-question";
 import { wrongQuestionWhere } from "../../../../lib/wrong-question-query";
 
+export const maxDuration = 240;
 const IMAGE_RETENTION_DAYS = 91;
 const MAX_ENGLISH_IMAGES = 6;
 const WEEKLY_WRONG_QUESTION_QUOTA = 100;
@@ -35,9 +37,9 @@ export async function POST(request: NextRequest) {
   const subject = form.get("subject");
   if (subject !== "MATH" && subject !== "ENGLISH") return jsonError(400, "INVALID_SUBJECT", "请选择学科（数学或英语）");
   const requestedModel = form.get("model");
-  if (requestedModel && requestedModel !== "qwen-vl-max" && requestedModel !== "qwen-vl-plus" && requestedModel !== "qwen3.7-plus") return jsonError(400, "INVALID_MODEL", "请选择有效的识别模型");
-  // 兼容旧版小程序上传值；生产账号当前只开通 qwen3.7-plus，统一使用配置模型。
-  const model = requestedModel && process.env.NODE_ENV === "production" && (requestedModel === "qwen-vl-max" || requestedModel === "qwen-vl-plus")
+  if (requestedModel && requestedModel !== "qwen-vl-max" && requestedModel !== "qwen-vl-plus" && requestedModel !== "qwen3.7-plus" && requestedModel !== "qwen3.8-max") return jsonError(400, "INVALID_MODEL", "请选择有效的识别模型");
+  // 旧版客户端仍可能传 3.7 / VL 标识；统一使用当前配置的 Qwen 模型。
+  const model = requestedModel && requestedModel !== "qwen3.8-max"
     ? loadConfig().qwen.model
     : requestedModel;
   const files = form.getAll("image");
@@ -75,6 +77,9 @@ export async function POST(request: NextRequest) {
       const job = await tx.analysisJob.create({ data: { wrongQuestionId: wrongQuestion.id, status: "PENDING", ...(model ? { modelOverride: model as string } : {}) } });
       return { wrongQuestion, imageRecords, job };
     });
+    // 若独立 worker 未启用，上传接口仍可在响应后启动一个分析任务。
+    // 数据库锁保证并行 worker 不会重复处理同一题。
+    after(() => processAnalysisJobs(prisma, 1).then(() => undefined));
     return NextResponse.json({ success: true, data: { wrongQuestionId: result.wrongQuestion.id, imageId: result.imageRecords[0].id, imageIds: result.imageRecords.map((image) => image.id), jobId: result.job.id, status: "PROCESSING" } });
   } catch (error) {
     await Promise.all(images.map((image) => storage.delete(image.filePath).catch(() => undefined)));
@@ -95,6 +100,10 @@ export async function GET(request: NextRequest) {
       prisma.wrongQuestion.count({ where }),
       prisma.wrongQuestion.findMany({ where, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize, include: { student: { select: { name: true } }, knowledgePointRecords: true, favorites: { where: { userId: auth.user.id }, select: { id: true } } } }),
     ]);
+    // 旧版部署缺少独立 worker 时，客户端的 5 秒轮询也能继续推动待分析队列。
+    if (items.some((item) => item.status === "PROCESSING")) {
+      after(() => processAnalysisJobs(prisma, 1).then(() => undefined));
+    }
     return NextResponse.json({ success: true, data: { total, page, pageSize, items: items.map((w) => ({ id: w.id, studentId: w.studentId, studentName: w.student.name, subject: w.subject, recognizedQuestion: w.recognizedQuestion, knowledgePoints: w.knowledgePointRecords.map((record) => record.knowledgePoint), mastered: w.mastered, status: w.status, isAiGenerated: w.isAiGenerated, isTeacherReviewed: w.isTeacherReviewed, isFavorite: w.favorites.length > 0, firstSeenAt: w.firstSeenAt, lastReviewedAt: w.lastReviewedAt, updatedAt: w.updatedAt })) } });
   } catch (error) {
     if (error instanceof WrongQuestionError) return jsonError(error.status, error.code, error.message);
