@@ -5,9 +5,8 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { api } from "../../../components/api";
 import { AuthGuard, type SafeUser } from "../../../components/AuthGuard";
-
-/** 识别模型由服务端固定，这里只作为上传参数，不暴露成只有一项的下拉。 */
-const RECOGNITION_MODEL = "qwen3.7-plus";
+import { QwenModeSelector } from "../../../components/QwenModeSelector";
+import type { QwenModelMode } from "../../../lib/qwen-model";
 
 // 在浏览器中旋转图片，保留同一道题的页序。
 async function rotateImage(file: File): Promise<File> {
@@ -33,6 +32,7 @@ function UploadForm() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<SafeUser | null>(null);
   const [subject, setSubject] = useState<"MATH" | "ENGLISH">("MATH");
+  const [modelMode, setModelMode] = useState<QwenModelMode>("STANDARD");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [activePreview, setActivePreview] = useState<string | null>(null);
@@ -84,7 +84,7 @@ function UploadForm() {
     try {
       const form = new FormData();
       form.append("subject", subject);
-      form.append("model", RECOGNITION_MODEL);
+      form.append("modelMode", modelMode);
       files.forEach((file) => form.append("image", file));
       const data = await api.upload<{ wrongQuestionId: string }>("/api/v1/wrong-questions", form);
       setCreatedId(data.wrongQuestionId);
@@ -101,7 +101,8 @@ function UploadForm() {
       <div><h1 className="text-2xl font-bold">把这道题，真正弄懂</h1><p className="mt-2 text-sm text-[#302a38]/60">数学上传一道题；英语阅读长文可按顺序上传最多 6 张。每张图片不超过 8MB。</p></div>
       {createdId && <section role="status" className="rounded-2xl border border-[#d7ef67] bg-[#d7ef67]/30 p-5"><h2 className="font-semibold">已提交识别</h2><p className="mt-1 text-sm">AI 正在后台分析，你可以继续上传下一题。</p><div className="mt-3 flex gap-5 text-sm font-semibold text-[#754be6]"><Link href={`/wrong-questions/${createdId}`}>查看这道题 →</Link><Link href="/wrong-questions">去错题本 →</Link></div></section>}
       <form onSubmit={submit} className="space-y-5 rounded-2xl border border-[#302a38]/10 bg-white p-6">
-        <div className="flex flex-wrap gap-6"><fieldset><legend className="mb-2 text-sm font-semibold">学科</legend><div className="flex gap-2">{(["MATH", "ENGLISH"] as const).map((value) => <button key={value} type="button" disabled={loading || rotating} aria-pressed={subject === value} onClick={() => { setSubject(value); replaceFiles([]); setError(""); setCreatedId(""); }} className={`rounded-xl px-5 py-2 text-sm ${subject === value ? "bg-[#754be6] text-white" : "bg-[#f3f0ff] text-[#302a38]"}`}>{value === "MATH" ? "数学" : "英语"}</button>)}</div></fieldset><div className="grid content-start gap-2 text-sm font-semibold">识别方式<span className="text-sm font-normal text-[#302a38]/60">AI 标准识别（数学、英语、几何），由系统自动选择</span></div></div>
+        <div className="flex flex-wrap gap-6"><fieldset><legend className="mb-2 text-sm font-semibold">学科</legend><div className="flex gap-2">{(["MATH", "ENGLISH"] as const).map((value) => <button key={value} type="button" disabled={loading || rotating} aria-pressed={subject === value} onClick={() => { setSubject(value); replaceFiles([]); setError(""); setCreatedId(""); }} className={`rounded-xl px-5 py-2 text-sm ${subject === value ? "bg-[#754be6] text-white" : "bg-[#f3f0ff] text-[#302a38]"}`}>{value === "MATH" ? "数学" : "英语"}</button>)}</div></fieldset><div className="grid content-start gap-2 text-sm font-semibold">识别方式<span className="text-sm font-normal text-[#302a38]/60">识别图片中的题干、图形和作答过程</span></div></div>
+        <QwenModeSelector value={modelMode} onChange={setModelMode} disabled={loading || rotating} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{files.map((file, index) => <div key={`${index}-${file.name}`} className="rounded-xl border border-[#302a38]/10 p-3">{previews[index] && <button type="button" aria-label={`放大第 ${index + 1} 张题目预览`} onClick={() => setActivePreview(previews[index])} className="block w-full"><NextImage src={previews[index]} alt={`第 ${index + 1} 张题目预览`} width={600} height={480} unoptimized className="h-48 w-full rounded-lg bg-[#f7f6fa] object-contain" /></button>}<p className="mt-2 truncate text-xs text-[#302a38]/60">第 {index + 1} 张 · {file.name}</p><div className="mt-3 flex gap-4 text-sm text-[#754be6]"><button type="button" disabled={loading || rotating} onClick={() => void rotate(index)}>旋转 90°</button><button type="button" disabled={loading || rotating} onClick={() => replaceFiles(files.filter((_, i) => i !== index))}>移除</button></div></div>)}</div>
         <input ref={fileInput} type="file" accept="image/jpeg,image/png" multiple={subject === "ENGLISH"} className="hidden" onChange={handleFile} />
         <div className="flex flex-wrap items-center gap-4"><button type="button" disabled={loading || rotating || files.length >= maxFiles} className="rounded-xl border border-dashed border-[#754be6]/40 bg-[#f3f0ff] px-6 py-4 text-sm font-semibold text-[#754be6] disabled:opacity-40" onClick={() => fileInput.current?.click()}>+ {files.length ? "添加下一张" : "拍照 / 选择图片"}</button><span className="text-sm text-[#302a38]/50">已选 {files.length} / {maxFiles} 张</span>{files.length > 0 && <button type="button" disabled={loading || rotating} onClick={() => replaceFiles([])} className="text-sm text-[#302a38]/60">清空图片</button>}</div>

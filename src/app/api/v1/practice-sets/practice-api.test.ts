@@ -34,13 +34,21 @@ describe("模拟题 API 权限与异步任务", () => {
     const response = await POST(request("/generate", f.token, { wrongQuestionIds: [f.q.id], difficulty: "EASY" }));
     expect(response.status).toBe(202);
     const { data } = await response.json();
-    const pending = await prisma.practiceGenerationJob.findUniqueOrThrow({ where: { id: data.jobId } }); expect(pending.status).toBe("PENDING"); expect(pending.requestedById).toBe(f.family.id);
+    const pending = await prisma.practiceGenerationJob.findUniqueOrThrow({ where: { id: data.jobId } }); expect(pending.status).toBe("PENDING"); expect(pending.requestedById).toBe(f.family.id); expect(pending.modelOverride).toBe("qwen3.7-plus");
     await runPracticeGenerationJob(prisma, pending.id); await runPracticeGenerationJob(prisma, pending.id);
     const completed = await (await status(request(`/generate/status?jobId=${pending.id}`, f.token))).json();
     expect(completed.data.status).toBe("DONE"); expect(completed.data.error).toBeNull();
     const set = await (await detail(request(`/${completed.data.practiceSetId}`, f.token), { params: Promise.resolve({ id: completed.data.practiceSetId }) })).json();
     expect(set.data.questions).toHaveLength(1); expect(set.data.questions[0].answer).toBe("went");
     expect(await prisma.practiceSet.count({ where: { studentId: f.studentId } })).toBe(1);
+  });
+  it("复杂模式将 qwen3.8-max 写入异步练习任务", async () => {
+    const f = await fixture();
+    const response = await POST(request("/generate", f.token, { wrongQuestionIds: [f.q.id], modelMode: "COMPLEX" }));
+    expect(response.status).toBe(202);
+    const { data } = await response.json();
+    const job = await prisma.practiceGenerationJob.findUniqueOrThrow({ where: { id: data.jobId } });
+    expect(job.modelOverride).toBe("qwen3.8-max");
   });
   it("老师只能读取和生成当前负责学生的题", async () => {
     const f = await fixture();
@@ -55,16 +63,23 @@ describe("模拟题 API 权限与异步任务", () => {
     await prisma.wrongQuestion.update({ where: { id: f.q.id }, data: { subject: "MATH", recognizedQuestion: "已知圆的半径，求弧长。" } });
     vi.stubEnv("QWEN_MODE", "live"); vi.stubEnv("DASHSCOPE_API_KEY", "test");
     vi.stubEnv("DASHSCOPE_BASE_URL", "https://example.test/v1");
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({
-      title: "圆的变式练习", questions: [{ question: "模型错误题面", answer: "999", explanation: "模型错误解析", diagram: { type: "circle_sector", radius: 6, centralAngle: 60, task: "ARC_LENGTH" } }],
-    }) } }] }))));
+    const requestedModels: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: unknown, init?: RequestInit) => {
+      requestedModels.push(JSON.parse(String(init?.body)).model);
+      const output = {
+        title: "圆的变式练习",
+        questions: [{ question: "模型错误题面", answer: "999", explanation: "模型错误解析", diagram: { type: "circle_sector", radius: 6, centralAngle: 60, task: "ARC_LENGTH" } }],
+      };
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(output) } }] }));
+    }));
     try {
-      const response = await POST(request("/generate", f.token, { wrongQuestionIds: [f.q.id] }));
+      const response = await POST(request("/generate", f.token, { wrongQuestionIds: [f.q.id], modelMode: "COMPLEX" }));
       expect(response.status).toBe(202);
       const { data } = await response.json();
       await runPracticeGenerationJob(prisma, data.jobId);
       const job = await prisma.practiceGenerationJob.findUniqueOrThrow({ where: { id: data.jobId } });
       expect(job.status).toBe("DONE");
+      expect(requestedModels).toEqual(["qwen3.8-max"]);
       const id = job.resultPracticeSetId!;
       const result = await (await detail(request(`/${id}`, f.token), { params: Promise.resolve({ id }) })).json();
       expect(result.data.questions[0]).toMatchObject({ answer: "2π cm", diagram: { type: "circle_sector" }, imageUrl: null });

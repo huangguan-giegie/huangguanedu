@@ -8,9 +8,10 @@ import { allowedPracticeStudents, runPracticeGenerationJob } from "../../../../.
 import { generatePracticeSetTx, PracticeSetError } from "../../../../../lib/practice-set-targeted";
 import { PracticeAiError } from "../../../../../lib/practice-ai";
 import { writeAuditLog } from "../../../../../lib/audit";
+import { qwenModelForMode } from "../../../../../lib/qwen-model";
 
 export const maxDuration = 240;
-const InputSchema = z.object({ studentId: z.string().trim().min(1).optional(), wrongQuestionIds: z.array(z.string().trim().min(1).max(100)).min(1).max(20).optional(), count: z.number().int().min(3).max(5).optional(), adaptive: z.boolean().optional(), difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).optional() });
+const InputSchema = z.object({ studentId: z.string().trim().min(1).optional(), wrongQuestionIds: z.array(z.string().trim().min(1).max(100)).min(1).max(20).optional(), count: z.number().int().min(3).max(5).optional(), adaptive: z.boolean().optional(), difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).optional(), modelMode: z.enum(["STANDARD", "COMPLEX"]).default("STANDARD") });
 
 export async function POST(request: NextRequest) {
   const auth = await requireRole(request, prisma, ["FAMILY", "TEACHER", "ADMIN"]);
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
   // 同一用户仅保留一个进行中任务，防止重复点击造成重复出题。
   const active = await prisma.practiceGenerationJob.findFirst({ where: { requestedById: auth.user.id, status: { in: ["PENDING", "PROCESSING"] }, updatedAt: { gt: new Date(Date.now() - 10 * 60 * 1000) } }, orderBy: { createdAt: "desc" } });
   if (active) return NextResponse.json({ success: true, data: { jobId: active.id, studentId: active.studentId, status: active.status } }, { status: 202 });
-  const job = await prisma.practiceGenerationJob.create({ data: { studentId, requestedById: auth.user.id, wrongQuestionIds: ids, difficulty: input.data.difficulty ?? null } });
+  const job = await prisma.practiceGenerationJob.create({ data: { studentId, requestedById: auth.user.id, wrongQuestionIds: ids, difficulty: input.data.difficulty ?? null, modelOverride: qwenModelForMode(input.data.modelMode) } });
   after(() => runPracticeGenerationJob(prisma, job.id));
   return NextResponse.json({ success: true, data: { jobId: job.id, studentId, status: job.status } }, { status: 202 });
 }

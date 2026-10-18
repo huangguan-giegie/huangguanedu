@@ -72,6 +72,14 @@ describe("模拟题迁移", () => {
     });
     expect((await generatePracticeSetAi(input, request as unknown as typeof fetch)).questions[0].answer).toBe("B");
   });
+  it("异步练习按任务保存的复杂模式模型发起请求", async () => {
+    vi.stubEnv("QWEN_MODE", "live"); vi.stubEnv("DASHSCOPE_API_KEY", "test"); vi.stubEnv("DASHSCOPE_BASE_URL", "https://example.test/v1");
+    const request = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body)).model).toBe("qwen3.8-max");
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ title: "复杂题练习", questions: [{ question: "2+2=?", answer: "4", explanation: "计算得4" }] }) } }] }));
+    });
+    await generatePracticeSetAi(input, request as unknown as typeof fetch, 90000, { model: "qwen3.8-max" });
+  });
   it("不接受与选择错题数不一致的AI结果", async () => {
     vi.stubEnv("QWEN_MODE", "live"); vi.stubEnv("DASHSCOPE_API_KEY", "test"); vi.stubEnv("DASHSCOPE_BASE_URL", "https://example.test/v1");
     const request = async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ title: "错误数量", questions: [1, 2].map(() => ({ question: "q", answer: "a", explanation: "e" })) }) } }] }));

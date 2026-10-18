@@ -9,6 +9,8 @@ import { Icon } from "../../components/icons";
 import { isPracticeGenerating, togglePracticeSource, type PracticeGenerationTask, type PracticeSetItem } from "../../components/practice-content";
 import { latexToUnicode } from "../../lib/latex-to-unicode";
 import { EmptyState } from "../../components/EmptyState";
+import { QwenModeSelector } from "../../components/QwenModeSelector";
+import type { QwenModelMode } from "../../lib/qwen-model";
 import styles from "./practice.module.css";
 
 interface SourceData {
@@ -34,6 +36,7 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
   const [subject, setSubject] = useState<"MATH" | "ENGLISH">(initialSubject);
   const initialSelection = useRef(initialWrongQuestionId);
   const [difficulty, setDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM");
+  const [modelMode, setModelMode] = useState<QwenModelMode>("STANDARD");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [items, setItems] = useState<PracticeSetItem[]>([]);
   const [task, setTask] = useState<PracticeGenerationTask | null>(null);
@@ -136,7 +139,7 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
     setPollError("");
     try {
       const result = await api.post<{ jobId: string; studentId: string; status: "PENDING" | "PROCESSING" }>("/api/v1/practice-sets/generate", {
-        studentId, wrongQuestionIds: selectedIds, difficulty,
+        studentId, wrongQuestionIds: selectedIds, difficulty, modelMode,
       });
       setTask({ ...result, error: null, practiceSetId: null });
     } catch (cause) {
@@ -205,6 +208,7 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
           })}</div>
         </>}
 
+        <QwenModeSelector value={modelMode} onChange={setModelMode} disabled={busy} />
         <fieldset className={styles.difficulties}><legend>练习难度</legend>{DIFFICULTIES.map((option) => <label key={option.value} className={difficulty === option.value ? styles.activeDifficulty : styles.difficulty}><input type="radio" name="difficulty" value={option.value} checked={difficulty === option.value} disabled={busy} onChange={() => setDifficulty(option.value)} /><span><b>{option.label}</b><small>{option.hint}</small></span></label>)}</fieldset>
         <div className={styles.generateFooter}><p>几何与函数题会结合原题内容生成配图。</p><button type="button" className="button-primary" disabled={busy || taskLoading || loading || !studentId || !selectedIds.length} onClick={() => void generate()}>{busy ? "正在生成…" : `生成针对性练习${selectedIds.length ? `（已选 ${selectedIds.length} 道）` : ""}`}</button></div>
       </section>

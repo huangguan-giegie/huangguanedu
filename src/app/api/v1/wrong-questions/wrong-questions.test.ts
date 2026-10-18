@@ -254,7 +254,7 @@ describe("错题上传 API", () => {
     const png = await makePng();
     const form = new FormData();
     form.append("subject", "ENGLISH");
-    form.append("model", "qwen-vl-max");
+    form.append("modelMode", "COMPLEX");
     for (let i = 0; i < 6; i++) form.append("image", new File([new Uint8Array(png)], `${i}.png`, { type: "image/png" }));
     const response = await uploadWrongQuestion(multipartRequest(sessionToken, csrfToken, form));
     const body = await response.json();
@@ -265,6 +265,29 @@ describe("错题上传 API", () => {
     expect(images[0].expiresAt.getTime()).toBeGreaterThan(Date.now() + 90 * 24 * 3600000);
     const job = await prisma.analysisJob.findUniqueOrThrow({ where: { id: body.data.jobId } });
     expect(job.modelOverride).toBe("qwen3.8-max");
+  });
+
+  it("错题上传默认使用 qwen3.7-plus，复杂模式使用 qwen3.8-max", async () => {
+    const { family } = await seedFamily();
+    const { sessionToken, csrfToken } = await sessionFor(family.phone);
+    const png = await makePng();
+    const standard = new FormData();
+    standard.append("subject", "MATH");
+    standard.append("modelMode", "STANDARD");
+    standard.append("image", new File([new Uint8Array(png)], "standard.png", { type: "image/png" }));
+    const standardResponse = await uploadWrongQuestion(multipartRequest(sessionToken, csrfToken, standard));
+    const standardBody = await standardResponse.json();
+    const standardJob = await prisma.analysisJob.findUniqueOrThrow({ where: { id: standardBody.data.jobId } });
+    expect(standardJob.modelOverride).toBe("qwen3.7-plus");
+
+    const complex = new FormData();
+    complex.append("subject", "MATH");
+    complex.append("modelMode", "COMPLEX");
+    complex.append("image", new File([new Uint8Array(png)], "complex.png", { type: "image/png" }));
+    const complexResponse = await uploadWrongQuestion(multipartRequest(sessionToken, csrfToken, complex));
+    const complexBody = await complexResponse.json();
+    const complexJob = await prisma.analysisJob.findUniqueOrThrow({ where: { id: complexBody.data.jobId } });
+    expect(complexJob.modelOverride).toBe("qwen3.8-max");
   });
 
   it("英语最多六图，七图请求被拒绝", async () => {
@@ -289,6 +312,17 @@ describe("错题上传 API", () => {
     const response = await uploadWrongQuestion(multipartRequest(sessionToken, csrfToken, form));
     expect(response.status).toBe(400);
     expect((await response.json()).error.code).toBe("INVALID_MODEL");
+  });
+
+  it("拒绝未知 AI 模式", async () => {
+    const { family } = await seedFamily();
+    const { sessionToken, csrfToken } = await sessionFor(family.phone);
+    const form = new FormData();
+    form.append("subject", "MATH");
+    form.append("modelMode", "UNKNOWN");
+    const response = await uploadWrongQuestion(multipartRequest(sessionToken, csrfToken, form));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe("INVALID_MODEL_MODE");
   });
 
   it("本周已上传 100 道题后停止新上传", async () => {

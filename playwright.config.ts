@@ -25,12 +25,13 @@ export default defineConfig({
   webServer: {
     // Windows 下用 node 直接启动，确保 webServer.env（DATABASE_URL=e2e.db）可靠传递；
     // 经 npm.cmd 批处理启动时环境变量可能丢失，导致 dev server 回落到 dev.db 而使登录失败。
-    command: "node node_modules/next/dist/bin/next dev",
+    command: "node node_modules/next/dist/bin/next dev --webpack",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
       DATABASE_URL: E2E_DB,
+      QWEN_MODE: "mock",
     },
   },
 });

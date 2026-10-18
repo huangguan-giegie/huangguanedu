@@ -10,6 +10,7 @@ import { loadConfig } from "../../../../lib/config";
 import { processAnalysisJobs } from "../../../../lib/analysis-worker";
 import { WrongQuestionError } from "../../../../lib/wrong-question";
 import { wrongQuestionWhere } from "../../../../lib/wrong-question-query";
+import { qwenModelForMode, type QwenModelMode } from "../../../../lib/qwen-model";
 
 export const maxDuration = 240;
 const IMAGE_RETENTION_DAYS = 91;
@@ -47,12 +48,19 @@ export async function POST(request: NextRequest) {
   try { form = await request.formData(); } catch { return jsonError(400, "INVALID_FORM", "请求必须是 multipart/form-data"); }
   const subject = form.get("subject");
   if (subject !== "MATH" && subject !== "ENGLISH") return jsonError(400, "INVALID_SUBJECT", "请选择学科（数学或英语）");
+  const requestedMode = form.get("modelMode");
   const requestedModel = form.get("model");
-  if (requestedModel && requestedModel !== "qwen-vl-max" && requestedModel !== "qwen-vl-plus" && requestedModel !== "qwen3.7-plus" && requestedModel !== "qwen3.8-max") return jsonError(400, "INVALID_MODEL", "请选择有效的识别模型");
-  // 旧版客户端仍可能传 3.7 / VL 标识；统一使用当前配置的 Qwen 模型。
-  const model = requestedModel && requestedModel !== "qwen3.8-max"
-    ? loadConfig().qwen.model
-    : requestedModel;
+  let model: string | undefined;
+  if (requestedMode !== null) {
+    if (requestedMode !== "STANDARD" && requestedMode !== "COMPLEX") return jsonError(400, "INVALID_MODEL_MODE", "请选择有效的 AI 模式");
+    model = qwenModelForMode(requestedMode as QwenModelMode);
+  } else {
+    if (requestedModel && requestedModel !== "qwen-vl-max" && requestedModel !== "qwen-vl-plus" && requestedModel !== "qwen3.7-plus" && requestedModel !== "qwen3.8-max") return jsonError(400, "INVALID_MODEL", "请选择有效的识别模型");
+    // 兼容旧客户端的模型参数；新客户端使用 modelMode 明确选择模型。
+    model = requestedModel && requestedModel !== "qwen3.8-max"
+      ? loadConfig().qwen.model
+      : typeof requestedModel === "string" ? requestedModel : undefined;
+  }
   const files = form.getAll("image");
   const maxFiles = subject === "ENGLISH" ? MAX_ENGLISH_IMAGES : 1;
   if (!files.length || files.length > maxFiles) return jsonError(400, "INVALID_FILE_COUNT", subject === "ENGLISH" ? "英语题请上传 1 至 6 张图片" : "数学题每次请上传一张图片");

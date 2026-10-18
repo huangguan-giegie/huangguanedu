@@ -26,6 +26,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   );
 
   process.env.E2E_DATABASE_URL = e2eUrl;
+  process.env.QWEN_MODE = "mock";
 
   return async () => {
     pg.stop();
