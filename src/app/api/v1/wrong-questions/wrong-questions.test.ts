@@ -264,7 +264,7 @@ describe("错题上传 API", () => {
     expect(images.map((image) => image.id)).toEqual(body.data.imageIds);
     expect(images[0].expiresAt.getTime()).toBeGreaterThan(Date.now() + 90 * 24 * 3600000);
     const job = await prisma.analysisJob.findUniqueOrThrow({ where: { id: body.data.jobId } });
-    expect(job.modelOverride).toBe("qwen-vl-max");
+    expect(job.modelOverride).toBe("qwen3.8-max");
   });
 
   it("英语最多六图，七图请求被拒绝", async () => {
