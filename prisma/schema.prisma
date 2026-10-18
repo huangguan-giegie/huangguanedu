@@ -664,6 +664,7 @@ model PracticeGenerationJob {
   studentId           String
   requestedById       String
   difficulty          String?
+  modelOverride       String?
   wrongQuestionIds    Json
   status              String   @default("PENDING")
   error               String?

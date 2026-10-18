@@ -14,6 +14,7 @@ describe("loadConfig 配置校验", () => {
     const config = loadConfig({ QWEN_MODE: "mock" });
 
     expect(config.qwen.mode).toBe("mock");
+    expect(config.qwen.model).toBe("qwen3.7-plus");
     expect(config.qwen.apiKey).toBeNull();
     expect(config.qwen.baseUrl).toBe(
       "https://dashscope.aliyuncs.com/compatible-mode/v1",

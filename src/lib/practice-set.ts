@@ -105,6 +105,7 @@ async function buildUserContent(input: PracticeSetAiInput, diagrams = true): Pro
 export interface GeneratePracticeOptions {
   /** false = 不生成示意图，题干必须自足（图形渲染失败时的兜底重试） */
   diagrams?: boolean;
+  model?: string;
 }
 
 export async function generatePracticeSetAi(input: PracticeSetAiInput, fetchImpl: typeof fetch = fetch, timeoutMs = 90000, options: GeneratePracticeOptions = {}): Promise<PracticeSetAiOutput> {
@@ -119,7 +120,7 @@ export async function generatePracticeSetAi(input: PracticeSetAiInput, fetchImpl
   try {
     response = await fetchImpl(`${config.qwen.baseUrl}/chat/completions`, {
       method: "POST", headers: { Authorization: `Bearer ${config.qwen.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: config.qwen.model, messages: [{ role: "system", content: "你是中小学数学和英语错题变式出题助手。只输出合法 JSON，不含学生身份信息。" }, { role: "user", content }], response_format: { type: "json_object" }, enable_thinking: config.qwen.enableThinking }),
+      body: JSON.stringify({ model: options.model ?? config.qwen.model, messages: [{ role: "system", content: "你是中小学数学和英语错题变式出题助手。只输出合法 JSON，不含学生身份信息。" }, { role: "user", content }], response_format: { type: "json_object" }, enable_thinking: config.qwen.enableThinking }),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch { throw new PracticeSetAiError(true, "模拟题生成请求超时或连接失败，请稍后重试"); }
@@ -393,12 +394,12 @@ const strings = (value: unknown): string[] => Array.isArray(value) ? value.filte
 const savedImagePaths = (result: PersistQuestionsResult): string[] => result.questions.flatMap((q) => (q.imagePath ? [q.imagePath] : []));
 
 /** AI 出题：超时、限流、格式不合规这类可重试错误再试一次，仍失败则抛出交上层。 */
-async function generateWithRetry(input: PracticeSetAiInput): Promise<PracticeSetAiOutput> {
+async function generateWithRetry(input: PracticeSetAiInput, model: string): Promise<PracticeSetAiOutput> {
   try {
-    return await generatePracticeSetAi(input);
+    return await generatePracticeSetAi(input, fetch, 90000, { model });
   } catch (error) {
     if (!(error instanceof PracticeSetAiError) || !error.retryable) throw error;
-    return generatePracticeSetAi(input);
+    return generatePracticeSetAi(input, fetch, 90000, { model });
   }
 }
 
@@ -409,6 +410,7 @@ export async function runPracticeGenerationJob(prisma: PrismaClient, jobId: stri
   let savedImages: string[] = [];
   try {
     const job = await prisma.practiceGenerationJob.findUniqueOrThrow({ where: { id: jobId }, include: { student: { select: { grade: true } } } });
+    const model = job.modelOverride ?? loadConfig().qwen.model;
     const ids = strings(job.wrongQuestionIds);
     const wrongQuestions = await prisma.wrongQuestion.findMany({ where: { id: { in: ids }, studentId: job.studentId, deletedAt: null, status: { in: ["PUBLISHED", "REVIEWED"] } }, include: { knowledgePointRecords: true, rawImages: { where: { deletedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "asc" } } } });
     if (!ids.length || wrongQuestions.length !== ids.length || wrongQuestions.some((q) => !q.recognizedQuestion?.trim())) throw new Error("部分错题尚未完成识别或已失效，请刷新后重试");
@@ -416,7 +418,7 @@ export async function runPracticeGenerationJob(prisma: PrismaClient, jobId: stri
     const input: PracticeSetAiInput = { grade: job.student.grade, difficulty: (job.difficulty as PracticeDifficulty | null) ?? undefined, wrongQuestions: wrongQuestions.map((q) => ({ subject: q.subject, recognizedQuestion: q.recognizedQuestion!, knowledgePoints: q.knowledgePointRecords.map((r) => r.knowledgePoint), remedialPractice: strings(q.remedialPractice), finalAnswer: q.finalAnswer, correctSteps: strings(q.correctSteps), images: q.rawImages.map((i) => i.filePath) })) };
 
     // 第一级：正常出题，题目带图形。图形渲染失败不会中断整套练习。
-    let output = await generateWithRetry(input);
+    let output = await generateWithRetry(input, model);
     let persisted = await persistQuestions(output, { verifiedOnly: true });
     savedImages = savedImagePaths(persisted);
 
@@ -426,7 +428,7 @@ export async function runPracticeGenerationJob(prisma: PrismaClient, jobId: stri
       console.warn(`[practice-set] 第 ${persisted.premiseViolations.join("、")} 题出题前提不成立，重出 job=${jobId}`);
       await Promise.allSettled(savedImages.map((path) => getStorage().delete(path)));
       savedImages = [];
-      output = await generateWithRetry(input);
+      output = await generateWithRetry(input, model);
       persisted = await persistQuestions(output, { verifiedOnly: true });
       savedImages = savedImagePaths(persisted);
       if (persisted.premiseViolations.length) {
@@ -442,7 +444,7 @@ export async function runPracticeGenerationJob(prisma: PrismaClient, jobId: stri
       console.warn(`[practice-set] 第 ${persisted.diagramFailures.join("、")} 题配图失败，切换无图模式重出 job=${jobId}`);
       await Promise.allSettled(savedImages.map((path) => getStorage().delete(path)));
       savedImages = [];
-      output = await generatePracticeSetAi(input, fetch, 90000, { diagrams: false });
+      output = await generatePracticeSetAi(input, fetch, 90000, { diagrams: false, model });
       persisted = await persistQuestions(output, { diagrams: false });
       savedImages = savedImagePaths(persisted);
       // 第四级：改写后的题干仍在引用无法提供的图形，这套题不可用，明确失败而不是存下坏题。

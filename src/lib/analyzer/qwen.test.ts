@@ -64,7 +64,7 @@ describe("Qwen 分析器", () => {
     expect(result.finalAnswer).toBe("x=4");
     expect(captured!.url).toContain("/chat/completions");
     const body = JSON.parse(captured!.init.body as string);
-    expect(body.model).toBe("qwen3.8-max");
+    expect(body.model).toBe("qwen3.7-plus");
     expect(body.response_format).toEqual({ type: "json_object" });
     expect(body.enable_thinking).toBe(false);
     expect(body.messages[0].content).toContain("JSON");

@@ -2,7 +2,7 @@
 
 const DEFAULT_DASHSCOPE_BASE_URL =
   "https://dashscope.aliyuncs.com/compatible-mode/v1";
-const DEFAULT_DASHSCOPE_MODEL = "qwen3.8-max";
+const DEFAULT_DASHSCOPE_MODEL = "qwen3.7-plus";
 const DEFAULT_IMAGE_TRANSPORT = "object_storage";
 const DEFAULT_MAX_PIXELS = 4194304;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000;

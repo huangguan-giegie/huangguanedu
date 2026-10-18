@@ -25,7 +25,7 @@ function processAnalysis() {
   );
 }
 
-test("移动端核心流程：登录->改密->首页->预约->上传错题->确认识别->查看解答", async ({
+test("移动端核心流程：登录->改密->复杂模式上传错题->确认识别->复杂模式生成模拟题", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -38,29 +38,21 @@ test("移动端核心流程：登录->改密->首页->预约->上传错题->确�
 
   // 2. 首次登录强制改密
   await expect(page).toHaveURL(/\/change-password/);
-  await page.getByLabel("旧密码").fill(TEMP_PASSWORD);
-  await page.getByLabel(/新密码/).fill(NEW_PASSWORD);
-  await page.getByRole("button", { name: "确认修改" }).click();
+  await page.getByLabel("当前密码").fill(TEMP_PASSWORD);
+  await page.getByLabel("新密码（至少 8 位）", { exact: true }).fill(NEW_PASSWORD);
+  await page.getByLabel("再次输入新密码").fill(NEW_PASSWORD);
+  await page.getByRole("button", { name: "保存并继续" }).click();
 
   // 3. 学生首页
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("欢迎");
-  await expect(page.getByText("月卡包含周一至周四线下小班课")).toBeVisible();
+  await expect(page.getByRole("link", { name: /上传错题/ })).toBeVisible();
 
-  // 4. 预约课程（周末一对一）
-  await page.getByRole("link", { name: /预约课程/ }).click();
-  await expect(page).toHaveURL(/\/bookings/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("预约课程");
-  const bookButton = page.getByRole("button", { name: "预约" }).first();
-  if ((await bookButton.count()) > 0) {
-    await bookButton.click();
-    await expect(page.getByText("预约成功，等待老师确认")).toBeVisible();
-  }
-
-  // 5. 上传错题
+  // 4. 上传错题并明确选用复杂模式
   await page.goto("/wrong-questions/new");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("上传错题");
-  await page.getByLabel("学科").selectOption("MATH");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("把这道题，真正弄懂");
+  await expect(page.getByRole("radio").nth(0)).toBeChecked();
+  await page.getByRole("radio").nth(1).check();
   const png = await sharp({
     create: {
       width: 32,
@@ -76,19 +68,31 @@ test("移动端核心流程：登录->改密->首页->预约->上传错题->确�
     .setInputFiles({ name: "question.png", mimeType: "image/png", buffer: png });
   await page.getByRole("button", { name: "上传并分析" }).click();
 
-  // 6. 等待分析完成（执行 worker）
+  // 5. 等待上传完成并进入错题详情
+  await expect(page.getByRole("status").filter({ hasText: "已提交识别" })).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.getByRole("link", { name: "查看这道题 →" }).click();
   await expect(page).toHaveURL(/\/wrong-questions\/[a-z0-9]+/);
   await page.waitForTimeout(1500);
   processAnalysis();
 
-  // 7. 详情页出现确认识别提示
-  await expect(page.getByText("题目和你的解题过程识别准确吗")).toBeVisible({
+  // 6. 确认识别结果，题目进入可出题状态
+  await expect(page.getByRole("button", { name: /识别准确，查看解析/ })).toBeVisible({
     timeout: 15_000,
   });
 
-  // 8. 学生确认识别准确 -> 直接发布完整解答
-  await page.getByRole("button", { name: "识别准确" }).click();
-  await expect(page.getByText("AI 初步生成")).toBeVisible();
-  await expect(page.getByText("完整解答")).toBeVisible();
-  await expect(page.getByText(/答案：x = 4/)).toBeVisible();
+  // 6. 学生确认识别准确后查看完整解答
+  await page.getByRole("button", { name: /识别准确，查看解析/ }).click();
+  await expect(page.getByText("最终答案")).toBeVisible();
+  await expect(page.getByText("x = 4", { exact: true }).last()).toBeVisible();
+
+  // 7. 从刚确认的错题生成模拟题
+  await page.goto("/practice");
+  await expect(page.getByRole("heading", { name: "生成新练习" })).toBeVisible();
+  await page.getByLabel("选择第 1 道错题").check();
+  await page.getByRole("radio").nth(1).check();
+  await page.getByRole("button", { name: /生成针对性练习/ }).click();
+  await expect(page.getByText("新练习已生成")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("link", { name: "查看新练习 →" })).toBeVisible();
 });
