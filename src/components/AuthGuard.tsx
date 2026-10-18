@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "./api";
 import { ThemeToggle } from "./ThemeToggle";
@@ -148,7 +149,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     <div className="academy-shell">
       <aside className="academy-sidebar" aria-label="侧边导航" style={{zoom:workspaceScale/100}}>
         <Link href="/" className="academy-logo">
-          <span className="academy-logo-mark">冠</span>
+          <span className="academy-logo-mark" style={{background:"#06265d",overflow:"hidden",padding:2}}><Image src="/academy-crown.svg" alt="黄冠 AI Academy 皇冠书本标志" width={36} height={36}/></span>
           <span><span className="academy-logo-title">黄冠 AI Academy</span><span className="academy-logo-subtitle">LEARN WITH CLARITY</span></span>
         </Link>
         <p className="academy-sidebar-caption">学习导航 / WORKSPACE</p>
@@ -165,7 +166,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         <a className="academy-skip-link" href="#main-content">跳转到页面内容</a>
         <header className="academy-topbar">
           <div className="flex items-center gap-3">
-            <span className="academy-logo-mark !h-9 !w-9 !rounded-xl !text-xl lg:hidden">冠</span>
+            <span className="academy-logo-mark !h-9 !w-9 !rounded-xl lg:hidden" style={{background:"#06265d",overflow:"hidden",padding:2}}><Image src="/academy-crown.svg" alt="" width={36} height={36}/></span>
             <span className="academy-topbar-label">黄冠 AI Academy <span className="academy-breadcrumb-divider">/</span> {currentPage}</span>
           </div>
           <div className="flex items-center gap-3">
