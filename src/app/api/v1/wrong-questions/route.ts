@@ -16,6 +16,17 @@ const IMAGE_RETENTION_DAYS = 91;
 const MAX_ENGLISH_IMAGES = 6;
 const WEEKLY_WRONG_QUESTION_QUOTA = 100;
 
+// Next.js after() requires an active request scope. If unavailable (e.g. unit
+// tests or alternate runtimes), leave the durable PENDING job for the worker.
+function scheduleAnalysis(): void {
+  try {
+    after(() => processAnalysisJobs(prisma, 1).then(() => undefined));
+  } catch (error) {
+    console.warn("[analysis] Deferred scheduling unavailable; queued job will be handled by worker", error instanceof Error ? error.name : "unknown");
+  }
+}
+
+
 function currentWeekStart(): Date {
   const utc8 = new Date(Date.now() + 8 * 3600000);
   const daysSinceMonday = (utc8.getUTCDay() + 6) % 7;
@@ -79,7 +90,7 @@ export async function POST(request: NextRequest) {
     });
     // 若独立 worker 未启用，上传接口仍可在响应后启动一个分析任务。
     // 数据库锁保证并行 worker 不会重复处理同一题。
-    after(() => processAnalysisJobs(prisma, 1).then(() => undefined));
+    scheduleAnalysis();
     return NextResponse.json({ success: true, data: { wrongQuestionId: result.wrongQuestion.id, imageId: result.imageRecords[0].id, imageIds: result.imageRecords.map((image) => image.id), jobId: result.job.id, status: "PROCESSING" } });
   } catch (error) {
     await Promise.all(images.map((image) => storage.delete(image.filePath).catch(() => undefined)));
@@ -102,7 +113,7 @@ export async function GET(request: NextRequest) {
     ]);
     // 旧版部署缺少独立 worker 时，客户端的 5 秒轮询也能继续推动待分析队列。
     if (items.some((item) => item.status === "PROCESSING")) {
-      after(() => processAnalysisJobs(prisma, 1).then(() => undefined));
+      scheduleAnalysis();
     }
     return NextResponse.json({ success: true, data: { total, page, pageSize, items: items.map((w) => ({ id: w.id, studentId: w.studentId, studentName: w.student.name, subject: w.subject, recognizedQuestion: w.recognizedQuestion, knowledgePoints: w.knowledgePointRecords.map((record) => record.knowledgePoint), mastered: w.mastered, status: w.status, isAiGenerated: w.isAiGenerated, isTeacherReviewed: w.isTeacherReviewed, isFavorite: w.favorites.length > 0, firstSeenAt: w.firstSeenAt, lastReviewedAt: w.lastReviewedAt, updatedAt: w.updatedAt })) } });
   } catch (error) {
