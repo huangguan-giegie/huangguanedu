@@ -3,7 +3,7 @@
 import { useCallback,useEffect,useId,useRef,useState,type PointerEvent,type ChangeEvent } from "react";
 import {
  blankDocument,createPoint,createShape,createIntersections,createPolygon,createLocus,polygonMeasures,resolveDocument,
- movePoint,resizeMeasuredObject,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
+ movePoint,resizeMeasuredObject,rotateMeasuredObject,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
  starterDocument,type GeometryDocument,type GeometryObject,type Resolved,type Point,
 } from "../lib/free-geometry";
 import {sampleLocus,locusPaths} from "../lib/geometry-locus";
@@ -76,6 +76,16 @@ function MeasureControl({object,resolved,onApply}:{
    修改时沿当前方向移动第二个自由定位点，所有依赖构造会自动重算；若第二点是关联交点，请先编辑其上游自由点。
   </p>
  </form>;
+}
+function AngleControl({object,resolved,onApply}:{object:GeometryObject;resolved:Resolved[];onApply:(degree:number)=>void}){
+ const line=resolved.find(v=>v.object.id===object.id)?.line;
+ if(!line)return null;
+ const angle=Math.atan2(line.b.y-line.a.y,line.b.x-line.a.x)*180/Math.PI;
+ return <label>方向角 θ（相对 x 轴，单位°）
+  <input type="number" min="-360" max="360" step="1" value={Number(angle.toFixed(2))}
+   onChange={e=>{if(e.target.value!=="")onApply(Number(e.target.value));}}/>
+  <span className={styles.meta}>长度固定、旋转末端自由点；适用于斜率、平行、垂直及三角形角度条件。</span>
+ </label>;
 }
 export function FreeGeometryEditor() {
  const router=useRouter();
@@ -475,6 +485,11 @@ export function FreeGeometryEditor() {
            try{commit(resizeMeasuredObject(docRef.current,selectedObject.id,target));note("已修改定位尺寸，相关交点和图形重新计算");}
            catch(e){note(safeError(e));}
           }}/>}
+       {(selectedObject.kind==="segment"||selectedObject.kind==="line")&&
+        <AngleControl object={selectedObject} resolved={resolved} onApply={degree=>{
+         try{commit(rotateMeasuredObject(docRef.current,selectedObject.id,degree));note("方向角已更新，依赖图形同步重算");}
+         catch(error){note(safeError(error));}
+        }}/>} 
        <button className={styles.delete} onClick={deleteSelected}>删除对象及依赖项</button>
       </div>}
     </section>

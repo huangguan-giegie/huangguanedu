@@ -182,3 +182,14 @@ body::before { display:none; }
   .academy-workspace.app-content { max-width:none; padding:0; animation:none; }
   .academy-home-fade { animation:none; }
 }
+
+/* User-controlled reading scale: enlarge navigation text, not the 248px sidebar column. */
+.academy-sidebar .academy-logo-title { font-size:calc(16px * var(--academy-scale, 1)); }
+.academy-sidebar .academy-logo-subtitle { font-size:calc(9px * var(--academy-scale, 1)); }
+.academy-sidebar .academy-sidebar-caption { font-size:calc(10px * var(--academy-scale, 1)); }
+.academy-sidebar .academy-nav-link { font-size:calc(14px * var(--academy-scale, 1)); line-height:1.35; }
+.academy-sidebar .academy-user-name { font-size:calc(14px * var(--academy-scale, 1)); }
+.academy-sidebar .academy-user-role { font-size:calc(12px * var(--academy-scale, 1)); }
+.academy-sidebar .academy-signout { font-size:calc(13px * var(--academy-scale, 1)); }
+.academy-bottom-nav .academy-bottom-item { font-size:calc(11px * var(--academy-scale, 1)); }
+.academy-menu .academy-nav-link { font-size:calc(14px * var(--academy-scale, 1)); }

@@ -255,6 +255,19 @@ export function resizeMeasuredObject(doc:GeometryDocument,id:string,length:numbe
  const updated={x:base.x+(point.x-base.x)*ratio,y:base.y+(point.y-base.y)*ratio};
  return movePoint(doc,endpoint.id,updated);
 }
+/** 中高考题目常给出射线方向角：只旋转自由端点，不破坏原有图形依赖。 */
+export function rotateMeasuredObject(doc:GeometryDocument,id:string,degree:number):GeometryDocument{
+ if(!Number.isFinite(degree)||degree< -360||degree>360)throw Error("方向角必须位于 -360° 至 360°");
+ const object=doc.objects.find(o=>o.id===id);
+ if(!object||(object.kind!=="segment"&&object.kind!=="line"))throw Error("请选择线段或直线");
+ const base=resolveDocument(doc).find(o=>o.object.id===id)?.line;
+ const endpoint=doc.objects.find(o=>o.id===object.b);
+ if(!base||!endpoint||endpoint.kind!=="point")throw Error("定位末端不是自由点，请先编辑上游点");
+ const length=Math.hypot(base.b.x-base.a.x,base.b.y-base.a.y);
+ if(length<=EPS)throw Error("两定位点重合");
+ const rad=degree*Math.PI/180;
+ return movePoint(doc,endpoint.id,{x:base.a.x+length*Math.cos(rad),y:base.a.y+length*Math.sin(rad)});
+}
 export function renameObject(doc:GeometryDocument,id:string,label:string):GeometryDocument {
   const value=label.trim();
   if(!value||value.length>12)throw Error("标签长度限制为 1–12");

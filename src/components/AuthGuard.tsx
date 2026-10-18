@@ -1,8 +1,9 @@
 // 统一页面外壳，按角色显示导航并保留现有业务入口。
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "./api";
 import { ThemeToggle } from "./ThemeToggle";
@@ -24,9 +25,8 @@ const menus = {
     { href: "/wrong-questions", label: "错题本" },
     { href: "/review", label: "今日复习" },
     { href: "/practice", label: "错题模拟题" },
-    { href: "/geometry-lab", label: "动态几何实验室" },
-    { href: "/geometry-editor", label: "自由几何编辑器" },
-    { href: "/math-studio", label: "代数 CAS / 函数与圆锥曲线" },
+    { href: "/geometry-lab", label: "几何实验室 / 自由编辑" },
+    { href: "/math-studio", label: "代数 CAS / 函数探索" },
     { href: "/bookings", label: "课程预约" },
     { href: "/reports", label: "学习总结" },
     { href: "/account", label: "账户设置" },
@@ -39,9 +39,8 @@ const menus = {
     { href: "/review", label: "智能复习" },
     { href: "/teacher/summaries", label: "学习总结审核" },
     { href: "/practice", label: "错题模拟题" },
-    { href: "/geometry-lab", label: "动态几何实验室" },
-    { href: "/geometry-editor", label: "自由几何编辑器" },
-    { href: "/math-studio", label: "代数 CAS / 函数与圆锥曲线" },
+    { href: "/geometry-lab", label: "几何实验室 / 自由编辑" },
+    { href: "/math-studio", label: "代数 CAS / 函数探索" },
     { href: "/account", label: "账户设置" },
   ],
   ADMIN: [
@@ -53,9 +52,8 @@ const menus = {
     { href: "/teacher/review", label: "错题审核" },
     { href: "/teacher/summaries", label: "学习总结审核" },
     { href: "/practice", label: "错题模拟题" },
-    { href: "/geometry-lab", label: "动态几何实验室" },
-    { href: "/geometry-editor", label: "自由几何编辑器" },
-    { href: "/math-studio", label: "代数 CAS / 函数与圆锥曲线" },
+    { href: "/geometry-lab", label: "几何实验室 / 自由编辑" },
+    { href: "/math-studio", label: "代数 CAS / 函数探索" },
     { href: "/account", label: "账户设置" },
   ],
 } as const;
@@ -149,9 +147,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="academy-shell">
-      <aside className="academy-sidebar" aria-label="侧边导航">
+      <aside className="academy-sidebar" aria-label="侧边导航" style={{"--academy-scale":workspaceScale/100} as CSSProperties}>
         <Link href="/" className="academy-logo">
-          <span className="academy-logo-mark">冠</span>
+          <span className="academy-logo-mark" style={{background:"#06265d",overflow:"hidden",padding:2}}><Image src="/academy-crown.svg" alt="黄冠 AI Academy 皇冠书本标志" width={36} height={36}/></span>
           <span><span className="academy-logo-title">黄冠 AI Academy</span><span className="academy-logo-subtitle">LEARN WITH CLARITY</span></span>
         </Link>
         <p className="academy-sidebar-caption">学习导航 / WORKSPACE</p>
@@ -168,7 +166,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         <a className="academy-skip-link" href="#main-content">跳转到页面内容</a>
         <header className="academy-topbar">
           <div className="flex items-center gap-3">
-            <span className="academy-logo-mark !h-9 !w-9 !rounded-xl !text-xl lg:hidden">冠</span>
+            <span className="academy-logo-mark !h-9 !w-9 !rounded-xl lg:hidden" style={{background:"#06265d",overflow:"hidden",padding:2}}><Image src="/academy-crown.svg" alt="" width={36} height={36}/></span>
             <span className="academy-topbar-label">黄冠 AI Academy <span className="academy-breadcrumb-divider">/</span> {currentPage}</span>
           </div>
           <div className="flex items-center gap-3">
@@ -189,7 +187,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         <main key={pathname} className={`academy-workspace app-content${pathname === "/" ? " academy-home-workspace" : ""}`} id="main-content" tabIndex={-1} style={{zoom:workspaceScale/100}}>{children}</main>
         <footer className="academy-footer"><span>每天进步一点，都值得被看见。</span><span>黄冠 AI Academy</span></footer>
       </div>
-      <nav className="academy-bottom-nav" aria-label="移动端主导航">
+      <nav className="academy-bottom-nav" aria-label="移动端主导航" style={{"--academy-scale":workspaceScale/100} as CSSProperties}>
         {tabs.map(item => <Link key={item.href} href={item.href}
           className={`academy-bottom-item${item.href === "/" ? " academy-bottom-home" : ""}`}
           aria-current={activeTab === item.href ? "page" : undefined}>
@@ -201,7 +199,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           <span className="academy-bottom-icon"><Icon name="filter" size={22} /></span><span>更多</span>
         </button>
       </nav>
-      <dialog className="academy-menu" ref={menuRef} aria-labelledby="academy-menu-title"
+      <dialog className="academy-menu" style={{"--academy-scale":workspaceScale/100} as CSSProperties} ref={menuRef} aria-labelledby="academy-menu-title"
         onClick={event => { if (event.target === event.currentTarget) menuRef.current?.close(); }}>
         <div className="academy-menu-content">
           <div className="academy-menu-heading"><div><span className="academy-eyebrow">YOUR WORKSPACE</span><h2 id="academy-menu-title">全部功能</h2></div>
