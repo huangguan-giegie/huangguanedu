@@ -3,7 +3,7 @@
 import { useCallback,useEffect,useId,useRef,useState,type PointerEvent,type ChangeEvent } from "react";
 import {
  blankDocument,createPoint,createShape,createIntersections,createPolygon,createLocus,polygonMeasures,resolveDocument,
- movePoint,resizeMeasuredObject,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
+ movePoint,resizeMeasuredObject,rotateMeasuredObject,deleteCascade,renameObject,hideObject,validateDocument,parseDocumentJSON,
  starterDocument,type GeometryDocument,type GeometryObject,type Resolved,type Point,
 } from "../lib/free-geometry";
 import {sampleLocus,locusPaths} from "../lib/geometry-locus";
@@ -475,6 +475,20 @@ export function FreeGeometryEditor() {
            try{commit(resizeMeasuredObject(docRef.current,selectedObject.id,target));note("已修改定位尺寸，相关交点和图形重新计算");}
            catch(e){note(safeError(e));}
           }}/>}
+       {(selectedObject.kind==="segment"||selectedObject.kind==="line")&&(()=>{
+        const line=resolved.find(v=>v.object.id===selectedObject.id)?.line;
+        if(!line)return null;
+        const angle=Math.atan2(line.b.y-line.a.y,line.b.x-line.a.x)*180/Math.PI;
+        return <label>方向角 θ（相对 x 轴，单位°）
+         <input key={selectedObject.id+"-angle"} type="number" min="-360" max="360" step="1"
+          value={Number(angle.toFixed(2))} onChange={e=>{
+           if(e.target.value==="")return;
+           try{commit(rotateMeasuredObject(docRef.current,selectedObject.id,Number(e.target.value)));note("方向角已更新，依赖图形同步重算");}
+           catch(error){note(safeError(error));}
+          }}/>
+         <span className={styles.meta}>固定线段长度，旋转第二个自由端点。适用于斜率、平行、垂直与三角形角度条件。</span>
+        </label>;
+       })()}
        <button className={styles.delete} onClick={deleteSelected}>删除对象及依赖项</button>
       </div>}
     </section>
