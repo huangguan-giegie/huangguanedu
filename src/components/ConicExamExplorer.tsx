@@ -17,6 +17,16 @@ const MODES:{id:ConicKind;label:string;topic:string}[]=[
  {id:"hyperbola",label:"双曲线",topic:"双曲线渐近线、焦点、直线交点判别"},
  {id:"parabola",label:"抛物线",topic:"抛物线焦点与准线、弦长及过点的直线"},
 ];
+// 中高考题目常以具体数值给定条件；滑块和输入框共享状态，支持精确录入。
+function ExamParameter({label,value,min,max,step,onChange}:{label:string;value:number;min:number;max:number;step:number;onChange:(n:number)=>void}){
+ return <label>{label}：{value.toFixed(step<.1?2:1)}
+  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 88px",gap:10,alignItems:"center"}}>
+   <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.target.value))}/>
+   <input type="number" aria-label={label+"精确数值"} min={min} max={max} step={step} value={value}
+    onChange={e=>{const n=Number(e.target.value);if(e.target.value!==""&&Number.isFinite(n)&&n>=min&&n<=max)onChange(n);}}/>
+  </div>
+ </label>;
+}
 const statusText={secant:"两个交点 · 割线",tangent:"一个重交点 · 相切",none:"没有实交点", "single-not-tangent":"仅一个交点，但不相切",coincident:"退化方程"} as const;
 export function ConicExamExplorer({compact=false}:{compact?:boolean}){
  const [kind,setKind]=useState<ConicKind>("ellipse");
@@ -71,12 +81,20 @@ export function ConicExamExplorer({compact=false}:{compact?:boolean}){
    <div className={styles.controls}>
     <strong className={styles.formula}>{formula}</strong>
     {kind!=="parabola"?<>
-     <label>半长轴 / 实半轴 a = {a.toFixed(1)}<input type="range" min="2.5" max="6" step=".5" value={a} onChange={e=>setA(Number(e.target.value))}/></label>
-     <label>半短轴 / 虚半轴 b = {b.toFixed(1)}<input type="range" min=".5" max="2" step=".5" value={b} onChange={e=>setB(Number(e.target.value))}/></label>
-    </>:<label>焦点参数 p = {p.toFixed(1)}<input type="range" min=".5" max="3" step=".5" value={p} onChange={e=>setP(Number(e.target.value))}/></label>}
-    <label>过点 P 的横坐标 x₀：{px.toFixed(1)}<input type="range" min="-5" max="5" step=".25" value={px} onChange={e=>setPx(Number(e.target.value))}/></label>
-    <label>过点 P 的纵坐标 y₀：{py.toFixed(1)}<input type="range" min="-4" max="4" step=".25" value={py} onChange={e=>setPy(Number(e.target.value))}/></label>
-    <label>直线斜率 k：{m.toFixed(2)}<input type="range" min="-3" max="3" step=".05" value={m} onChange={e=>setM(Number(e.target.value))}/></label>
+     <ExamParameter label="半长轴 / 实半轴 a" value={a} min={2.5} max={6} step={.1} onChange={setA}/>
+     <ExamParameter label="半短轴 / 虚半轴 b" value={b} min={.5} max={2.4} step={.1} onChange={setB}/>
+    </>:<ExamParameter label="焦点参数 p" value={p} min={.2} max={5} step={.1} onChange={setP}/>}
+    <ExamParameter label="过点 P 的横坐标 x₀" value={px} min={-6} max={6} step={.25} onChange={setPx}/>
+    <ExamParameter label="过点 P 的纵坐标 y₀" value={py} min={-5} max={5} step={.25} onChange={setPy}/>
+    <ExamParameter label="直线斜率 k" value={m} min={-5} max={5} step={.05} onChange={setM}/>
+    <section className={styles.facts} aria-label="高考常见条件快速设置">
+     <h3>高考条件预设</h3>
+     <div className={styles.presets}>
+      <button type="button" onClick={()=>{setKind("ellipse");setA(5);setB(3);setPx(1);setPy(0);setM(1);}}>椭圆：焦点与弦长</button>
+      <button type="button" onClick={()=>{setKind("hyperbola");setA(3);setB(2);setPx(0);setPy(1);setM(.5);}}>双曲线：渐近线与交点</button>
+      <button type="button" onClick={()=>{setKind("parabola");setP(2);setPx(1);setPy(2);setM(-1);}}>抛物线：过定点的弦</button>
+     </div>
+    </section>
     <section className={styles.facts} aria-live="polite">
      <h3>{opts.topic}</h3>
      <p className={styles.formula}>{throughPointLine(line).equation}</p>
