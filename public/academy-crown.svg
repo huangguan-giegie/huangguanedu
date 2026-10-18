@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="黄冠 AI Academy 皇冠书本标志">
+<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f4b932"/><stop offset=".38" stop-color="#fff1a0"/><stop offset=".7" stop-color="#f4bd4d"/><stop offset="1" stop-color="#ce8a1f"/></linearGradient><linearGradient id="paper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#c8d3ec"/></linearGradient></defs>
+<path d="M37 154 13 65 76 103 128 33 180 103 243 65 219 154" fill="none" stroke="url(#gold)" stroke-width="15" stroke-linecap="round" stroke-linejoin="miter"/>
+<circle cx="13" cy="49" r="10" fill="url(#gold)"/><circle cx="128" cy="17" r="11" fill="url(#gold)"/><circle cx="243" cy="49" r="10" fill="url(#gold)"/>
+<path d="M128 44V174M55 143 Q128 78 201 143M55 143 128 194 201 143" fill="none" stroke="url(#gold)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="55" cy="143" r="11" fill="#06265d" stroke="url(#gold)" stroke-width="7"/><circle cx="128" cy="115" r="11" fill="#06265d" stroke="url(#gold)" stroke-width="7"/><circle cx="201" cy="143" r="11" fill="#06265d" stroke="url(#gold)" stroke-width="7"/>
+<path d="M22 207 Q91 207 128 238 Q165 207 234 207 L234 225 Q169 218 128 247 Q87 218 22 225Z" fill="url(#paper)"/>
+<path d="M22 186 Q93 186 128 226 Q163 186 234 186" fill="none" stroke="url(#paper)" stroke-width="16" stroke-linecap="round"/>
+</svg>
