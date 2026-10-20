@@ -15,6 +15,7 @@ import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
 import {FreeGeometryEditor} from "./FreeGeometryEditor";
 import {ConicExamExplorer} from "./ConicExamExplorer";
 import {FunctionExamExplorer} from "./FunctionExamExplorer";
+import {ExamConstraintLab} from "./ExamConstraintLab";
 import styles from "./GeometryLab.module.css";
 import { AcademyArt } from "./AcademyArt";
 
@@ -93,7 +94,7 @@ export function GeometryLab() {
   const [sim,setSim]=useState(LAB_DEFAULTS.similarity);
   const [tan,setTan]=useState(LAB_DEFAULTS.tangent);
   const [showGuides,setShowGuides]=useState(true);
-  const [workshop,setWorkshop]=useState<"theorems"|"editor"|"conics"|"trig"|"explog">("theorems");
+  const [workshop,setWorkshop]=useState<"theorems"|"editor"|"conics"|"trig"|"explog"|"exam">("theorems");
   const activePointer=useRef<{handle:LabHandle;pointerId:number}|null>(null);
   const gridId=useId();
 
@@ -165,7 +166,7 @@ export function GeometryLab() {
 
   const workshopNav=<div className={styles.modeTabs} role="group" aria-label="实验室教学模式">
     {([
-     ["theorems","初中几何定理"],["editor","自由作图工作台"],["conics","高考圆锥曲线"],
+     ["exam","数学命题实验室"],["theorems","初中几何定理"],["editor","自由作图工作台"],["conics","高考圆锥曲线"],
      ["trig","高考三角函数"],["explog","高考指对数函数"],
     ] as const).map(([id,name])=><button type="button" key={id} aria-pressed={workshop===id}
      className={workshop===id?styles.modeActive:styles.mode} onClick={()=>setWorkshop(id)}>
@@ -174,7 +175,8 @@ export function GeometryLab() {
    </div>;
   if(workshop!=="theorems")return <div className={styles.page}>
    {workshopNav}
-   {workshop==="editor"?<FreeGeometryEditor/>:
+   {workshop==="exam"?<ExamConstraintLab/>:
+    workshop==="editor"?<FreeGeometryEditor/>:
     workshop==="conics"?<ConicExamExplorer compact/>:
     workshop==="trig"?<FunctionExamExplorer compact initialPreset="正弦函数"/>:
     <FunctionExamExplorer compact initialPreset="指数函数"/>}
