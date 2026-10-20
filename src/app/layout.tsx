@@ -3,6 +3,7 @@ import "./globals.css";
 /* 08T 主题层（token → 质感 → Tailwind 覆盖器）—— 删掉下面这一行即可全站回退 */
 import "./theme-08t.css";
 import "./academy-ui.css";
+import "./academy-art.css";
 
 // 原先这里用 next/font/google 拉 Geist / Geist_Mono。生产服务器拉不到 Google Fonts，
 // 离线构建会以 NextFontError 直接失败（本地有缓存所以看不出来，构建一换机器就暴露）。

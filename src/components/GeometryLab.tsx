@@ -16,6 +16,7 @@ import {FreeGeometryEditor} from "./FreeGeometryEditor";
 import {ConicExamExplorer} from "./ConicExamExplorer";
 import {FunctionExamExplorer} from "./FunctionExamExplorer";
 import styles from "./GeometryLab.module.css";
+import { AcademyArt } from "./AcademyArt";
 
 const catalog: { mode: LabMode; icon: string; title: string; subtitle: string }[] = [
   { mode:"bisector", icon:"△", title:"角平分线", subtitle:"拖动 A 点，观察分点 D" },
@@ -181,7 +182,8 @@ export function GeometryLab() {
 
   return <div className={styles.page}>
     {workshopNav}
-    <div className={styles.hero}>
+    <div className={`${styles.hero} academy-lab-hero`}>
+      <AcademyArt kind="geometry" className="academy-lab-art" />
       <div className={styles.eyebrow}>GEOMETRY STUDIO / 动态几何实验室</div>
       <h1>拖动图形，<span>看见定理如何成立。</span></h1>
       <p>不只是让 AI 画一张图：每一次拖动都会重新计算顶点、辅助线与对应数值。验证始终依据几何公式，而不是模型猜测。</p>
