@@ -124,13 +124,15 @@ export function analyzeQuadratic(q:QuadraticInput):QuadraticResult {
   const chord=counts===2?Math.abs(roots[1]-roots[0])*Math.hypot(1,slope):null;
   const dx=counts===2?roots[1]-roots[0]:0;
   const areaMax=counts===2?Math.abs(a)*dx**3/8:null;
+  const areaMaxExact=counts===2&&Number.isInteger(disc)&&Number.isInteger(Math.sqrt(disc))&&Number.isInteger(a)
+    ? fraction(disc*Math.sqrt(disc),8*a*a):null;
   const movedX=counts===2?roots[0]+movement*dx:null;
   const movingPoint=movedX===null?null:{x:movedX,y:curve(movedX)};
   const currentArea=movedX===null?null:Math.abs(a)*dx/2*(movedX-roots[0])*(roots[1]-movedX);
   const value:Record<QuadraticTarget,string>={
     count:String(counts),sum:fmt(-B/A),chord:chord===null?"":approximate(chord),
     vertex:`(${fmt(h)}, ${fmt(v)})`,max:fmt(ymax),min:fmt(ymin),
-    areaMax:approximate(areaMax??NaN),
+    areaMax:areaMaxExact??approximate(areaMax??NaN),
   };
   const eq=`y=${fmt(a)}(x−(${fmt(h)}))²+${fmt(v)}`;
   const lineEq=`y=${fmt(slope)}x+${fmt(intercept)}`;
@@ -142,10 +144,10 @@ export function analyzeQuadratic(q:QuadraticInput):QuadraticResult {
     vertex:`二次函数为顶点式 ${eq}，顶点为 (${fmt(h)}, ${fmt(v)})。`,
     max:`在 [${fmt(left)}, ${fmt(right)}] 比较区间端点${h>=left&&h<=right?"及顶点":""}的函数值，最大为 ${fmt(ymax)}。`,
     min:`在 [${fmt(left)}, ${fmt(right)}] 比较区间端点${h>=left&&h<=right?"及顶点":""}的函数值，最小为 ${fmt(ymin)}。`,
-    areaMax:`${simple}设交点横坐标 x₁=${fmt(roots[0]??0)},x₂=${fmt(roots[1]??0)}（x₁<x₂）。P=(t,f(t)) 在两交点间抛物线弧上运动，则 S(△ABP)=|a|(x₂−x₁)(t−x₁)(x₂−t)/2。由 (t−x₁)(x₂−t)≤(x₂−x₁)²/4，等号在 t=(x₁+x₂)/2 时成立，故 Smax=|a|(x₂−x₁)³/8=${approximate(areaMax??NaN)}。`,
+    areaMax:`${simple}设交点横坐标 x₁=${fmt(roots[0]??0)},x₂=${fmt(roots[1]??0)}（x₁<x₂）。P=(t,f(t)) 在两交点间抛物线弧上运动，则 S(△ABP)=|a|(x₂−x₁)(t−x₁)(x₂−t)/2。由 (t−x₁)(x₂−t)≤(x₂−x₁)²/4，等号在 t=(x₁+x₂)/2 时成立，故 Smax=|a|(x₂−x₁)³/8=${areaMaxExact??approximate(areaMax??NaN)}。`,
   };
   const question:ExamQuestion|null=possible?{
-    level:"中考",exact:target!=="chord"&&target!=="areaMax",
+    level:"中考",exact:target!=="chord"&&(target!=="areaMax"||areaMaxExact!==null),
     question:target==="vertex"?`已知二次函数 ${eq}，求顶点坐标。`
       :target==="areaMax"
         ?`抛物线 ${eq} 与直线 ${lineEq} 交于不同两点 A、B。动点 P 在 A、B 之间对应的一段抛物线上运动。求 △ABP 的面积最大值。`
@@ -237,7 +239,7 @@ export function analyzeConic(input:ConicInput):ExamResult&{section:ConicSection}
         :target==="chord"?`u 为单位向量，故 |AB|=|t₂−t₁|=${val.chord}。`
           :`根据两交点的坐标平均数，M=${val.midpoint}。`;
   const question=ok?{
-    level:"高考" as const,exact:target==="count"||target==="rootSum"||target==="discriminant",
+    level:"高考" as const,exact:target==="count",
     question:`已知圆锥曲线 C：${eq}，${description}。求${names[target]}。`,
     answer:val[target],
     explanation:substitution+proof+(target==="chord"||target==="midpoint"?" 坐标和长度结果按所列精度近似。":""),
@@ -275,10 +277,12 @@ export function analyzeLineFamily(c:LineFamilyInput):LineFamilyResult {
   const names={reciprocal:"1/(PA·PB)+1/(PC·PD)",chordSum:"全部弦长之和",chordProduct:"全部弦长之积"} as const;
   const d=1-c.through.x**2/(c.curve.a*c.curve.a)-c.through.y**2/(c.curve.b*c.curve.b);
   const certifiedValue=(1/(c.curve.a*c.curve.a)+1/(c.curve.b*c.curve.b))/d;
-  const value=valueNum===null?null:certified?`${fmt(certifiedValue)}（定值）`:approximate(valueNum);
+  const a2=c.curve.a*c.curve.a,b2=c.curve.b*c.curve.b;
+  const fixedFraction=fraction(4*(a2+b2),4*a2*b2-(2*c.through.x)**2*b2-(2*c.through.y)**2*a2);
+  const value=valueNum===null?null:certified?`${fixedFraction}（定值）`:approximate(valueNum);
   const conditions=[conicEquation(c.curve),`所有直线均经过 P(${fmt(c.through.x)},${fmt(c.through.y)})`,
     `直线方向：${actual.map(v=>`${fmt(v)}°`).join("、")}`,...(c.perpendicular?["第 1 与第 2 条直线互相垂直"]:[])];
-  const proof=certified?`设 u₁=(cosθ,sinθ)，u₂=(-sinθ,cosθ)，分别以 P+tuᵢ 参数化两条直线。代入椭圆得 Aᵢt²+Bᵢt−D=0，其中 D=1−(Px²/a²+Py²/b²)=${fmt(d)}>0。由韦达定理，两交点参数积 t₁t₂=−D/Aᵢ；P 在椭圆内部，两交点位于 P 两侧，PA·PB=D/A₁，PC·PD=D/A₂。故所求倒数和=(A₁+A₂)/D=(1/a²+1/b²)/D=${fmt(certifiedValue)}。u₁、u₂ 正交，A₁+A₂ 与 θ 无关，故为定值。注意 A、B、C、D 在此表示两条直线各自的两个交点。`
+  const proof=certified?`设 u₁=(cosθ,sinθ)，u₂=(-sinθ,cosθ)，分别以 P+tuᵢ 参数化两条直线。代入椭圆得 Aᵢt²+Bᵢt−D=0，其中 D=1−(Px²/a²+Py²/b²)=${fmt(d)}>0。由韦达定理，两交点参数积 t₁t₂=−D/Aᵢ；P 在椭圆内部，两交点位于 P 两侧，PA·PB=D/A₁，PC·PD=D/A₂。故所求倒数和=(A₁+A₂)/D=(1/a²+1/b²)/D=${fmt(certifiedValue)}。u₁、u₂ 正交，A₁+A₂ 与 θ 无关，故为定值，且精确值为 ${fixedFraction}。注意 A、B、C、D 在此表示两条直线各自的两个交点。`
     :`逐条将方向单位向量 uᵢ 代入 X=P+t uᵢ，与 ${conicEquation(c.curve)} 联立并求实根；弦长取 |t₂−t₁|。本配置得 ${value??"不存在可计算的目标"}。当前仅是给定直线方向的数值结果，未证明对方向改变仍为定值。`;
   const question=value!==null?{
     level:"高考" as const,exact:certified,
