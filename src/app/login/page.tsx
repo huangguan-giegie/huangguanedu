@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "../../components/api";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Icon } from "../../components/icons";
+import { AcademyArt } from "../../components/AcademyArt";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function LoginPage() {
     <div className="academy-login-screen">
       <div className="academy-login-tools"><ThemeToggle /></div>
       <section className="academy-login-feature">
+        <AcademyArt kind="study" className="academy-login-art" />
         <div className="academy-logo">
           <span className="academy-logo-mark">冠</span>
           <span><span className="academy-logo-title">黄冠 AI Academy</span><span className="academy-logo-subtitle">LEARN WITH CLARITY</span></span>
