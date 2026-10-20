@@ -40,6 +40,8 @@
 .conditionList li{font-size:13px;line-height:1.75;margin:4px 0}
 .notes{padding:17px 20px 8px;display:grid;gap:11px}
 .notes p{line-height:1.8;font-size:13px;color:var(--muted,#526d80)}
+.auto{display:block;width:calc(100% - 40px);margin:12px 20px 3px;padding:12px 15px;background:var(--surface-soft,#f0f8fb);border:1px solid var(--primary,#188ca2);border-radius:11px;color:var(--primary,#188ca2);font-size:13px;font-weight:800;cursor:pointer}
+.auto:hover{filter:brightness(.96)}
 .generate{display:block;width:calc(100% - 40px);margin:12px 20px 2px;padding:13px 18px;background:var(--primary,#168ca1);border-radius:11px;color:white;font-weight:800;cursor:pointer}
 .generate:disabled{background:#9aaeb7;cursor:not-allowed}
 .help{padding:5px 20px;color:var(--muted,#688093);font-size:12px;line-height:1.8}
