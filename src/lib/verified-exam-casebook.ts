@@ -59,7 +59,10 @@ export function analyzeJilin(input:JilinInput):JilinOutput {
   const validTriangle=Math.abs(m*y)>1e-9;
   const similar=ratio*ratio,remaining=1+2*ratio;
   const areaRatio=`${f(similar)} : ${f(remaining)}`;
-  const candidate=roots(1,b,-1+vertex.y/ratio);
+  // The *segment* MQ, not merely its infinite supporting line,
+  // must contain the parabola vertex at x=-b/2.
+  const candidate=roots(1,b,-1+vertex.y/ratio).filter(t=>
+    Math.min(t,-ratio*t)-1e-9<=vertex.x&&vertex.x<=Math.max(t,-ratio*t)+1e-9);
   const criticalPoints=candidate.map(t=>({x:-ratio*t,y:vertex.y}));
   const interior=classifyJilinInterior(b,ratio,m);
   const original=Math.abs(knownX-2)<1e-9&&Math.abs(knownY+1)<1e-9&&Math.abs(ratio-2)<1e-9;
