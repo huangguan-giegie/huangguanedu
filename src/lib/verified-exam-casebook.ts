@@ -185,7 +185,7 @@ export function analyzeSquare(input:SquareInput):SquareOutput {
     {title:"第（2）问 · 相似三角形引出分段面积函数",kind:"proved",
       task:`点 P 从 A 沿 AC 向 C 运动，AP=t；以 AP 为边向 △ABC 内侧构造正方形 APDE。求正方形和 △ABC 的重叠面积 S(t)，并写出取值范围。`,
       answer:expression,
-      proof:`当 t≤${f(d)}，重叠部分为直角三角形 APD，面积 t²/2。当 t>${f(d)}，作垂直于 AC 的直线 x=t，与 BC 交于 F。由 △CFP∽△CBA 的对应直角三角形关系（均有水平底边和同一斜边方向），可得 FP / ${f(d)}=(${f(L)}−t)/(${f(L)}−${f(d)})。故正方形内的重叠部分是 △ABC 去掉右侧 △CPF，其面积为 ${f(totalArea)}−${f(d)}/(2×${f(L-d)})(${f(L)}−t)²。两段在 t=${f(d)} 时均等于 ${f(d*d/2)}，连续但表达式不同。`},
+      proof:`当 t≤${f(d)}，重叠部分为直角三角形 APD，面积 t²/2。当 t>${f(d)}，作垂直于 AC 的直线 x=t，与 BC 交于 F。设 H 为 B 到 AC 的垂足，则 △CFP∽△CBH（CF 与 CB 共线，CP 与 CH 共线，且 ∠P=∠H=90°），可得 FP / ${f(d)}=(${f(L)}−t)/(${f(L)}−${f(d)})。故正方形内的重叠部分是 △ABC 去掉右侧 △CPF，其面积为 ${f(totalArea)}−${f(d)}/(2×${f(L-d)})(${f(L)}−t)²。两段在 t=${f(d)} 时均等于 ${f(d*d/2)}，连续但表达式不同。`},
     {title:"第（3）问 · 最后增加特殊位置条件定解",kind:"proved",
       task:"当正方形 APDE 的对称中心恰与点 B 重合时，求运动长度 AP。",
       answer:`AP=${f(2*d)}`,
