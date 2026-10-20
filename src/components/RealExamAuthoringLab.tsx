@@ -61,12 +61,14 @@ function PlotPoints({points,map,labels}:{points:V2[];map:(p:V2)=>V2;labels?:stri
     <text x={p.x+8} y={p.y-9} fontSize="13" fontWeight="700" fill="#2f536b">{labels?.[i]??`P${i+1}`}</text>
   </g>;})}</g>;
 }
-function SimilarPlot({base,height,ad}:{base:number;height:number;ad:number}) {
+function SimilarPlot({base,height,ad,mode,rotation}:{base:number;height:number;ad:number;mode:"parallel"|"rotate";rotation:number}) {
   const origin={x:85,y:350};
   const scale=Math.min(39,410/base,280/height);
   const to=(p:V2)=>({x:origin.x+p.x*scale,y:origin.y-p.y*scale});
   const A=to({x:0,y:0}),B=to({x:base,y:0}),C=to({x:0,y:height});
-  const D=to({x:ad,y:0}),E=to({x:0,y:height*ad/base});
+  const theta=(mode==="rotate"?rotation:0)*Math.PI/180;
+  const D=to({x:ad*Math.cos(theta),y:ad*Math.sin(theta)});
+  const E=to({x:-height*ad/base*Math.sin(theta),y:height*ad/base*Math.cos(theta)});
   return <svg viewBox="0 0 720 420" role="img" aria-label="平行线 DE 与 BC 构成相似三角形" className={styles.svg}>
     <rect width="720" height="420" fill="#f9fcff"/>
     <polygon points={`${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y}`}
@@ -81,11 +83,11 @@ function SimilarPlot({base,height,ad}:{base:number;height:number;ad:number}) {
     <text x={(A.x+B.x)/2} y={A.y+28} fontSize="16" fill="#294862">AB={nice(base)}</text>
     <text x={A.x-68} y={(A.y+C.y)/2} fontSize="16" fill="#294862">AC={nice(height)}</text>
     <text x={(A.x+D.x)/2} y={A.y-12} fontSize="15" fill="#a96330">AD={nice(ad)}</text>
-    <text x="484" y="70" fontSize="16" fill="#205b78">DE ∥ BC</text>
+    <text x="484" y="70" fontSize="16" fill="#205b78">{mode==="parallel"?"DE ∥ BC":`旋转角 ${nice(rotation)}°`}</text>
     <text x="484" y="96" fontSize="15" fill="#60798b">△ADE ∼ △ABC</text>
   </svg>;
 }
-function QuadraticPlot({f,line,left,right,points,vertex}:{f:(x:number)=>number;line:(x:number)=>number;left:number;right:number;points:V2[];vertex:V2}) {
+function QuadraticPlot({f,line,left,right,points,vertex,movingPoint}:{f:(x:number)=>number;line:(x:number)=>number;left:number;right:number;points:V2[];vertex:V2;movingPoint:V2|null}) {
   const xs=Array.from({length:161},(_,i)=>-8+i/10);
   const values=xs.flatMap(x=>[f(x),line(x)]);
   let min=Math.min(0,...values),max=Math.max(0,...values);
@@ -102,7 +104,12 @@ function QuadraticPlot({f,line,left,right,points,vertex}:{f:(x:number)=>number;l
       <path d={svgPolyline(xs.map(x=>({x,y:line(x)})),map)} fill="none" stroke="#d88545" strokeWidth="2.8"/>
       <rect x={map({x:left,y:0}).x} y="0" width={Math.max(0,(right-left)*39)} height="420" fill="#2a9f8530"/>
       <path d={svgPolyline(xs.map(x=>({x,y:f(x)})),map)} fill="none" stroke="#188ba6" strokeWidth="3"/>
+      {points.length===2&&movingPoint&&<polygon
+        points={[points[0],points[1],movingPoint].map(pt=>{const v=map(pt);return `${v.x},${v.y}`;}).join(" ")}
+        fill="#dc95512b" stroke="#e28645" strokeWidth="1.8"/>}
       <PlotPoints points={points} map={map} labels={["A","B"]}/>
+      {movingPoint&&<PlotPoints points={[movingPoint]} map={map} labels={["动点 P"]}/>}
+
       <PlotPoints points={[vertex]} map={map} labels={["顶点"]}/>
     </g>
   </svg>;
@@ -155,6 +162,7 @@ const quadraticOptions:{value:QuadraticTarget;label:string}[]=[
   {value:"vertex",label:"求抛物线顶点"},
   {value:"max",label:"求闭区间最大值"},
   {value:"min",label:"求闭区间最小值"},
+  {value:"areaMax",label:"动点 P 与交点 A、B 构成三角形的最大面积"},
 ];
 const conicOptions:{value:ConicTarget;label:string}[]=[
   {value:"count",label:"交点个数（含无解）"},
@@ -168,9 +176,12 @@ export function RealExamAuthoringLab(){
   const [topic,setTopic]=useState<Topic>("similar");
   const [base,setBase]=useState(6),[height,setHeight]=useState(8),[ad,setAd]=useState(3);
   const [lockD,setLockD]=useState(false),[similarTarget,setSimilarTarget]=useState<SimilarityTarget>("fixedRatio");
+  const [similarMode,setSimilarMode]=useState<"parallel"|"rotate">("parallel");
+  const [rotation,setRotation]=useState(45),[lockRotation,setLockRotation]=useState(false);
   const [a,setA]=useState(1),[h,setH]=useState(1),[v,setV]=useState(-4);
   const [slope,setSlope]=useState(0),[intercept,setIntercept]=useState(0);
   const [left,setLeft]=useState(-2),[right,setRight]=useState(4),[qTarget,setQTarget]=useState<QuadraticTarget>("count");
+  const [movement,setMovement]=useState(.5);
   const [kind,setKind]=useState<ConicKind>("ellipse");
   const [ca,setCa]=useState(5),[cb,setCb]=useState(3),[cp,setCp]=useState(2);
   const [pointX,setPointX]=useState(0),[pointY,setPointY]=useState(0);
@@ -185,16 +196,17 @@ export function RealExamAuthoringLab(){
   const effectiveAngles=orthogonal
     ? [activeAngles[0],(activeAngles[0]+90)%180,...activeAngles.slice(2)]
     : activeAngles;
-  const similar=analyzeSimilarity({base,height,ad,lockD,target:similarTarget});
-  const quadratic=analyzeQuadratic({a,h,v,slope,intercept,left,right,target:qTarget});
+  const similar=analyzeSimilarity({base,height,ad,lockD,target:similarTarget,
+    mode:similarMode,rotation,lockRotation});
+  const quadratic=analyzeQuadratic({a,h,v,slope,intercept,left,right,target:qTarget,movement});
   const conic=analyzeConic({curve:model,through,angle:angles[0],target:conicTarget});
   const lines=analyzeLineFamily({curve:model,through,angles:activeAngles,perpendicular:orthogonal,target:lineTarget});
   const data:ExamResult=topic==="similar"?similar:topic==="quadratic"?quadratic:topic==="conic"?conic:lines;
   const change=(t:Topic)=>{setTopic(t);setOpenAnswer(false);setCopyInfo("");};
   const setAngle=(i:number,x:number)=>setAngles(prev=>prev.map((v,j)=>i===j?x:v));
   const preset=()=>{
-    if(topic==="similar"){setBase(6);setHeight(8);setAd(3);setLockD(true);setSimilarTarget("segment");}
-    if(topic==="quadratic"){setA(1);setH(1);setV(-4);setSlope(0);setIntercept(0);setLeft(-2);setRight(4);setQTarget("sum");}
+    if(topic==="similar"){setBase(6);setHeight(8);setAd(3);setLockD(true);setSimilarMode("parallel");setRotation(45);setLockRotation(false);setSimilarTarget("segment");}
+    if(topic==="quadratic"){setA(1);setH(1);setV(-4);setSlope(0);setIntercept(0);setLeft(-2);setRight(4);setMovement(.5);setQTarget("areaMax");}
     if(topic==="conic"){setKind("ellipse");setCa(5);setCb(3);setCp(2);setPointX(0);setPointY(0);setAngle(0,25);setConicTarget("chord");}
     if(topic==="lines"){setKind("ellipse");setCa(5);setCb(3);setCp(2);setPointX(1);setPointY(1);setAngle(0,25);setOrthogonal(true);setNumLines(3);setLineTarget("reciprocal");}
     setOpenAnswer(false);
@@ -224,9 +236,9 @@ export function RealExamAuthoringLab(){
           <div className={styles.heading}><div><strong>01 · 构型与交点</strong>
             <p>所有图元由同一组参数实时计算，图中的交点与解析中所用交点一致。</p></div>
           </div>
-          {topic==="similar"?<SimilarPlot base={base} height={height} ad={ad}/>:
+          {topic==="similar"?<SimilarPlot base={base} height={height} ad={ad} mode={similarMode} rotation={rotation}/>: 
             topic==="quadratic"?<QuadraticPlot f={quadratic.curve} line={quadratic.line} left={left} right={right}
-              points={quadratic.points} vertex={{x:h,y:v}}/>:
+              points={quadratic.points} vertex={{x:h,y:v}} movingPoint={quadratic.movingPoint}/>: 
               <ConicPlot model={model} through={through} angles={topic==="conic"?[angles[0]]:effectiveAngles}
                 sections={topic==="conic"?[conic.section]:lines.sections}/>}
           <div className={styles.stats}>
@@ -251,12 +263,21 @@ export function RealExamAuthoringLab(){
             <div className={styles.heading}><strong>02 · 命题参数与约束</strong>
               <button type="button" className={styles.reset} onClick={preset}>加载典型题型</button></div>
             {topic==="similar"&&<>
+              <SelectField label="相似三角形构型" value={similarMode}
+                onChange={n=>{setSimilarMode(n);if(n==="rotate"&&similarTarget==="trapezoid")setSimilarTarget("area");}}
+                options={[{value:"parallel",label:"平行线截比（DE∥BC）"},
+                  {value:"rotate",label:"共顶点旋转相似（△ADE∽△ABC）"}]}/>
+              {similarMode==="rotate"&&<>
+                <Field label="绕 A 逆时针旋转角度" value={rotation} min={0} max={180} step={5} onChange={setRotation}/>
+                <Check label="将旋转角度写入题设" checked={lockRotation} onChange={setLockRotation}/>
+              </>}
               <Field label="大三角形底边 AB" value={base} min={3} max={16}
                 onChange={n=>{setBase(n);setAd(t=>Math.min(t,n-1));}}/>
               <Field label="大三角形直角边 AC" value={height} min={2} max={16} onChange={setHeight}/>
               <Field label="动点 D 对应的 AD" value={ad} min={1} max={base-1} onChange={setAd}/>
               <Check label="将 AD 作为题设已知条件" checked={lockD} onChange={setLockD}/>
-              <SelectField label="考查目标" value={similarTarget} onChange={setSimilarTarget} options={similarityOptions}/>
+              <SelectField label="考查目标" value={similarTarget} onChange={setSimilarTarget}
+                options={similarityOptions.filter(o=>similarMode==="parallel"||o.value!=="trapezoid")}/>
             </>}
             {topic==="quadratic"&&<>
               <Field label="二次项系数 a（不可为0）" value={a} min={-3} max={3}
@@ -267,6 +288,7 @@ export function RealExamAuthoringLab(){
               <Field label="直线截距 n" value={intercept} min={-9} max={9} onChange={setIntercept}/>
               <Field label="最值区间左端 L" value={left} min={-8} max={right-1} onChange={setLeft}/>
               <Field label="最值区间右端 R" value={right} min={left+1} max={8} onChange={setRight}/>
+              <Field label="动点 P 在两交点横坐标区间的位置" value={movement} min={0} max={1} step={.05} onChange={setMovement}/>
               <SelectField label="考查目标" value={qTarget} onChange={setQTarget} options={quadraticOptions}/>
             </>}
             {(topic==="conic"||topic==="lines")&&<>
