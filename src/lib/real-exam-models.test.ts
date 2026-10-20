@@ -32,6 +32,27 @@ describe("中考相似：平行比例与面积的目标定解",()=>{
       expect(analyzeSimilarity({...input,ad,target:"fixedRatio"}).value).toBe("10/6");
     }
   });
+  it("旋转相似仍保持比例和面积，但不误用梯形面积公式",()=>{
+    for(const rotation of [0,45,90,135,180]){
+      const model=analyzeSimilarity({...input,mode:"rotate",rotation,lockD:true,target:"area"});
+      expect(model.value).toBe("6");
+      const [A,B,C,D,E]=model.points;
+      const de=Math.hypot(D.x-E.x,D.y-E.y);
+      expect(de).toBeCloseTo(5,9);
+      expect(Math.abs(D.x*E.y-D.y*E.x)/2).toBeCloseTo(6,9);
+      expect(A).toEqual({x:0,y:0});
+      expect(B).toEqual({x:6,y:0});
+      expect(C).toEqual({x:0,y:8});
+    }
+    const noTrapezoid=analyzeSimilarity({...input,mode:"rotate",rotation:60,lockD:true,target:"trapezoid"});
+    expect(noTrapezoid.question).toBeNull();
+    expect(noTrapezoid.notes.join(" ")).toContain("不能沿用");
+  });
+  it("旋转角未作为条件时图形还可旋转，但已知 AD 后边长仍唯一",()=>{
+    const model=analyzeSimilarity({...input,mode:"rotate",rotation:75,lockD:true,target:"segment"});
+    expect(model.degreesOfFreedom).toBe(1);
+    expect(model.question).not.toBeNull();
+  });
   it("端点/退化距离被阻止，不会输出虚假的图",()=>{
     expect(()=>analyzeSimilarity({...input,ad:6})).toThrow();
     expect(()=>analyzeSimilarity({...input,base:0})).toThrow();
@@ -60,6 +81,17 @@ describe("中考二次函数：两函数交点、韦达与最值",()=>{
   it("交点不可行时可判交点数为零，但不伪造两根之和",()=>{
     expect(analyzeQuadratic({...input,v:4}).value).toBe("0");
     expect(analyzeQuadratic({...input,v:4,target:"sum"}).question).toBeNull();
+  });
+  it("动点 P 位于抛物线弧上，三角形最大面积由根差三次方确定",()=>{
+    const r=analyzeQuadratic({...input,target:"areaMax",movement:.5});
+    expect(r.movingPoint).toEqual({x:1,y:-4});
+    expect(r.question).not.toBeNull();
+    expect(r.value).toBe("约 8");
+    expect(r.notes.join(" ")).toContain("面积约为 8");
+    const edge=analyzeQuadratic({...input,target:"areaMax",movement:0});
+    expect(edge.notes.join(" ")).toContain("面积约为 0");
+    const tangent=analyzeQuadratic({...input,v:0,target:"areaMax"});
+    expect(tangent.question).toBeNull();
   });
   it("开口方向与区间端点、顶点共同决定最大/最小值",()=>{
     const max=analyzeQuadratic({...input,target:"max"});
