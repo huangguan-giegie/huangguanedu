@@ -86,7 +86,8 @@ describe("中考二次函数：两函数交点、韦达与最值",()=>{
     const r=analyzeQuadratic({...input,target:"areaMax",movement:.5});
     expect(r.movingPoint).toEqual({x:1,y:-4});
     expect(r.question).not.toBeNull();
-    expect(r.value).toBe("约 8");
+    expect(r.value).toBe("8");
+    expect(r.question?.exact).toBe(true);
     expect(r.notes.join(" ")).toContain("面积约为 8");
     const edge=analyzeQuadratic({...input,target:"areaMax",movement:0});
     expect(edge.notes.join(" ")).toContain("面积约为 0");
@@ -152,6 +153,7 @@ describe("高考多条过定点直线：正交倒数积和真定值",()=>{
       const actual=r.sections.reduce((s,v)=>s+1/Math.abs(v.product!),0);
       expect(actual).toBeCloseTo(expected,8);
       expect(r.question?.explanation).toContain("韦达");
+      expect(r.value).toContain("34/191");
     }
   });
   it("添加第三、四条线不改变前两条线的定值，交点逐条渲染",()=>{
