@@ -15,7 +15,7 @@ import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
 import {FreeGeometryEditor} from "./FreeGeometryEditor";
 import {ConicExamExplorer} from "./ConicExamExplorer";
 import {FunctionExamExplorer} from "./FunctionExamExplorer";
-import {ExamConstraintLab} from "./ExamConstraintLab";
+import {RealExamAuthoringLab} from "./RealExamAuthoringLab";
 import styles from "./GeometryLab.module.css";
 import { AcademyArt } from "./AcademyArt";
 
@@ -175,7 +175,7 @@ export function GeometryLab() {
    </div>;
   if(workshop!=="theorems")return <div className={styles.page}>
    {workshopNav}
-   {workshop==="exam"?<ExamConstraintLab/>:
+   {workshop==="exam"?<RealExamAuthoringLab/>:
     workshop==="editor"?<FreeGeometryEditor/>:
     workshop==="conics"?<ConicExamExplorer compact/>:
     workshop==="trig"?<FunctionExamExplorer compact initialPreset="正弦函数"/>:
