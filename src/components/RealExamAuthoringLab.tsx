@@ -62,13 +62,15 @@ function PlotPoints({points,map,labels}:{points:V2[];map:(p:V2)=>V2;labels?:stri
   </g>;})}</g>;
 }
 function SimilarPlot({base,height,ad,mode,rotation}:{base:number;height:number;ad:number;mode:"parallel"|"rotate";rotation:number}) {
-  const origin={x:85,y:350};
-  const scale=Math.min(39,410/base,280/height);
-  const to=(p:V2)=>({x:origin.x+p.x*scale,y:origin.y-p.y*scale});
-  const A=to({x:0,y:0}),B=to({x:base,y:0}),C=to({x:0,y:height});
   const theta=(mode==="rotate"?rotation:0)*Math.PI/180;
-  const D=to({x:ad*Math.cos(theta),y:ad*Math.sin(theta)});
-  const E=to({x:-height*ad/base*Math.sin(theta),y:height*ad/base*Math.cos(theta)});
+  const raw=[{x:0,y:0},{x:base,y:0},{x:0,y:height},
+    {x:ad*Math.cos(theta),y:ad*Math.sin(theta)},
+    {x:-height*ad/base*Math.sin(theta),y:height*ad/base*Math.cos(theta)}];
+  const lowX=Math.min(...raw.map(p=>p.x)), highX=Math.max(...raw.map(p=>p.x));
+  const lowY=Math.min(...raw.map(p=>p.y)), highY=Math.max(...raw.map(p=>p.y));
+  const scale=Math.min(620/Math.max(1,highX-lowX),310/Math.max(1,highY-lowY),39);
+  const to=(pt:V2)=>({x:360+(pt.x-(lowX+highX)/2)*scale,y:210-(pt.y-(lowY+highY)/2)*scale});
+  const [A,B,C,D,E]=raw.map(to);
   return <svg viewBox="0 0 720 420" role="img" aria-label="平行线 DE 与 BC 构成相似三角形" className={styles.svg}>
     <rect width="720" height="420" fill="#f9fcff"/>
     <polygon points={`${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y}`}
