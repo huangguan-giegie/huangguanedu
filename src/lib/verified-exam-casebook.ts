@@ -152,3 +152,45 @@ export function analyzeGaokao(input:GaokaoInput):GaokaoOutput {
   return {A,P,eccentricity:ecc,equation,
     candidateLines:lines,candidates,parts,isOriginal};
 }
+
+/** 2025 吉林中考数学第19题的三角形-移动正方形模型。
+ * In normalized coordinates A=(0,0), B=(d,d), C=(L,0).
+ * Original values d=3,L=7 imply AB=3√2, BC=5, ∠BAC=45°.
+ */
+export interface SquareInput { leg:number; base:number; movement:number }
+export interface SquareOutput {
+  A:Point;B:Point;C:Point;P:Point;D:Point;E:Point;
+  intersection:Point[];area:number;totalArea:number;ac:number;bc:number;
+  switchAt:number;centerAt:number;parts:ExamStep[];
+}
+export function analyzeSquare(input:SquareInput):SquareOutput {
+  const {leg:d,base:L,movement:x}=input;
+  valid(d,2,5,"构型腿长");
+  valid(L,2*d+1,16,"三角形边 AC");
+  valid(x,.5,L,"动点位置 AP");
+  const A={x:0,y:0},B={x:d,y:d},C={x:L,y:0};
+  const P={x,y:0},D={x,y:x},E={x:0,y:x};
+  const bc=Math.hypot(L-d,d);
+  const totalArea=L*d/2;
+  const h=d*(L-x)/(L-d);
+  const area=x<=d?x*x/2:totalArea-d*(L-x)**2/(2*(L-d));
+  const intersection=x<=d?[A,P,D]:[A,P,{x,y:h},B];
+  const origin=d===3&&L===7;
+  const derivationAC=`已知 ∠BAC=45°、AB=${f(d)}√2、BC=${origin?"5":f(bc)}。由余弦定理 BC²=AB²+AC²−2·AB·AC·cos45°，化为 (AC−${f(d)})²=${f((L-d)**2)}。因本构型要求 C 在 B 向 x 轴投影点的右方且 AC>2·${f(d)}，故 AC=${f(L)}，排除另一代数根。`;
+  const expression=`当 0<t≤${f(d)}，S(t)=t²/2；当 ${f(d)}<t≤${f(L)}，S(t)=${f(totalArea)}−${f(d)}/(2×${f(L-d)})·(${f(L)}−t)²。`;
+  const stages:ExamStep[]=[
+    {title:"第（1）问 · 勾股与余弦定理反求边长",kind:"proved",
+      task:`在 △ABC 中，∠BAC=45°，AB=${f(d)}√2，BC=${origin?"5":f(bc)}，并取与图示一致的 C 所在分支，求 AC。`,
+      answer:`AC=${f(L)}`,proof:derivationAC},
+    {title:"第（2）问 · 相似三角形引出分段面积函数",kind:"proved",
+      task:`点 P 从 A 沿 AC 向 C 运动，AP=t；以 AP 为边向 △ABC 内侧构造正方形 APDE。求正方形和 △ABC 的重叠面积 S(t)，并写出取值范围。`,
+      answer:expression,
+      proof:`当 t≤${f(d)}，重叠部分为直角三角形 APD，面积 t²/2。当 t>${f(d)}，作垂直于 AC 的直线 x=t，与 BC 交于 F。由 △CFP∽△CBA 的对应直角三角形关系（均有水平底边和同一斜边方向），可得 FP / ${f(d)}=(${f(L)}−t)/(${f(L)}−${f(d)})。故正方形内的重叠部分是 △ABC 去掉右侧 △CPF，其面积为 ${f(totalArea)}−${f(d)}/(2×${f(L-d)})(${f(L)}−t)²。两段在 t=${f(d)} 时均等于 ${f(d*d/2)}，连续但表达式不同。`},
+    {title:"第（3）问 · 最后增加特殊位置条件定解",kind:"proved",
+      task:"当正方形 APDE 的对称中心恰与点 B 重合时，求运动长度 AP。",
+      answer:`AP=${f(2*d)}`,
+      proof:`正方形中心为 (t/2,t/2)，题设 B=(${f(d)},${f(d)})，所以 t/2=${f(d)}，得 t=${f(2*d)}。因为 ${f(2*d)}<AC=${f(L)}，该解符合点 P 在线段 AC 内部的几何约束。`},
+  ];
+  return {A,B,C,P,D,E,intersection,area,totalArea,ac:L,bc,
+    switchAt:d,centerAt:2*d,parts:stages};
+}
