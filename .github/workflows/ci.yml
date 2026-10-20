@@ -53,7 +53,7 @@ jobs:
 
       - name: Package production build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: tar -czf "huangguanedu-next-${GITHUB_SHA}.tar.gz" .next
+        run: tar -czf "huangguanedu-next-${GITHUB_SHA}.tar.gz" .next src/generated/prisma
 
       - name: Upload production build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
