@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { conicCurves, conicEquation, type ConicKind, type ConicModel, type V2 } from "../lib/exam-conics";
 import { ExamConstraintLab } from "./ExamConstraintLab";
+import { VerifiedExamCasebook } from "./VerifiedExamCasebook";
 import {
   analyzeSimilarity,analyzeQuadratic,analyzeConic,analyzeLineFamily,
   type ExamResult,type SimilarityTarget,type QuadraticTarget,type ConicTarget,
@@ -10,8 +11,9 @@ import {
 } from "../lib/real-exam-models";
 import styles from "./RealExamAuthoringLab.module.css";
 
-type Topic = "similar"|"quadratic"|"conic"|"lines"|"basic";
+type Topic = "casebook"|"similar"|"quadratic"|"conic"|"lines"|"basic";
 const TOPICS:{id:Topic;name:string;subtitle:string}[]=[
+  {id:"casebook",name:"真题复盘 · 多问综合",subtitle:"2025 吉林中考 + 2024 新高考Ⅰ卷原题结构"},
   {id:"similar",name:"中考 · 相似三角形",subtitle:"平行线分段比例、面积比、动点定值"},
   {id:"quadratic",name:"中考 · 二次函数",subtitle:"抛物线与直线、判别式、韦达、区间最值"},
   {id:"conic",name:"高考 · 圆锥曲线",subtitle:"椭圆/双曲线/抛物线与过点直线"},
@@ -175,7 +177,7 @@ const conicOptions:{value:ConicTarget;label:string}[]=[
 ];
 
 export function RealExamAuthoringLab(){
-  const [topic,setTopic]=useState<Topic>("similar");
+  const [topic,setTopic]=useState<Topic>("casebook");
   const [base,setBase]=useState(6),[height,setHeight]=useState(8),[ad,setAd]=useState(3);
   const [lockD,setLockD]=useState(false),[similarTarget,setSimilarTarget]=useState<SimilarityTarget>("fixedRatio");
   const [similarMode,setSimilarMode]=useState<"parallel"|"rotate">("parallel");
@@ -232,7 +234,7 @@ export function RealExamAuthoringLab(){
         className={topic===t.id?styles.activeTopic:styles.topic} onClick={()=>change(t.id)}>
         <strong>{t.name}</strong><small>{t.subtitle}</small></button>)}
     </div>
-    {topic==="basic"?<ExamConstraintLab/>:<>
+    {topic==="casebook"?<VerifiedExamCasebook/>:topic==="basic"?<ExamConstraintLab/>:<>
       <div className={styles.layout}>
         <section className={styles.visual}>
           <div className={styles.heading}><div><strong>01 · 构型与交点</strong>
