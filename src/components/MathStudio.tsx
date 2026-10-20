@@ -4,6 +4,7 @@ import {runCAS,type CasAction,type CasResult} from "../lib/polynomial-cas";
 import {FunctionExamExplorer} from "./FunctionExamExplorer";
 import {ConicExamExplorer} from "./ConicExamExplorer";
 import styles from "./MathStudio.module.css";
+import { AcademyArt } from "./AcademyArt";
 const commands:{action:CasAction;label:string}[]=[
  {action:"simplify",label:"展开 / 化简"},
  {action:"factor",label:"因式分解"},
@@ -79,7 +80,7 @@ export function MathStudio(){
  const [tab,setTab]=useState<"cas"|"conic">("cas");
  const [graphExpression,setGraphExpression]=useState("x^2-4x+3");
  return <div className={styles.page}>
-  <div className={styles.hero}><p>MATHEMATICS STUDIO · 高级数学工具</p>
+  <div className={`${styles.hero} academy-math-hero`}><AcademyArt kind="function" className="academy-math-art" /><p>MATHEMATICS STUDIO · 高级数学工具</p>
    <h1>中考函数图像与高考圆锥曲线</h1>
    <span>计算和绘制都使用可验证的数学定义，而不是生成式模型猜测。</span></div>
   <div className={styles.tabs} role="tablist" aria-label="数学工具切换">
