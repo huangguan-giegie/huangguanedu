@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "../../components/api";
 import { AuthGuard } from "../../components/AuthGuard";
 import { Icon } from "../../components/icons";
+import { AcademyArt } from "../../components/AcademyArt";
 import { isPracticeGenerating, togglePracticeSource, type PracticeGenerationTask, type PracticeSetItem } from "../../components/practice-content";
 import { latexToUnicode } from "../../lib/latex-to-unicode";
 import { EmptyState } from "../../components/EmptyState";
@@ -155,7 +156,7 @@ function PracticeSets({ initialStudentId, initialWrongQuestionId, initialSubject
     <div className={styles.page}>
       <section className={styles.hero}>
         <div><p className={styles.eyebrow}>错题 → 新练习</p><p className={styles.heroTitle}>换个问法，再进步一步。</p><p>从数学、英语错题中挑选薄弱知识点，生成适合你的模拟题。</p></div>
-        <span className={styles.heroMark} aria-hidden="true"><Icon name="sparkle" size={110} /></span>
+        <AcademyArt kind="practice" className="academy-practice-art" />
       </section>
 
       {/* 步骤指示器（数字优于圆点：圆点只表达"有几个点"，数字能表达"第几步 /
