@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { api } from "../components/api";
 import { AuthGuard, type SafeUser } from "../components/AuthGuard";
 import { LinkList } from "../components/LinkList";
+import { AcademyArt } from "../components/AcademyArt";
 
 function Dashboard() {
   const [user, setUser] = useState<SafeUser | null>(null);
@@ -29,7 +31,7 @@ function Dashboard() {
   if (user.role === "FAMILY") {
     return (
       <div className="academy-home-fade space-y-8">
-        <section className="academy-hero">
+        <section className="academy-hero"><AcademyArt kind="study" className="academy-hero-art" />
           <span className="academy-eyebrow">MY LEARNING SPACE · 学习中心</span>
           <h1>欢迎回来，{studentName || "同学"}。</h1>
           <p>从今天的复习开始，循序提升数学能力。错题分析、针对性练习和课程预约，都在同一个学习空间。</p>
@@ -46,13 +48,28 @@ function Dashboard() {
             { href: "/account", label: "账户设置", description: "查看账户资料、修改密码或退出登录" },
           ]}
         />
+        <section aria-labelledby="discover-math-tools">
+          <div className="academy-section-heading"><h2 id="discover-math-tools">用图形理解数学</h2><span className="text-xs text-slate-500">探索交互式数学工具</span></div>
+          <div className="academy-spotlight-grid">
+            <Link href="/geometry-lab" className="academy-spotlight-card">
+              <AcademyArt kind="geometry" className="academy-spotlight-art" />
+              <strong>动态几何实验室</strong>
+              <small>拖动图形，探索定理、圆锥曲线与几何关系 →</small>
+            </Link>
+            <Link href="/math-studio" className="academy-spotlight-card">
+              <AcademyArt kind="function" className="academy-spotlight-art" />
+              <strong>函数与代数工作台</strong>
+              <small>把函数图像、符号计算与考点联系起来 →</small>
+            </Link>
+          </div>
+        </section>
       </div>
     );
   }
   if (user.role === "TEACHER") {
     return (
       <div className="academy-home-fade space-y-8">
-        <section className="academy-hero"><span className="academy-eyebrow">TEACHER WORKSPACE · 教学管理</span><h1>老师工作台</h1><p>从复核错题到制定精准练习，让每一个教学决策都有依据。</p></section><div className="academy-section-heading"><h2>教学工具</h2></div>
+        <section className="academy-hero"><AcademyArt kind="classroom" className="academy-hero-art" /><span className="academy-eyebrow">TEACHER WORKSPACE · 教学管理</span><h1>老师工作台</h1><p>从复核错题到制定精准练习，让每一个教学决策都有依据。</p></section><div className="academy-section-heading"><h2>教学工具</h2></div>
         <LinkList
           items={[
             { href: "/teacher/review", label: "待复核 AI 错题", description: "审核学生错题分析并修订" },
@@ -66,7 +83,7 @@ function Dashboard() {
   }
   return (
     <div className="academy-home-fade space-y-8">
-      <section className="academy-hero"><span className="academy-eyebrow">ADMIN CONSOLE · 管理中心</span><h1>管理后台</h1><p>统一管理学生、老师与课程计划，跟踪学习服务运转情况。</p></section><div className="academy-section-heading"><h2>管理工具</h2></div>
+      <section className="academy-hero"><AcademyArt kind="selfstudy" className="academy-hero-art" /><span className="academy-eyebrow">ADMIN CONSOLE · 管理中心</span><h1>管理后台</h1><p>统一管理学生、老师与课程计划，跟踪学习服务运转情况。</p></section><div className="academy-section-heading"><h2>管理工具</h2></div>
       <LinkList
         items={[
           { href: "/admin/students", label: "学生管理", description: "查看与修改学生信息" },
