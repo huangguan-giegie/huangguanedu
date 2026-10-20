@@ -15,6 +15,7 @@ describe("命题实验室的 SSR 与实验室入口", () => {
     expect(html).toContain('type="checkbox"');
     expect(html).toContain('type="range"');
     expect(html).toContain("尚未定解");
+    expect(html).toContain("反向命题：自动构造可定解条件");
     expect(html).toContain("disabled");
     expect(html).not.toMatch(/NaN|Infinity|undefined/);
   });
