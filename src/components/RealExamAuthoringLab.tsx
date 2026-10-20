@@ -20,8 +20,6 @@ const TOPICS:{id:Topic;name:string;subtitle:string}[]=[
 ];
 const NORMAL_LABELS={none:"无交点",tangent:"相切",secant:"割线",linear:"单交点（非相切）"};
 const nice=(n:number)=>Math.abs(n)<1e-8?"0":Number(n.toFixed(3)).toString();
-const px=(x:number)=>360+x*30;
-const py=(y:number)=>210-y*30;
 const svgPolyline=(points:V2[],map:(p:V2)=>V2)=>points.map((pt,i)=>{
   const p=map(pt);return `${i?"L":"M"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
 }).join(" ");
