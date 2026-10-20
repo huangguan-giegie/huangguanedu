@@ -153,6 +153,26 @@ export function ExamConstraintLab() {
     setBase(6);setHeight(4);setTriangleX(2);setLockHeight(false);setLockTriangleX(false);
     setShowQuestion(false);setCopyStatus("");
   };
+  // Construct a valid exam instance from the chosen target, then display its
+  // certified output. This is a bounded model-specific design aid, not a
+  // claim of globally minimal conditions for arbitrary geometry.
+  const buildSolvableProblem = () => {
+    if (scenario==="circle") {
+      if (Math.abs(y)>=radius) setY(0);
+      setLockY(true);
+      setPositiveX(target==="point");
+    } else if (scenario==="parabola") {
+      if (x<=0) setX(4);
+      setLockX(true);
+      setPositiveY(target==="point");
+    } else {
+      setLockHeight(true);
+      // The x-coordinate is irrelevant to the requested area.
+      setLockTriangleX(false);
+    }
+    setCopyStatus("");
+    setShowQuestion(true);
+  };
   const copyQuestion = () => {
     if(!analysis.question)return;
     const {question,answer,explanation}=analysis.question;
@@ -239,6 +259,9 @@ export function ExamConstraintLab() {
           <div className={styles.notes} aria-live="polite">
             {analysis.notes.map((note,i)=><p key={i}>{note}</p>)}
           </div>
+          <button className={styles.auto} type="button" onClick={buildSolvableProblem}>
+            反向命题：自动构造可定解条件
+          </button>
           <button className={styles.generate} disabled={!analysis.question} type="button"
             onClick={()=>{setShowQuestion(!showQuestion);setCopyStatus("");}}>
             {showQuestion?"收起试题预览":"根据当前条件生成一道题"}
