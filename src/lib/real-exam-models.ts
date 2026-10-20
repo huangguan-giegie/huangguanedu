@@ -29,21 +29,27 @@ const squareRoot=(n:number):string=>Number.isInteger(Math.sqrt(n))?String(Math.s
 export type SimilarityTarget="segment"|"area"|"trapezoid"|"ratio"|"fixedRatio";
 export interface SimilarityInput {
   base:number; height:number; ad:number; lockD:boolean; target:SimilarityTarget;
+  mode?:"parallel"|"rotate";rotation?:number;lockRotation?:boolean;
 }
 export function analyzeSimilarity(input:SimilarityInput):ExamResult {
   const {base,height,ad,lockD,target}=input;
+  const mode=input.mode??"parallel", rotation=input.rotation??0;
+  if(mode==="rotate")finite(rotation,0,180,"旋转角度");
   finite(base,3,16,"AB");finite(height,2,16,"AC");
   finite(ad,1,base-1,"AD");
   const bc=Math.hypot(base,height), scale=ad/base, de=scale*bc;
   const smallArea=ad*ad*height/(2*base), largeArea=base*height/2;
   const original=[`Rt△ABC 中 ∠A=90°，AB=${fmt(base)}，AC=${fmt(height)}`,
-    "D 在 AB 上，E 在 AC 上，且 DE∥BC"];
+    ...(mode==="parallel" ? ["D 在 AB 上，E 在 AC 上，且 DE∥BC"] :
+      ["△ADE∽△ABC（A、B、C 分别对应 A、D、E），以 A 为中心旋转缩放构造",
+        ...(input.lockRotation?[`逆时针旋转角为 ${fmt(rotation)}°`]:[])])];
   const conditions=lockD?[...original,`AD=${fmt(ad)}`]:original;
   const targetNames:Record<SimilarityTarget,string>={
     segment:"DE 的长度",area:"△ADE 的面积",trapezoid:"四边形 BCED 的面积",
     ratio:"相似比 AD/AB",fixedRatio:"DE/AD 的定值",
   };
-  const dynamic=!lockD&&target!=="fixedRatio";
+  const invalidTrapezoid=mode==="rotate"&&target==="trapezoid";
+  const dynamic=(!lockD&&target!=="fixedRatio")||invalidTrapezoid;
   const raw={segment:de,area:smallArea,trapezoid:largeArea-smallArea,ratio:scale,fixedRatio:bc/base}[target];
   const radical=squareRoot(base*base+height*height);
   const exactSegment=Number.isInteger(base)&&Number.isInteger(ad)&&Number.isInteger(height)
@@ -59,7 +65,9 @@ export function analyzeSimilarity(input:SimilarityInput):ExamResult {
   const invariant=target==="fixedRatio";
   const question:ExamQuestion|null=dynamic?null:{
     level:"中考",
-    question:`在 Rt△ABC 中，∠A=90°，AB=${fmt(base)}，AC=${fmt(height)}。D 在 AB 内，E 在 AC 内，且 DE∥BC${lockD?`，AD=${fmt(ad)}`:"，D 可以在 AB 上运动"}。求${targetNames[target]}。`,
+    question:mode==="parallel"
+      ?`在 Rt△ABC 中，∠A=90°，AB=${fmt(base)}，AC=${fmt(height)}。D 在 AB 内，E 在 AC 内，且 DE∥BC${lockD?`，AD=${fmt(ad)}`:"，D 可以在 AB 上运动"}。求${targetNames[target]}。`
+      :`已知 Rt△ABC，∠A=90°，AB=${fmt(base)}，AC=${fmt(height)}。△ADE∽△ABC（A、B、C 依次对应 A、D、E），以 A 为中心旋转缩放构造${lockD?`，AD=${fmt(ad)}`:"，AD 可变化"}${input.lockRotation?`，∠BAD=${fmt(rotation)}°`:""}。求${targetNames[target]}。`,
     answer:target==="fixedRatio"?text[target]:text[target],
     explanation: target==="fixedRatio"
       ?`由 △ADE∽△ABC，DE/AD=BC/AB。再由勾股定理 BC=${radical}，故 DE/AD=${text.fixedRatio}，与动点 D 的位置无关。`
@@ -67,22 +75,28 @@ export function analyzeSimilarity(input:SimilarityInput):ExamResult {
     exact:target==="segment"||target==="fixedRatio"||Number.isInteger(raw),
   };
   const notes=[`△ADE∽△ABC，缩放比例 t=AD/AB=${fmt(scale)}；面积比为 t²=${fmt(scale*scale)}。`];
+  if(mode==="rotate")notes.push("旋转构型允许 D、E 绕 A 共同转动；边长与面积不因旋转而改变。");
+  if(invalidTrapezoid)notes.push("旋转后 BCED 一般不是梯形，不能沿用平行截线的梯形面积公式。");
   if(dynamic)notes.push("AD 未作为已知条件，动点位置变化将改变目标值，因此不能生成唯一数值答案。");
   if(invariant)notes.push("虽然 D 可以移动，但 DE/AD=BC/AB，与 AD 无关；这是目标量定值，而非图形定解。");
   return {status:dynamic?"目标随动点变化":invariant?"动点下仍为定值":"已满足定解条件",
     target:targetNames[target],value:dynamic?null:text[target],invariant,
-    degreesOfFreedom:lockD?0:1,conditions,notes,
-    points:[{x:0,y:0},{x:base,y:0},{x:0,y:height},{x:ad,y:0},{x:0,y:height*scale}],question};
+    degreesOfFreedom:Number(!lockD)+Number(mode==="rotate"&&!input.lockRotation),conditions,notes,
+    points:[{x:0,y:0},{x:base,y:0},{x:0,y:height},
+      ...(mode==="parallel"?[{x:ad,y:0},{x:0,y:height*scale}]:[
+        {x:ad*Math.cos(rotation*Math.PI/180),y:ad*Math.sin(rotation*Math.PI/180)},
+        {x:-height*scale*Math.sin(rotation*Math.PI/180),y:height*scale*Math.cos(rotation*Math.PI/180)},
+      ])],question};
 }
 
-export type QuadraticTarget="count"|"sum"|"chord"|"vertex"|"max"|"min";
+export type QuadraticTarget="count"|"sum"|"chord"|"vertex"|"max"|"min"|"areaMax";
 export interface QuadraticInput {
   a:number; h:number; v:number; slope:number; intercept:number;
-  left:number; right:number; target:QuadraticTarget;
+  left:number; right:number; target:QuadraticTarget;movement?:number;
 }
 export interface QuadraticResult extends ExamResult {
   discriminant:number; roots:number[]; curve:(x:number)=>number;
-  line:(x:number)=>number; critical:number|null;
+  line:(x:number)=>number; critical:number|null;movingPoint:V2|null;
 }
 export function analyzeQuadratic(q:QuadraticInput):QuadraticResult {
   const {a,h,v,slope,intercept,left,right,target}=q;
@@ -96,6 +110,7 @@ export function analyzeQuadratic(q:QuadraticInput):QuadraticResult {
     :[(-B-Math.sqrt(disc))/(2*A),(-B+Math.sqrt(disc))/(2*A)].sort((x,y)=>x-y);
   const curve=(x:number)=>a*(x-h)**2+v;
   const line=(x:number)=>slope*x+intercept;
+  const movement=finite(q.movement??.5,0,1,"动点位置比例");
   const chosen=[left,right,...(h>=left&&h<=right?[h]:[])];
   const vals=chosen.map(x=>curve(x));
   const ymin=Math.min(...vals),ymax=Math.max(...vals);
@@ -103,12 +118,19 @@ export function analyzeQuadratic(q:QuadraticInput):QuadraticResult {
   const names:Record<QuadraticTarget,string>={
     count:"交点个数",sum:"两交点横坐标之和",chord:"两交点间弦长",
     vertex:"抛物线的顶点坐标",max:"指定闭区间的最大值",min:"指定闭区间的最小值",
+    areaMax:"以两交点为底的动点三角形面积最大值",
   };
-  const possible=target!=="sum"&&target!=="chord"||counts===2;
+  const possible=!["sum","chord","areaMax"].includes(target)||counts===2;
   const chord=counts===2?Math.abs(roots[1]-roots[0])*Math.hypot(1,slope):null;
+  const dx=counts===2?roots[1]-roots[0]:0;
+  const areaMax=counts===2?Math.abs(a)*dx**3/8:null;
+  const movedX=counts===2?roots[0]+movement*dx:null;
+  const movingPoint=movedX===null?null:{x:movedX,y:curve(movedX)};
+  const currentArea=movedX===null?null:Math.abs(a)*dx/2*(movedX-roots[0])*(roots[1]-movedX);
   const value:Record<QuadraticTarget,string>={
     count:String(counts),sum:fmt(-B/A),chord:chord===null?"":approximate(chord),
     vertex:`(${fmt(h)}, ${fmt(v)})`,max:fmt(ymax),min:fmt(ymin),
+    areaMax:approximate(areaMax??NaN),
   };
   const eq=`y=${fmt(a)}(x−(${fmt(h)}))²+${fmt(v)}`;
   const lineEq=`y=${fmt(slope)}x+${fmt(intercept)}`;
@@ -120,10 +142,13 @@ export function analyzeQuadratic(q:QuadraticInput):QuadraticResult {
     vertex:`二次函数为顶点式 ${eq}，顶点为 (${fmt(h)}, ${fmt(v)})。`,
     max:`在 [${fmt(left)}, ${fmt(right)}] 比较区间端点${h>=left&&h<=right?"及顶点":""}的函数值，最大为 ${fmt(ymax)}。`,
     min:`在 [${fmt(left)}, ${fmt(right)}] 比较区间端点${h>=left&&h<=right?"及顶点":""}的函数值，最小为 ${fmt(ymin)}。`,
+    areaMax:`${simple}设交点横坐标 x₁=${fmt(roots[0]??0)},x₂=${fmt(roots[1]??0)}（x₁<x₂）。P=(t,f(t)) 在两交点间抛物线弧上运动，则 S(△ABP)=|a|(x₂−x₁)(t−x₁)(x₂−t)/2。由 (t−x₁)(x₂−t)≤(x₂−x₁)²/4，等号在 t=(x₁+x₂)/2 时成立，故 Smax=|a|(x₂−x₁)³/8=${approximate(areaMax??NaN)}。`,
   };
   const question:ExamQuestion|null=possible?{
-    level:"中考",exact:target!=="chord",
+    level:"中考",exact:target!=="chord"&&target!=="areaMax",
     question:target==="vertex"?`已知二次函数 ${eq}，求顶点坐标。`
+      :target==="areaMax"
+        ?`抛物线 ${eq} 与直线 ${lineEq} 交于不同两点 A、B。动点 P 在 A、B 之间对应的一段抛物线上运动。求 △ABP 的面积最大值。`
       :target==="max"||target==="min"
         ?`已知二次函数 ${eq}，当 x∈[${fmt(left)}, ${fmt(right)}] 时，求函数的${target==="max"?"最大":"最小"}值。`
         :`二次函数 ${eq} 与直线 ${lineEq} 相交。求${names[target]}。`,
@@ -132,8 +157,9 @@ export function analyzeQuadratic(q:QuadraticInput):QuadraticResult {
   return {status:counts===0?"两图像没有实交点":counts===1?"恰有一个切点":"两图像有两个不同交点",
     degreesOfFreedom:0,target:names[target],value:possible?value[target]:null,
     invariant:false,conditions:[eq,lineEq,...(["max","min"].includes(target)?[`x∈[${fmt(left)}, ${fmt(right)}]`]:[])],
-    notes:[simple,...(!possible?["当前只有不足两个不同实交点，弦长/两交点横坐标和不适用。"]:[])],
-    points:roots.map(x=>({x,y:curve(x)})),question,discriminant:disc,roots,curve,line,critical:h,
+    notes:[simple,...(currentArea===null?[]:[`当前动点 P 使 △ABP 面积约为 ${fmt(currentArea)}；滑动 P 可检验面积的最大值。`]),
+      ...(!possible?["当前只有不足两个不同实交点，弦长/两交点横坐标和/动点面积最大值不适用。"]:[])],
+    points:roots.map(x=>({x,y:curve(x)})),question,discriminant:disc,roots,curve,line,critical:h,movingPoint,
   };
 }
 
