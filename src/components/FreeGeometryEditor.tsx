@@ -475,7 +475,7 @@ export function FreeGeometryEditor() {
            const fixed=(v:number)=>Number(v.toFixed(4));
            const expr=`(${fixed(dx)})^2+(${fixed(dy)})^2`;
            window.localStorage.setItem("hg-cas-input-v1",expr);
-           router.push("/math-studio");
+           router.push("/math-studio?view=cas");
           }}>发送两点距离²到 CAS 计算</button>
          </div>;
        })()}

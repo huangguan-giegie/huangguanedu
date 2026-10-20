@@ -1,6 +1,6 @@
 "use client";
 import {useMemo,useState} from "react";
-import {compileExpression} from "../lib/diagram-renderer/expression-parser";
+import {compileExpression,normalizeExpression} from "../lib/diagram-renderer/expression-parser";
 import {parsePolynomial} from "../lib/polynomial-cas";
 import styles from "./ExamExplorer.module.css";
 
@@ -19,6 +19,11 @@ export const EXAM_FUNCTIONS:ExamFunction[]=[
 ];
 const W=720,H=440,scale=33;
 const X=(x:number)=>W/2+x*scale,Y=(y:number)=>H/2-y*scale;
+export function transformFunctionExpression(base:string,A:number,omega:number,h:number,k:number):string{
+ // 数字紧邻 x 也是隐式乘法；保留 exp 等函数名里的字母。
+ const shifted=normalizeExpression(base).replace(/(?<![a-zA-Z_])x(?![a-zA-Z_])/gi,`(${omega}*(x-(${h})))`);
+ return `(${A})*(${shifted})+(${k})`;
+}
 export function sampleFunction(expression:string):{paths:string[];zeroes:number[];yIntercept:number|null;vertex:{x:number;y:number}|null}{
  const evalAt=compileExpression(expression,{maxLength:160}).evaluate;
  const pieces:string[][]=[];let piece:string[]=[],lastY:number|null=null;
@@ -51,6 +56,7 @@ export function FunctionExamExplorer({compact=false,initialPreset="二次函数"
  const [preset,setPreset]=useState(initialExpression?"自定义":initial.name);
  const [expression,setExpression]=useState(initialExpression??initial.expression);
  const [saved,setSaved]=useState(initialExpression??initial.expression);
+ const [baseExpression,setBaseExpression]=useState(initialExpression??initial.expression);
  const [amplitude,setAmplitude]=useState(1),[frequency,setFrequency]=useState(1),[horizontal,setHorizontal]=useState(0),[vertical,setVertical]=useState(0);
  const [error,setError]=useState("");
  const graph=useMemo(()=>{
@@ -60,20 +66,21 @@ export function FunctionExamExplorer({compact=false,initialPreset="二次函数"
  const selected=EXAM_FUNCTIONS.find(x=>x.name===preset);
  // 中高考常见图像变换 y=A·f(ω(x−h))+k，全部使用同一绘图表达式。
  const applyTransform=(A:number,omega:number,h:number,k:number)=>{
-  const base=selected?.expression??expression;
-  const shifted=base.replace(/\bx\b/g,`(${omega}*(x-(${h})))`);
-  const combined=`(${A})*(${shifted})+(${k})`;
+  // 保留已提交的基准函数，多次调整滑块时始终从同一表达式变换。
+  const combined=transformFunctionExpression(baseExpression,A,omega,h,k);
   try{compileExpression(combined,{maxLength:160});setExpression(combined);setSaved(combined);setError("");}
   catch(e){setError(e instanceof Error?e.message:"参数组合超出绘图范围");}
  };
  const submit=()=>{
-  try{compileExpression(expression,{maxLength:160});setSaved(expression);setError("");}
+  try{compileExpression(expression,{maxLength:160});setSaved(expression);setBaseExpression(expression);
+   setPreset(EXAM_FUNCTIONS.find(p=>p.expression===expression)?.name??"自定义");
+   setAmplitude(1);setFrequency(1);setHorizontal(0);setVertical(0);setError("");}
   catch(e){setError(e instanceof Error?e.message:"函数表达式不合法");}
  };
  return <div className={styles.explorer}>
   <header className={styles.heading}><div><strong>函数图像 · 中高考考点</strong><p>精确表达式解析 · 函数定义域 · 截距 / 顶点 · 单调性和周期</p></div></header>
   <div className={styles.presets}>{EXAM_FUNCTIONS.map(m=><button type="button" key={m.name} aria-pressed={preset===m.name} onClick={()=>{
-   setPreset(m.name);setExpression(m.expression);setSaved(m.expression);setAmplitude(1);setFrequency(1);setHorizontal(0);setVertical(0);setError("");
+   setPreset(m.name);setExpression(m.expression);setSaved(m.expression);setBaseExpression(m.expression);setAmplitude(1);setFrequency(1);setHorizontal(0);setVertical(0);setError("");
   }}>{m.name}</button>)}</div>
   <div className={styles.layout}>
    <div className={styles.plot}>

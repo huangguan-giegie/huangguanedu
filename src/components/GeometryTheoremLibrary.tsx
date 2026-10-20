@@ -38,7 +38,7 @@ export function GeometryTheoremLibrary({compact=false}:{compact?:boolean}){
   </div>
   {selected.length===0&&<p role="status">没有找到匹配的定理。</p>}
   <p style={{marginTop:16,fontSize:13,lineHeight:1.8,color:"var(--muted)"}}>
-   应用到作图：<Link href="/geometry-lab" style={{textDecoration:"underline"}}>动态实验室</Link> · <Link href="/geometry-editor" style={{textDecoration:"underline"}}>自由编辑器</Link> · <Link href="/math-studio" style={{textDecoration:"underline"}}>代数 CAS</Link>
+   应用到作图：<Link href="/geometry-lab?view=theorems" style={{textDecoration:"underline"}}>动态几何定理</Link> · <Link href="/geometry-lab?view=editor" style={{textDecoration:"underline"}}>自由编辑器</Link> · <Link href="/math-studio?view=cas" style={{textDecoration:"underline"}}>代数 CAS</Link>
   </p>
  </section>;
 }

@@ -1,11 +1,12 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GeometryLab } from "../components/GeometryLab";
+vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn()})}));
 
 describe("动态几何实验室 SSR 和无障碍控制",()=>{
   it("首屏可渲染画布、模式按钮、辅助线开关和滑块，不依赖 window",()=>{
-    const html=renderToStaticMarkup(createElement(GeometryLab));
+    const html=renderToStaticMarkup(createElement(GeometryLab,{workshop:"theorems"}));
     expect(html).toContain("动态几何实验室");
     expect(html).toContain("<svg");
     expect(html).toContain('viewBox="0 0 720 420"');
@@ -19,7 +20,7 @@ describe("动态几何实验室 SSR 和无障碍控制",()=>{
     expect(html).not.toMatch(/NaN|Infinity|undefined/);
   });
   it("初始实验只呈现几何测量，不会创建考试答案提交表单",()=>{
-    const html=renderToStaticMarkup(createElement(GeometryLab));
+    const html=renderToStaticMarkup(createElement(GeometryLab,{workshop:"theorems"}));
     expect(html).not.toContain('type="submit"');
     expect(html).not.toContain("/api/v1/practice-sets");
     expect(html).toContain("实时测量");

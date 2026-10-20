@@ -1,8 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ExamConstraintLab } from "../components/ExamConstraintLab";
 import { GeometryLab } from "../components/GeometryLab";
+vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn()})}));
 
 describe("命题实验室的 SSR 与实验室入口", () => {
   it("默认页面包含三个确定性场景、约束复选框与数学 SVG", () => {
@@ -21,9 +22,9 @@ describe("命题实验室的 SSR 与实验室入口", () => {
   });
   it("复用原有动态实验室，不破坏旧的定理入口", () => {
     const html = renderToStaticMarkup(createElement(GeometryLab));
-    expect(html).toContain("数学命题实验室");
-    expect(html).toContain("初中几何定理");
-    expect(html).toContain("自由作图工作台");
-    expect(html).toContain("高考圆锥曲线");
+    expect(html).toContain("真题探究");
+    expect(html).toContain("几何定理");
+    expect(html).toContain("自由作图");
+    expect(html).toContain("圆锥曲线");
   });
 });

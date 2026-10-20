@@ -28,10 +28,11 @@ function ExamParameter({label,value,min,max,step,onChange}:{label:string;value:n
  </label>;
 }
 const statusText={secant:"两个交点 · 割线",tangent:"一个重交点 · 相切",none:"没有实交点", "single-not-tangent":"仅一个交点，但不相切",coincident:"退化方程"} as const;
-export function ConicExamExplorer({compact=false}:{compact?:boolean}){
- const [kind,setKind]=useState<ConicKind>("ellipse");
- const [a,setA]=useState(4),[b,setB]=useState(2),[p,setP]=useState(1.5);
- const [m,setM]=useState(.5),[px,setPx]=useState(0),[py,setPy]=useState(0);
+export function ConicExamExplorer({compact=false,initialPreset}:{compact?:boolean;initialPreset?:"hubei2022"|"hubei2025"}){
+ const isHyperbola=initialPreset==="hubei2022";
+ const [kind,setKind]=useState<ConicKind>(isHyperbola?"hyperbola":"ellipse");
+ const [a,setA]=useState(isHyperbola?Math.SQRT2:initialPreset==="hubei2025"?3:4),[b,setB]=useState(initialPreset?1:2),[p,setP]=useState(1.5);
+ const [m,setM]=useState(isHyperbola?-1:.5),[px,setPx]=useState(0),[py,setPy]=useState(isHyperbola?5/3:0);
  const c:ConicModel={kind,a,b,p};
  const line:Secant={point:{x:px,y:py},slope:m};
  const result=intersectConicLine(c,line);
@@ -81,8 +82,8 @@ export function ConicExamExplorer({compact=false}:{compact?:boolean}){
    <div className={styles.controls}>
     <strong className={styles.formula}>{formula}</strong>
     {kind!=="parabola"?<>
-     <ExamParameter label="半长轴 / 实半轴 a" value={a} min={2.5} max={6} step={.1} onChange={setA}/>
-     <ExamParameter label="半短轴 / 虚半轴 b" value={b} min={.5} max={2.4} step={.1} onChange={setB}/>
+     <ExamParameter label="半长轴 / 实半轴 a" value={a} min={.5} max={6} step={.1} onChange={value=>{setA(value);if(kind==="ellipse")setB(current=>Math.min(current,value-.1));}}/>
+     <ExamParameter label="半短轴 / 虚半轴 b" value={b} min={.2} max={kind==="ellipse"?Math.min(5,a-.1):5} step={.1} onChange={setB}/>
     </>:<ExamParameter label="焦点参数 p" value={p} min={.2} max={5} step={.1} onChange={setP}/>}
     <ExamParameter label="过点 P 的横坐标 x₀" value={px} min={-6} max={6} step={.25} onChange={setPx}/>
     <ExamParameter label="过点 P 的纵坐标 y₀" value={py} min={-5} max={5} step={.25} onChange={setPy}/>
