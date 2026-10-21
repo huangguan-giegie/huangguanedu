@@ -41,7 +41,7 @@ function ExamDrawing({ lesson, title }: { lesson: LocalExamLesson; title: string
   </svg>;
 }
 
-export function HubeiExamLab({ initialCase = "square" }: { initialCase?: LocalExamId }) {
+export function HubeiExamLab({ initialCase = "square", embedded = false }: { initialCase?: LocalExamId; embedded?: boolean }) {
   const [selected, setSelected] = useState<LocalExamId>(initialCase);
   const [stage, setStage] = useState(0);
   const [parameters, setParameters] = useState(() => Object.fromEntries(
@@ -63,13 +63,13 @@ export function HubeiExamLab({ initialCase = "square" }: { initialCase?: LocalEx
     catch { setCopied("复制未成功，请选择题干和推导文字后复制"); }
   };
   return <section className={styles.root} aria-label="武汉中考与湖北高考真题探究">
-    <div className={styles.cases} role="group" aria-label="选择本地卷真题">
+    {!embedded && <div className={styles.cases} role="group" aria-label="选择本地卷真题">
       {LOCAL_EXAM_CASES.map(c => <button type="button" key={c.id} aria-pressed={selected === c.id}
         className={selected === c.id ? styles.selected : styles.case}
         onClick={() => { setSelected(c.id); chooseStage(0); }}>
         <span>{c.paper} · {c.question}</span><strong>{c.title}</strong><small>{c.summary}</small>
       </button>)}
-    </div>
+    </div>}
     <header className={styles.intro}>
       <div><span className={styles.eyebrow}>{source.topic} / 原卷条件探究</span><h2>{source.title}</h2></div>
       <p>{lesson.statement}</p>

@@ -8,12 +8,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("真题约束保留线段范围和两组动点解", async ({ page }) => {
-  await page.goto("/geometry-lab");
+  await page.goto("/geometry-lab?question=wuhan2025-q23");
   await expect(page.getByRole("heading", { name: "正方形中的相似与定值", exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "数学实验室统一导航" }).getByRole("link")).toHaveCount(6);
   await page.getByRole("button", { name: "观察 H 超出线段", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "H 已超出线段 DF" })).toBeVisible();
-  await page.getByRole("button", { name: /2025 武汉中考.*第24题/ }).click();
+  await page.goto("/geometry-lab?question=wuhan2025-q24");
   await page.getByRole("button", { name: "第（2）问：x=6−4√3", exact: true }).click();
   await page.getByRole("button", { name: "查看本问答案与推导", exact: true }).click();
   await expect(page.getByText("xP=2 或 6−4√3", { exact: true })).toBeVisible();
@@ -22,8 +22,7 @@ test("真题约束保留线段范围和两组动点解", async ({ page }) => {
 });
 
 test("真题函数带入统一工具，连续变换保留原函数基准", async ({ page }) => {
-  await page.goto("/geometry-lab");
-  await page.getByRole("button", { name: /2025 武汉中考.*第24题/ }).click();
+  await page.goto("/geometry-lab?question=wuhan2025-q24");
   await page.getByRole("link", { name: "打开当前函数 →", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "函数表达式", exact: true })).toHaveValue("x^2/4-3");
   await page.getByRole("slider", { name: /纵向伸缩 A/ }).fill("2");

@@ -72,7 +72,7 @@ PM=2|x|, PN=x−f(x), −2<x<6
 
 | 入口 | 位置 | 职责 |
 | --- | --- | --- |
-| 真题探究 | `/geometry-lab` | 默认展示本次5题；保留吉林卷、2024高考与自由参数命题模型 |
+| 真题题库 | `/geometry-lab` | 默认展示可筛选题库；题目链接使用`?question=题目ID`，保留吉林卷、2024高考与自由参数命题模型 |
 | 几何定理 | `/geometry-lab?view=theorems` | 原有拖动构型、定理库 |
 | 自由作图 | `/geometry-lab?view=editor` | 现有自由几何编辑器 |
 | 函数图像 | `/math-studio?view=functions` | 唯一通用函数图像与变换工具 |

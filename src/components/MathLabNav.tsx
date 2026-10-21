@@ -2,7 +2,7 @@ import Link from "next/link";
 import styles from "./MathLabNav.module.css";
 
 export const MATH_LAB_SECTIONS = [
-  { id: "exam", title: "真题探究", note: "完整题设与连续多问", href: "/geometry-lab" },
+  { id: "exam", title: "真题题库", note: "按年份专题选题并加载", href: "/geometry-lab" },
   { id: "theorems", title: "几何定理", note: "拖动构造验证关系", href: "/geometry-lab?view=theorems" },
   { id: "editor", title: "自由作图", note: "建立自己的构型", href: "/geometry-lab?view=editor" },
   { id: "functions", title: "函数图像", note: "表达式与图像变换", href: "/math-studio?view=functions" },

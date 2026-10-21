@@ -14,6 +14,7 @@ import {useRouter} from "next/navigation";
 import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
 import {FreeGeometryEditor} from "./FreeGeometryEditor";
 import {RealExamAuthoringLab} from "./RealExamAuthoringLab";
+import {ExamQuestionBank} from "./ExamQuestionBank";
 import {MathLabNav, type GeometryWorkshop} from "./MathLabNav";
 import styles from "./GeometryLab.module.css";
 import { AcademyArt } from "./AcademyArt";
@@ -85,7 +86,7 @@ function TeachingNote({title,children}: {title:string;children:ReactNode}) {
 }
 
 /** Dragging is deliberately isolated from persisted quiz diagrams and answers. */
-export function GeometryLab({workshop="exam"}:{workshop?:GeometryWorkshop}) {
+export function GeometryLab({workshop="exam",initialQuestion}:{workshop?:GeometryWorkshop;initialQuestion?:string}) {
   const [mode,setMode]=useState<LabMode>("bisector");
   const [cyclicAngle,setCyclicAngle]=useState(125);
   const router=useRouter();
@@ -165,7 +166,7 @@ export function GeometryLab({workshop="exam"}:{workshop?:GeometryWorkshop}) {
   const workshopNav=<MathLabNav current={workshop}/>;
   if(workshop!=="theorems")return <div className={styles.page}>
    {workshopNav}
-   {workshop==="exam"?<RealExamAuthoringLab/>:<FreeGeometryEditor/>}
+   {workshop==="exam"?<><ExamQuestionBank initialQuestion={initialQuestion}/><details><summary>自由命题与其他专题案例</summary><RealExamAuthoringLab/></details></>:<FreeGeometryEditor/>}
   </div>;
 
   return <div className={styles.page}>
