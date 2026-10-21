@@ -13,9 +13,9 @@ import {exportGeometryLabModel} from "../lib/geometry-lab-export";
 import {useRouter} from "next/navigation";
 import {GeometryTheoremLibrary} from "./GeometryTheoremLibrary";
 import {FreeGeometryEditor} from "./FreeGeometryEditor";
-import {ConicExamExplorer} from "./ConicExamExplorer";
-import {FunctionExamExplorer} from "./FunctionExamExplorer";
 import {RealExamAuthoringLab} from "./RealExamAuthoringLab";
+import {ExamQuestionBank} from "./ExamQuestionBank";
+import {MathLabNav, type GeometryWorkshop} from "./MathLabNav";
 import styles from "./GeometryLab.module.css";
 import { AcademyArt } from "./AcademyArt";
 
@@ -86,7 +86,7 @@ function TeachingNote({title,children}: {title:string;children:ReactNode}) {
 }
 
 /** Dragging is deliberately isolated from persisted quiz diagrams and answers. */
-export function GeometryLab() {
+export function GeometryLab({workshop="exam",initialQuestion}:{workshop?:GeometryWorkshop;initialQuestion?:string}) {
   const [mode,setMode]=useState<LabMode>("bisector");
   const [cyclicAngle,setCyclicAngle]=useState(125);
   const router=useRouter();
@@ -94,7 +94,6 @@ export function GeometryLab() {
   const [sim,setSim]=useState(LAB_DEFAULTS.similarity);
   const [tan,setTan]=useState(LAB_DEFAULTS.tangent);
   const [showGuides,setShowGuides]=useState(true);
-  const [workshop,setWorkshop]=useState<"theorems"|"editor"|"conics"|"trig"|"explog"|"exam">("theorems");
   const activePointer=useRef<{handle:LabHandle;pointerId:number}|null>(null);
   const gridId=useId();
 
@@ -164,22 +163,10 @@ export function GeometryLab() {
   const BD=distance(bisector.B,bisector.D),DC=distance(bisector.D,bisector.C);
   const format=displayMeasure;
 
-  const workshopNav=<div className={styles.modeTabs} role="group" aria-label="实验室教学模式">
-    {([
-     ["exam","数学命题实验室"],["theorems","初中几何定理"],["editor","自由作图工作台"],["conics","高考圆锥曲线"],
-     ["trig","高考三角函数"],["explog","高考指对数函数"],
-    ] as const).map(([id,name])=><button type="button" key={id} aria-pressed={workshop===id}
-     className={workshop===id?styles.modeActive:styles.mode} onClick={()=>setWorkshop(id)}>
-      <span><strong>{name}</strong><small>{id==="editor"?"支持线段及圆半径数值编辑":"更改参数，观察函数和定理"}</small></span>
-    </button>)}
-   </div>;
+  const workshopNav=<MathLabNav current={workshop}/>;
   if(workshop!=="theorems")return <div className={styles.page}>
    {workshopNav}
-   {workshop==="exam"?<RealExamAuthoringLab/>:
-    workshop==="editor"?<FreeGeometryEditor/>:
-    workshop==="conics"?<ConicExamExplorer compact/>:
-    workshop==="trig"?<FunctionExamExplorer compact initialPreset="正弦函数"/>:
-    <FunctionExamExplorer compact initialPreset="指数函数"/>}
+   {workshop==="exam"?<><ExamQuestionBank initialQuestion={initialQuestion}/><details><summary>自由命题与其他专题案例</summary><RealExamAuthoringLab/></details></>:<FreeGeometryEditor/>}
   </div>;
 
   return <div className={styles.page}>

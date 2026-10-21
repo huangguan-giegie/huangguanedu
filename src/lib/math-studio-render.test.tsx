@@ -1,9 +1,10 @@
-import {describe,expect,it} from "vitest";
+import {describe,expect,it,vi} from "vitest";
 import {createElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
 import {cameraProject,build3DLines,plotToSvgPath,worldAxes,DEFAULT_CAMERA,type SurfaceKind} from "./geometry-3d";
 import {MathStudio} from "../components/MathStudio";
 import {FreeGeometryEditor} from "../components/FreeGeometryEditor";
+vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn()})}));
 describe("三维几何投影与符号工作室",()=>{
  it("六种三维参数图所有点坐标有界且有限",()=>{
   for(const kind of ["plane","paraboloid","saddle","sphere","torus","helix"] as SurfaceKind[]){
@@ -39,11 +40,12 @@ describe("三维几何投影与符号工作室",()=>{
    }
  });
  it("CAS与自由作图编辑器均可 SSR，包含完整功能入口",()=>{
-  const cas=renderToStaticMarkup(createElement(MathStudio));
+  const cas=renderToStaticMarkup(createElement(MathStudio,{view:"cas"}));
   expect(cas).toContain("符号代数 CAS");
-  expect(cas).toContain("高考圆锥曲线与直线");
-  expect(cas).toContain("函数图像 · 中高考考点");
-  expect(cas).toContain("绘制函数图像");
+  expect(cas).toContain("圆锥曲线");
+  const functions=renderToStaticMarkup(createElement(MathStudio));
+  expect(functions).toContain("函数图像 · 中高考考点");
+  expect(functions).toContain("绘制函数图像");
   expect(cas).toContain("因式分解");
   expect(cas).not.toContain("<script");
   const editor=renderToStaticMarkup(createElement(FreeGeometryEditor));

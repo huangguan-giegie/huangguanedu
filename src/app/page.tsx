@@ -53,8 +53,8 @@ function Dashboard() {
           <div className="academy-spotlight-grid">
             <Link href="/geometry-lab" className="academy-spotlight-card">
               <AcademyArt kind="geometry" className="academy-spotlight-art" />
-              <strong>动态几何实验室</strong>
-              <small>拖动图形，探索定理、圆锥曲线与几何关系 →</small>
+              <strong>数学实验室 · 真题与几何</strong>
+              <small>从武汉中考与湖北高考真题逐问探究 →</small>
             </Link>
             <Link href="/math-studio" className="academy-spotlight-card">
               <AcademyArt kind="function" className="academy-spotlight-art" />

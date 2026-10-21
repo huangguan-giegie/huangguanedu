@@ -5,6 +5,7 @@ import { conicCurves, conicEquation, type ConicKind, type ConicModel, type V2 } 
 import { ExamConstraintLab } from "./ExamConstraintLab";
 import { VerifiedExamCasebook } from "./VerifiedExamCasebook";
 import { JilinSquareExam } from "./JilinSquareExam";
+import { HubeiExamLab } from "./HubeiExamLab";
 import {
   analyzeSimilarity,analyzeQuadratic,analyzeConic,analyzeLineFamily,
   type ExamResult,type SimilarityTarget,type QuadraticTarget,type ConicTarget,
@@ -12,8 +13,9 @@ import {
 } from "../lib/real-exam-models";
 import styles from "./RealExamAuthoringLab.module.css";
 
-type Topic = "squarecase"|"casebook"|"similar"|"quadratic"|"conic"|"lines"|"basic";
+type Topic = "local"|"squarecase"|"casebook"|"similar"|"quadratic"|"conic"|"lines"|"basic";
 const TOPICS:{id:Topic;name:string;subtitle:string}[]=[
+  {id:"local",name:"武汉中考 · 湖北高考",subtitle:"5道本地卷真题 · 按原题条件逐问探究"},
   {id:"squarecase",name:"真题 · 几何动点与相似",subtitle:"2025 吉林中考第19题 · 分段面积与定解"},
   {id:"casebook",name:"真题复盘 · 多问综合",subtitle:"2025 吉林中考 + 2024 新高考Ⅰ卷原题结构"},
   {id:"similar",name:"中考 · 相似三角形",subtitle:"平行线分段比例、面积比、动点定值"},
@@ -179,7 +181,7 @@ const conicOptions:{value:ConicTarget;label:string}[]=[
 ];
 
 export function RealExamAuthoringLab(){
-  const [topic,setTopic]=useState<Topic>("squarecase");
+  const [topic,setTopic]=useState<Topic>("local");
   const [base,setBase]=useState(6),[height,setHeight]=useState(8),[ad,setAd]=useState(3);
   const [lockD,setLockD]=useState(false),[similarTarget,setSimilarTarget]=useState<SimilarityTarget>("fixedRatio");
   const [similarMode,setSimilarMode]=useState<"parallel"|"rotate">("parallel");
@@ -226,17 +228,22 @@ export function RealExamAuthoringLab(){
   };
   return <div className={styles.page}>
     <header className={styles.hero}>
-      <span className={styles.eyebrow}>EXAM AUTHORING / 真题结构驱动的数学命题实验室</span>
-      <h1>不只是让数学对象定解，更要模拟中高考综合题的命题条件。</h1>
-      <p>以相似、二次函数、圆锥曲线和多条过定点直线为核心。逐项控制参数、交点数量、分支与目标量，区分数值计算和对所有合格构型成立的严格定值证明。</p>
-      <small>以真题的考点结构构造原创参数题，不复制真题原文；逐个模型限定算法适用范围。</small>
+      <span className={styles.eyebrow}>EXAM EXPLORATION / 真题探究</span>
+      <h1>沿着同一道真题，研究每一问的条件。</h1>
+      <p>从武汉中考的几何与函数综合题，到湖北高考的圆锥曲线。图形、测量和推导沿用完整题设，越界和退化位置会同步提示。</p>
+      <small>原卷条件探究与自由参数命题各有入口；解析证明和画布上的近似数值分别展示。</small>
     </header>
     <div className={styles.topicTabs} role="group" aria-label="考试数学专题">
-      {TOPICS.map(t=><button key={t.id} type="button" aria-pressed={topic===t.id}
+      {TOPICS.slice(0,3).map(t=><button key={t.id} type="button" aria-pressed={topic===t.id}
         className={topic===t.id?styles.activeTopic:styles.topic} onClick={()=>change(t.id)}>
         <strong>{t.name}</strong><small>{t.subtitle}</small></button>)}
     </div>
-    {topic==="squarecase"?<JilinSquareExam/>:topic==="casebook"?<VerifiedExamCasebook/>:topic==="basic"?<ExamConstraintLab/>:<>
+    <details className={styles.advancedTopics} open={!["local","squarecase","casebook"].includes(topic)}>
+      <summary>自由命题与基础模型</summary>
+      <div className={styles.topicTabs} role="group" aria-label="自由参数命题专题">{TOPICS.slice(3).map(t=><button key={t.id} type="button" aria-pressed={topic===t.id}
+        className={topic===t.id?styles.activeTopic:styles.topic} onClick={()=>change(t.id)}><strong>{t.name}</strong><small>{t.subtitle}</small></button>)}</div>
+    </details>
+    {topic==="local"?<HubeiExamLab/>:topic==="squarecase"?<JilinSquareExam/>:topic==="casebook"?<VerifiedExamCasebook/>:topic==="basic"?<ExamConstraintLab/>:<>
       <div className={styles.layout}>
         <section className={styles.visual}>
           <div className={styles.heading}><div><strong>01 · 构型与交点</strong>

@@ -1,8 +1,10 @@
 "use client";
 import {useState} from "react";
+import {useRouter} from "next/navigation";
 import {runCAS,type CasAction,type CasResult} from "../lib/polynomial-cas";
 import {FunctionExamExplorer} from "./FunctionExamExplorer";
 import {ConicExamExplorer} from "./ConicExamExplorer";
+import {MathLabNav,type MathStudioView} from "./MathLabNav";
 import styles from "./MathStudio.module.css";
 import { AcademyArt } from "./AcademyArt";
 const commands:{action:CasAction;label:string}[]=[
@@ -62,7 +64,7 @@ function CasPanel({onGraph}:{onGraph:(expression:string)=>void}){
     <button className={styles.reset} onClick={()=>{
      const candidate=expr.split("=")[0].trim();
      if(candidate)onGraph(candidate);
-    }}>将当前表达式显示在下方函数图像中 ↓</button>
+    }}>将当前表达式送到函数图像 →</button>
     <p className={styles.note}>支持隐式乘法（如 2x、(x+1)(x-2)）、整数幂、分数和最多 6 位小数。暂不支持三角函数、对数和一般有理函数；求根限制在二次以内。</p>
    </section>
    <section className={styles.result} aria-live="polite">
@@ -76,18 +78,14 @@ function CasPanel({onGraph}:{onGraph:(expression:string)=>void}){
   </div>
  </div>;
 }
-export function MathStudio(){
- const [tab,setTab]=useState<"cas"|"conic">("cas");
- const [graphExpression,setGraphExpression]=useState("x^2-4x+3");
+export function MathStudio({view="functions",initialExpression,conicPreset}:{view?:MathStudioView;initialExpression?:string;conicPreset?:"hubei2022"|"hubei2025"}){
+ const router=useRouter();
  return <div className={styles.page}>
-  <div className={`${styles.hero} academy-math-hero`}><AcademyArt kind="function" className="academy-math-art" /><p>MATHEMATICS STUDIO · 高级数学工具</p>
-   <h1>中考函数图像与高考圆锥曲线</h1>
-   <span>计算和绘制都使用可验证的数学定义，而不是生成式模型猜测。</span></div>
-  <div className={styles.tabs} role="tablist" aria-label="数学工具切换">
-   <button role="tab" aria-selected={tab==="cas"} onClick={()=>setTab("cas")}>∑ 符号代数 CAS</button>
-   <button role="tab" aria-selected={tab==="conic"} onClick={()=>setTab("conic")}>◇ 高考圆锥曲线与直线</button>
-  </div>
-  {tab==="cas"?<><CasPanel onGraph={setGraphExpression}/><FunctionExamExplorer key={graphExpression} initialExpression={graphExpression}/></>:<ConicExamExplorer/>}
-  <p className={styles.bottom}>本页不修改学生模拟题的标准答案或数据库。它提供一元多项式 CAS、函数曲线和圆锥曲线的确定性数学教学工具，而非完整计算机代数系统。</p>
+  <MathLabNav current={view}/>
+  <div className={`${styles.hero} academy-math-hero`}><AcademyArt kind="function" className="academy-math-art" /><p>MATHEMATICS STUDIO · 函数与代数</p>
+   <h1>{view==="functions"?"研究表达式，观察函数变化。":view==="conics"?"研究曲线与直线的交点。":"精确计算，逐步理解代数。"}</h1>
+   <span>真题探究中的表达式可以直接在这里继续研究；自由改动后的结果按当前参数计算。</span></div>
+  {view==="functions"?<FunctionExamExplorer initialExpression={initialExpression}/>:view==="conics"?<ConicExamExplorer initialPreset={conicPreset}/>:<CasPanel onGraph={expression=>router.push(`/math-studio?view=functions&expression=${encodeURIComponent(expression)}`)}/>}
+  <p className={styles.bottom}>函数、圆锥曲线与符号计算使用统一工具。综合题的题设约束与连续推导请在「真题探究」中查看。</p>
  </div>;
 }

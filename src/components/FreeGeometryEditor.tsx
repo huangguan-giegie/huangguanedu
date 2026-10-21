@@ -87,9 +87,9 @@ function AngleControl({object,resolved,onApply}:{object:GeometryObject;resolved:
   <span className={styles.meta}>长度固定、旋转末端自由点；适用于斜率、平行、垂直及三角形角度条件。</span>
  </label>;
 }
-export function FreeGeometryEditor() {
+export function FreeGeometryEditor({initialDocument,storageKey="hg-geometry-editor-v1"}:{initialDocument?:GeometryDocument;storageKey?:string|null}={}) {
  const router=useRouter();
- const [doc,setDoc]=useState<GeometryDocument>(()=>starterDocument());
+ const [doc,setDoc]=useState<GeometryDocument>(()=>initialDocument?validateDocument(initialDocument):starterDocument());
  const docRef=useRef(doc);
  const [hydrated,setHydrated]=useState(false);
  const [tool,setTool]=useState<Tool>("move");
@@ -98,7 +98,14 @@ export function FreeGeometryEditor() {
  const [locusDraft,setLocusDraft]=useState<{driver:string;path?:string}|null>(null);
  const [selected,setSelected]=useState<string|null>(null);
  const [notice,setNotice]=useState("选择工具，开始探索。");
- const [view,setView]=useState<View>({scale:44,ox:W/2,oy:H/2});
+ const [view,setView]=useState<View>(()=>{
+  const points=initialDocument?.objects.filter(o=>o.kind==="point");
+  if(!points?.length)return {scale:44,ox:W/2,oy:H/2};
+  const xs=points.map(o=>o.x),ys=points.map(o=>o.y);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const scale=Math.min((W-160)/Math.max(2,maxX-minX),(H-140)/Math.max(2,maxY-minY),70);
+  return {scale,ox:W/2-(minX+maxX)*scale/2,oy:H/2+(minY+maxY)*scale/2};
+ });
  const [showGrid,setShowGrid]=useState(true);
  const [undo,setUndo]=useState<GeometryDocument[]>([]);
  const [redo,setRedo]=useState<GeometryDocument[]>([]);
@@ -146,7 +153,7 @@ export function FreeGeometryEditor() {
   // Restore after first paint to keep server/client markup identical.
   const frame=window.requestAnimationFrame(()=>{
    try{
-    const value=window.localStorage.getItem("hg-geometry-editor-v1");
+    const value=storageKey?window.localStorage.getItem(storageKey):null;
     if(value){
      const loaded=parseDocumentJSON(value);
      docRef.current=loaded;setDoc(loaded);
@@ -155,12 +162,12 @@ export function FreeGeometryEditor() {
    setHydrated(true);
   });
   return ()=>window.cancelAnimationFrame(frame);
- },[]);
+ },[storageKey]);
  useEffect(()=>{
-  if(!hydrated)return;
-  try{window.localStorage.setItem("hg-geometry-editor-v1",JSON.stringify(doc));}
+  if(!hydrated||!storageKey)return;
+  try{window.localStorage.setItem(storageKey,JSON.stringify(doc));}
   catch{window.queueMicrotask(()=>setNotice("本地空间不足：建议导出 JSON 备份。"));}
- },[doc,hydrated]);
+ },[doc,hydrated,storageKey]);
  const endDragging=(event:PointerEvent<SVGSVGElement>)=>{
   if(!drag.current||drag.current.pointerId!==event.pointerId)return;
   drag.current=null;
@@ -475,7 +482,7 @@ export function FreeGeometryEditor() {
            const fixed=(v:number)=>Number(v.toFixed(4));
            const expr=`(${fixed(dx)})^2+(${fixed(dy)})^2`;
            window.localStorage.setItem("hg-cas-input-v1",expr);
-           router.push("/math-studio");
+           router.push("/math-studio?view=cas");
           }}>发送两点距离²到 CAS 计算</button>
          </div>;
        })()}
